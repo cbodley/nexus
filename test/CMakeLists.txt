@@ -19,3 +19,7 @@ endif()
 add_executable(test_hpack_integer test_hpack_integer.cc)
 target_link_libraries(test_hpack_integer http2 test_base)
 add_test(test_hpack_integer test_hpack_integer)
+
+add_executable(test_hpack_string test_hpack_string.cc)
+target_link_libraries(test_hpack_string http2 test_base)
+add_test(test_hpack_string test_hpack_string)

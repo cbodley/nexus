@@ -110,4 +110,17 @@ bool decode_integer(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
   return true;
 }
 
+template <typename DynamicBuffer>
+size_t encode_string(std::string_view str, DynamicBuffer& buffer)
+{
+  constexpr uint8_t not_huffman_flag = 0x0;
+  size_t size = str.size();
+  size_t count = encode_integer<7>(size, not_huffman_flag, buffer);
+
+  boost::asio::buffer_copy(buffer.prepare(size),
+                           boost::asio::buffer(str.data(), size));
+  buffer.commit(size);
+  return count + size;
+}
+
 } // namespace http2::hpack
