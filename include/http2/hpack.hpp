@@ -18,6 +18,11 @@ bool decode_integer(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
 template <typename DynamicBuffer>
 size_t encode_string(std::string_view str, DynamicBuffer& buffer);
 
+template <typename ConstBufferSequence, typename DynamicBuffer>
+bool decode_string(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
+                   boost::asio::buffers_iterator<ConstBufferSequence> end,
+                   DynamicBuffer& buffers);
+
 } // namespace http2::hpack
 
 #include <http2/detail/hpack.hpp>

@@ -31,4 +31,28 @@ TEST(HPACKString, encode_empty)
   EXPECT_EQ(expected[0], encoded[0]);
 }
 
+TEST(HPACKString, decode)
+{
+  {
+    const auto in = boost::asio::buffer("\x3ooo");
+    auto pos = boost::asio::buffers_begin(in);
+    auto end = boost::asio::buffers_end(in);
+
+    std::string decoded;
+    auto out = boost::asio::dynamic_buffer(decoded);
+    ASSERT_TRUE(decode_string(pos, end, out));
+    EXPECT_EQ("ooo", decoded);
+  }
+  {
+    const auto in = boost::asio::buffer("\xfwww.example.com");
+    auto pos = boost::asio::buffers_begin(in);
+    auto end = boost::asio::buffers_end(in);
+
+    std::string decoded;
+    auto out = boost::asio::dynamic_buffer(decoded);
+    ASSERT_TRUE(decode_string(pos, end, out));
+    EXPECT_EQ("www.example.com", decoded);
+  }
+}
+
 } // namespace http2::hpack
