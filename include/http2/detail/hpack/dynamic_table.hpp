@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,7 @@ class basic_dynamic_table {
       dst.append(storage.data(), src.length - remaining);
     }
   }
-  void write(segment& dst, const std::string_view& src, char* end) {
+  void write(segment& dst, std::string_view src, char* end) {
     dst.offset = pos;
     dst.length = src.size();
     char* data = storage.data() + dst.offset;
@@ -49,6 +50,18 @@ class basic_dynamic_table {
       pos = src.copy(storage.data(), dst.length - remaining, remaining);
     }
   }
+  bool equals(std::string_view lhs, const segment& rhs, const char* end) const {
+    if (lhs.size() != rhs.length) {
+      return false;
+    }
+    const char* data = storage.data() + rhs.offset;
+    const size_t remaining = std::distance(data, end);
+    if (rhs.length <= remaining) {
+      return lhs.compare(0, rhs.length, data) == 0;
+    }
+    return lhs.compare(0, remaining, data) == 0
+        && lhs.compare(0, rhs.length - remaining, storage.data()) == 0;
+  }
 
  public:
   basic_dynamic_table(size_t max_size, allocator_type alloc = allocator_type())
@@ -58,6 +71,7 @@ class basic_dynamic_table {
       free(max_size)
   {}
 
+  size_t max_size() const { return size; }
   void set_size(size_t new_size) {
     while (size > free + new_size) {
       auto& e = entries.back();
@@ -66,6 +80,7 @@ class basic_dynamic_table {
     }
     size = std::min(new_size, storage.size());
   }
+
   bool lookup(uint32_t index, std::string* name, std::string* value) {
     if (index >= entries.size()) {
       return false;
@@ -83,6 +98,7 @@ class basic_dynamic_table {
   bool insert(std::string_view name, std::string_view value) {
     size_t esize = name.size() + value.size() + entry_size_overhead;
     if (esize > size) {
+      free = size;
       entries.clear();
       return false;
     }
@@ -99,6 +115,24 @@ class basic_dynamic_table {
     write(e.name, name, end);
     write(e.value, value, end);
     return true;
+  }
+
+  std::optional<uint32_t> search(std::string_view name,
+                                 std::string_view value,
+                                 bool& has_value) {
+    const auto end = storage.data() + storage.size();
+    std::optional<uint32_t> index;
+    for (uint32_t i = 0; i < entries.size(); i++) {
+      const auto& e = entries[i];
+      if (equals(name, e.name, end)) {
+        index = i;
+        if (equals(value, e.value, end)) {
+          has_value = true;
+          break;
+        }
+      }
+    }
+    return index;
   }
 };
 
