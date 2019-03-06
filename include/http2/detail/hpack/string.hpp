@@ -43,6 +43,7 @@ bool decode_string(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
     auto output = buffers.prepare(len);
     std::copy(pos, pos + len, boost::asio::buffers_begin(output));
     buffers.commit(len);
+    pos += len;
   }
   return true;
 }
