@@ -1,13 +1,11 @@
-#include <http2/hpack.hpp>
+#include <http2/detail/hpack/integer.hpp>
 #include <optional>
 #include <random>
 #include <gtest/gtest.h>
 
-namespace http2::hpack {
+namespace http2::detail::hpack {
 
 using uint128_t = unsigned __int128;
-
-namespace detail {
 
 template <> struct numeric_traits<uint128_t> {
   static constexpr int digits = 128;
@@ -21,8 +19,6 @@ template <> struct numeric_traits<uint128_t> {
     return (ffs << 64) | ffs;
   }
 };
-
-} // namespace detail
 
 using IntegerTypes_8_16_32_64 = ::testing::Types<
     uint8_t, uint16_t, uint32_t, uint64_t>;
@@ -1130,4 +1126,4 @@ TEST(HPACKIntegerOverflow, decode_prefix_1_uint64)
   EXPECT_FALSE(decode_integer<1>(pos, end, value, padding));
 }
 
-} // namespace http2::hpack
+} // namespace http2::detail::hpack

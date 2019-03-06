@@ -1,9 +1,9 @@
-#include <http2/hpack.hpp>
+#include <http2/detail/hpack/string.hpp>
 #include <optional>
 #include <random>
 #include <gtest/gtest.h>
 
-namespace http2::hpack {
+namespace http2::detail::hpack {
 
 static std::string encode_string(std::string_view str)
 {
@@ -55,4 +55,4 @@ TEST(HPACKString, decode)
   }
 }
 
-} // namespace http2::hpack
+} // namespace http2::detail::hpack

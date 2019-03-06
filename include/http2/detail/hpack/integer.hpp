@@ -1,24 +1,20 @@
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
 #include <cstddef>
 #include <limits>
-#include <type_traits>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
 
-namespace http2::hpack {
+namespace http2::detail::hpack {
 
-namespace detail {
 template <typename T> struct numeric_traits : std::numeric_limits<T> {};
-}
 
 template <size_t PrefixN, typename IntegerT, typename DynamicBuffer>
 size_t encode_integer(IntegerT value, uint8_t padding, DynamicBuffer& buffer)
 {
-  using numeric_traits = detail::numeric_traits<IntegerT>;
+  using numeric_traits = numeric_traits<IntegerT>;
 
   static_assert(PrefixN >= 1 && PrefixN <= 8);
   static_assert(numeric_traits::is_integer);
@@ -63,7 +59,7 @@ bool decode_integer(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
                     boost::asio::buffers_iterator<ConstBufferSequence> end,
                     IntegerT& value, uint8_t& padding)
 {
-  using numeric_traits = detail::numeric_traits<IntegerT>;
+  using numeric_traits = numeric_traits<IntegerT>;
 
   static_assert(PrefixN >= 1 && PrefixN <= 8);
   static_assert(numeric_traits::is_integer);
@@ -112,41 +108,4 @@ bool decode_integer(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
   return true;
 }
 
-template <typename DynamicBuffer>
-size_t encode_string(std::string_view str, DynamicBuffer& buffer)
-{
-  constexpr uint8_t not_huffman_flag = 0x0;
-  size_t size = str.size();
-  size_t count = encode_integer<7>(size, not_huffman_flag, buffer);
-
-  boost::asio::buffer_copy(buffer.prepare(size),
-                           boost::asio::buffer(str.data(), size));
-  buffer.commit(size);
-  return count + size;
-}
-
-template <typename ConstBufferSequence, typename DynamicBuffer>
-bool decode_string(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
-                   boost::asio::buffers_iterator<ConstBufferSequence> end,
-                   DynamicBuffer& buffers)
-{
-  uint32_t len = 0;
-  uint8_t huffman_flag = 0;
-  if (!decode_integer<7>(pos, end, len, huffman_flag)) {
-    return false;
-  }
-  if (std::distance(pos, end) < len) {
-    return false;
-  }
-  if (huffman_flag & 0x80) {
-    return false; // TODO: huffman decode
-  }
-  if (len) {
-    auto output = buffers.prepare(len);
-    std::copy(pos, pos + len, boost::asio::buffers_begin(output));
-    buffers.commit(len);
-  }
-  return true;
-}
-
-} // namespace http2::hpack
+} // namespace http2::detail::hpack
