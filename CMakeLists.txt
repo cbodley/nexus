@@ -13,5 +13,8 @@ target_link_libraries(http2 INTERFACE Boost::system)
 
 option(HTTP2_TEST_ADDRESS_SANITIZER "build http2 tests with address sanitizer" ON)
 
-enable_testing()
-add_subdirectory(test EXCLUDE_FROM_ALL)
+option(HTTP2_BUILD_TESTS "build http2 tests" ON)
+if(HTTP2_BUILD_TESTS)
+	enable_testing()
+	add_subdirectory(test)
+endif()
