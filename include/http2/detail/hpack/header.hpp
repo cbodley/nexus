@@ -16,6 +16,12 @@
 namespace http2::detail::hpack {
 
 template <typename DynamicBuffer>
+size_t encode_table_size_update(uint32_t size, DynamicBuffer& buffers)
+{
+  return encode_integer<5>(size, 0x20, buffers);
+}
+
+template <typename DynamicBuffer>
 size_t encode_indexed_header(uint32_t index, DynamicBuffer& buffers)
 {
   return encode_integer<7>(index, 0x80, buffers);
@@ -174,6 +180,41 @@ bool decode_header(RandomIterator& pos, RandomIterator end,
 
   if (add_to_index) {
     table.insert(name, value);
+  }
+  return true;
+}
+
+// TODO: Fields must store a flag for never-indexed
+// TODO: decode literals directly into Field-allocated storage
+// TODO: consider reference-counted fields to reuse literals in dynamic table
+
+template <typename Fields, typename SizeType,
+          typename Allocator, typename DynamicBuffer>
+size_t encode_headers(const Fields& fields,
+                      basic_dynamic_table<SizeType, 32, Allocator>& table,
+                      DynamicBuffer& buffers)
+{
+  size_t count = 0;
+  for (const auto& f : fields) {
+    count += encode_header({f.name_string().data(), f.name_string().size()},
+                           {f.value().data(), f.value().size()},
+                           table, buffers);
+  }
+  return count;
+}
+
+template <typename RandomIterator, typename SizeType,
+          typename Allocator, typename Fields>
+bool decode_headers(RandomIterator& pos, RandomIterator end,
+                    basic_dynamic_table<SizeType, 32, Allocator>& table,
+                    Fields& fields)
+{
+  std::string name, value;
+  while (pos != end) {
+    if (!decode_header(pos, end, table, name, value)) {
+      return false;
+    }
+    fields.insert(name, value);
   }
   return true;
 }
