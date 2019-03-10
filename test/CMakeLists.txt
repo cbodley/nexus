@@ -31,3 +31,9 @@ add_test(test_hpack_dynamic_table test_hpack_dynamic_table)
 add_executable(test_hpack_header test_hpack_header.cc)
 target_link_libraries(test_hpack_header http2 test_base)
 add_test(test_hpack_header test_hpack_header)
+
+find_package(OpenSSL 1.0.2 REQUIRED)
+
+add_executable(test_ssl_alpn test_ssl_alpn.cc)
+target_link_libraries(test_ssl_alpn http2 test_base OpenSSL::SSL OpenSSL::Crypto)
+add_test(test_ssl_alpn test_ssl_alpn)
