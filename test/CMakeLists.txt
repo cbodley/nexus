@@ -45,3 +45,7 @@ find_package(OpenSSL 1.0.2 REQUIRED)
 add_executable(test_ssl_alpn test_ssl_alpn.cc)
 target_link_libraries(test_ssl_alpn http2 test_base OpenSSL::SSL OpenSSL::Crypto)
 add_test(test_ssl_alpn test_ssl_alpn)
+
+add_executable(test_client_connection test_client_connection.cc)
+target_link_libraries(test_client_connection http2 test_base)
+add_test(test_client_connection test_client_connection)
