@@ -16,6 +16,8 @@ if(HTTP2_TEST_ADDRESS_SANITIZER)
 	target_link_libraries(test_base INTERFACE "-fsanitize=address")
 endif()
 
+add_subdirectory(hpack)
+
 add_executable(test_protocol test_protocol.cc)
 target_link_libraries(test_protocol http2 test_base)
 #add_test(test_protocol test_protocol) # just test compile
@@ -23,22 +25,6 @@ target_link_libraries(test_protocol http2 test_base)
 add_executable(test_error test_error.cc)
 target_link_libraries(test_error http2 test_base)
 #add_test(test_error test_error) # just test compile
-
-add_executable(test_hpack_integer test_hpack_integer.cc)
-target_link_libraries(test_hpack_integer http2 test_base)
-add_test(test_hpack_integer test_hpack_integer)
-
-add_executable(test_hpack_string test_hpack_string.cc)
-target_link_libraries(test_hpack_string http2 test_base)
-add_test(test_hpack_string test_hpack_string)
-
-add_executable(test_hpack_dynamic_table test_hpack_dynamic_table.cc)
-target_link_libraries(test_hpack_dynamic_table http2 test_base)
-add_test(test_hpack_dynamic_table test_hpack_dynamic_table)
-
-add_executable(test_hpack_header test_hpack_header.cc)
-target_link_libraries(test_hpack_header http2 test_base)
-add_test(test_hpack_header test_hpack_header)
 
 find_package(OpenSSL 1.0.2 REQUIRED)
 
