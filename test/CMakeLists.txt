@@ -16,6 +16,10 @@ if(HTTP2_TEST_ADDRESS_SANITIZER)
 	target_link_libraries(test_base INTERFACE "-fsanitize=address")
 endif()
 
+add_executable(test_protocol test_protocol.cc)
+target_link_libraries(test_protocol http2 test_base)
+#add_test(test_protocol test_protocol) # just test compile
+
 add_executable(test_hpack_integer test_hpack_integer.cc)
 target_link_libraries(test_hpack_integer http2 test_base)
 add_test(test_hpack_integer test_hpack_integer)
