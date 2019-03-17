@@ -26,6 +26,10 @@ add_executable(test_error test_error.cc)
 target_link_libraries(test_error http2 test_base)
 #add_test(test_error test_error) # just test compile
 
+add_executable(test_frame test_frame.cc)
+target_link_libraries(test_frame http2 test_base)
+add_test(test_frame test_frame)
+
 find_package(OpenSSL 1.0.2 REQUIRED)
 
 add_executable(test_ssl_alpn test_ssl_alpn.cc)

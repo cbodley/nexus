@@ -44,11 +44,12 @@ enum class frame_type : uint8_t {
 };
 
 struct frame_header {
-  uint32_t length : 24; // payload size as 24-bit unsigned integer
-  uint32_t type : 8;
+  uint32_t length; // payload size as 24-bit unsigned integer
+  uint8_t type;
   uint8_t flags;
   stream_identifier stream_id; // highest bit reserved
 };
+constexpr stream_identifier stream_identifier_mask = 0x7fffffff;
 
 constexpr uint8_t frame_flag_end_stream = 0x1;
 constexpr uint8_t frame_flag_ack = 0x1;
