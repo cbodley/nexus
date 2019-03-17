@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <limits>
 #include <string_view>
 
@@ -77,10 +78,14 @@ enum class setting_parameter : setting_parameter_identifier {
 };
 constexpr size_t num_setting_parameters = 6;
 
+using setting_parameters = std::array<setting_parameter_pair,
+                                      num_setting_parameters>;
+
+// value bounds
 constexpr setting_value max_setting_value = std::numeric_limits<setting_value>::max();
 constexpr setting_value min_setting_frame_size = 16384;
 constexpr setting_value max_setting_frame_size = 16777215;
-
+// default values
 constexpr setting_value default_setting_header_table_size = 4096;
 constexpr setting_value default_setting_enable_push = 1;
 constexpr setting_value default_setting_max_concurrent_streams = max_setting_value;
