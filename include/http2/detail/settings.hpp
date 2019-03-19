@@ -78,26 +78,20 @@ void write_settings(SyncWriteStream& stream,
                     RandomSettingIterator last,
                     boost::system::error_code& ec)
 {
-  const auto count = std::distance(first, last);
-
-  protocol::frame_header header;
-  header.length = count * (sizeof(uint16_t) + sizeof(uint32_t));
-  header.type = static_cast<uint8_t>(protocol::frame_type::settings);
-  header.flags = 0;
-  header.stream_id = 0;
-
-  const size_t size = 9 + header.length; // 9 byte header
+  // encode each parameter into the payload
+  const size_t count = std::distance(first, last);
+  const auto size = count * (sizeof(uint16_t) + sizeof(uint32_t));
   auto buf = buffers.prepare(size);
   auto pos = boost::asio::buffers_begin(buf);
-
-  pos = protocol::detail::encode_frame_header(header, pos);
-
   for (auto param = first; param != last; ++param) {
     pos = protocol::detail::encode_setting(*param, pos);
   }
   buffers.commit(size);
-
-  boost::asio::write(stream, buffers.data(), ec);
+  // write the settings frame
+  constexpr auto type = protocol::frame_type::settings;
+  constexpr uint8_t flags = 0;
+  constexpr protocol::stream_identifier stream_id = 0;
+  detail::write_frame(stream, type, flags, stream_id, buffers.data(), ec);
   buffers.consume(size);
 }
 
@@ -105,18 +99,11 @@ template <typename SyncWriteStream>
 void write_settings_ack(SyncWriteStream& stream,
                         boost::system::error_code& ec)
 {
-  protocol::frame_header header;
-  header.length = 0;
-  header.type = static_cast<uint8_t>(protocol::frame_type::settings);
-  header.flags = protocol::frame_flag_ack;
-  header.stream_id = 0;
-
-  uint8_t buffer[9]; // 9 byte header
-  auto buf = boost::asio::buffer(buffer);
-  auto pos = boost::asio::buffers_begin(buf);
-  pos = protocol::detail::encode_frame_header(header, pos);
-
-  boost::asio::write(stream, buf, ec);
+  constexpr auto type = protocol::frame_type::settings;
+  constexpr auto flags = protocol::frame_flag_ack;
+  constexpr protocol::stream_identifier stream_id = 0;
+  auto payload = boost::asio::const_buffer(); // empty
+  detail::write_frame(stream, type, flags, stream_id, payload, ec);
 }
 
 } // namespace detail

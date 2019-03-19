@@ -4,7 +4,10 @@
 
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/read.hpp>
+#include <boost/asio/write.hpp>
+#include <boost/beast/core/buffers_cat.hpp>
 
+#include <http2/error.hpp>
 #include <http2/protocol.hpp>
 
 namespace http2 {
@@ -58,6 +61,29 @@ void read_frame_header(SyncReadStream& stream,
     return;
   }
   protocol::detail::decode_frame_header(buffer, header);
+}
+
+template <typename SyncWriteStream, typename ConstBufferSequence>
+void write_frame(SyncWriteStream& stream, protocol::frame_type type,
+                 uint8_t flags, protocol::stream_identifier stream_id,
+                 const ConstBufferSequence& payload,
+                 boost::system::error_code& ec)
+{
+  protocol::frame_header header;
+  header.length = boost::asio::buffer_size(payload);
+  header.type = static_cast<uint8_t>(type);
+  header.flags = flags;
+  header.stream_id = stream_id;
+  if (header.length & 0xff000000) { // only 24 bits to encode length
+    ec = make_error_code(protocol::error::frame_size_error);
+    return;
+  }
+
+  uint8_t hbuf[9];
+  protocol::detail::encode_frame_header(header, hbuf);
+
+  auto frame = boost::beast::buffers_cat(boost::asio::buffer(hbuf), payload);
+  boost::asio::write(stream, frame, ec);
 }
 
 } // namespace detail

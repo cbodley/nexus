@@ -38,6 +38,10 @@ add_executable(test_basic_connection_settings test_basic_connection_settings.cc)
 target_link_libraries(test_basic_connection_settings http2 test_base)
 add_test(test_basic_connection_settings test_basic_connection_settings)
 
+add_executable(test_basic_connection_flow_control test_basic_connection_flow_control.cc)
+target_link_libraries(test_basic_connection_flow_control http2 test_base)
+add_test(test_basic_connection_flow_control test_basic_connection_flow_control)
+
 find_package(OpenSSL 1.0.2 REQUIRED)
 
 add_executable(test_ssl_alpn test_ssl_alpn.cc)
