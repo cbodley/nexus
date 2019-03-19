@@ -83,14 +83,14 @@ using setting_parameters = std::array<setting_parameter_pair,
 
 // value bounds
 constexpr setting_value max_setting_value = std::numeric_limits<setting_value>::max();
-constexpr setting_value min_setting_frame_size = 16384;
-constexpr setting_value max_setting_frame_size = 16777215;
+constexpr setting_value min_setting_max_frame_size = 16384;
+constexpr setting_value max_setting_max_frame_size = 16777215;
 // default values
 constexpr setting_value default_setting_header_table_size = 4096;
 constexpr setting_value default_setting_enable_push = 1;
 constexpr setting_value default_setting_max_concurrent_streams = max_setting_value;
 constexpr setting_value default_setting_initial_window_size = 65535;
-constexpr setting_value default_setting_max_frame_size = min_setting_frame_size;
+constexpr setting_value default_setting_max_frame_size = min_setting_max_frame_size;
 constexpr setting_value default_setting_max_header_list_size = max_setting_value;
 
 struct setting_values {
@@ -102,6 +102,21 @@ struct setting_values {
   setting_value max_header_list_size = default_setting_max_header_list_size;
 };
 static constexpr setting_values default_settings{};
+
+inline bool operator==(const setting_values& lhs, const setting_values& rhs) {
+  return std::equal(&lhs.header_table_size,
+                    &lhs.header_table_size + protocol::num_setting_parameters,
+                    &rhs.header_table_size);
+}
+inline bool operator!=(const setting_values& lhs, const setting_values& rhs) {
+  return !std::equal(&lhs.header_table_size,
+                     &lhs.header_table_size + protocol::num_setting_parameters,
+                     &rhs.header_table_size);
+}
+
+using flow_control_size_type = uint32_t;
+constexpr flow_control_size_type max_flow_control_window_size = 0x7fffffff;
+using flow_control_ssize_type = int32_t;
 
 /// protocol error codes
 enum class error {

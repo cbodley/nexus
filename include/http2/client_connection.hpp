@@ -12,7 +12,7 @@ class client_connection : public basic_connection<Stream> {
  public:
   template <typename ...Args>
   client_connection(const protocol::setting_values& settings, Args&& ...args)
-    : basic_connection<Stream>(settings, std::forward<Args>(args)...)
+    : basic_connection<Stream>(client_tag, settings, std::forward<Args>(args)...)
   {}
   void upgrade(std::string_view host, std::string_view target,
                boost::system::error_code& ec);

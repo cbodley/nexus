@@ -14,7 +14,7 @@ class server_connection : public basic_connection<Stream> {
  public:
   template <typename ...Args>
   server_connection(const protocol::setting_values& settings, Args&& ...args)
-    : basic_connection<Stream>(settings, std::forward<Args>(args)...)
+    : basic_connection<Stream>(server_tag, settings, std::forward<Args>(args)...)
   {}
 
   // accept a new client with prior knowledge of http/2 support, skipping the
