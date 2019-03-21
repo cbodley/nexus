@@ -64,6 +64,8 @@ class basic_connection {
     return *self.buffer;
   }
 
+  buffer_type& read_payload(size_t size, boost::system::error_code& ec);
+
   template <typename ConstBufferSequence>
   void send_data(const ConstBufferSequence& buffers,
                  protocol::stream_identifier stream_id,
@@ -73,6 +75,10 @@ class basic_connection {
   void send_headers(const Fields& fields,
                     protocol::stream_identifier stream_id,
                     boost::system::error_code& ec);
+
+  void send_priority(const protocol::stream_priority priority,
+                     protocol::stream_identifier stream_id,
+                     boost::system::error_code& ec);
 
   void send_settings(boost::system::error_code& ec);
 
@@ -85,6 +91,9 @@ class basic_connection {
 
   void handle_headers(const protocol::frame_header& header,
                       boost::system::error_code& ec);
+
+  void handle_priority(const protocol::frame_header& header,
+                       boost::system::error_code& ec);
 
   void handle_settings(const protocol::frame_header& header,
                        boost::system::error_code& ec);
@@ -267,6 +276,31 @@ void basic_connection<Stream>::send_headers(
 }
 
 template <typename Stream>
+void basic_connection<Stream>::send_priority(
+    const protocol::stream_priority priority,
+    protocol::stream_identifier stream_id,
+    boost::system::error_code& ec)
+{
+  if (stream_id == 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  auto& buffer = output_buffers();
+  assert(buffer.size() == 0);
+  {
+    auto buf = buffer.prepare(5);
+    auto pos = boost::asio::buffers_begin(buf);
+    pos = protocol::detail::encode_priority(priority, pos);
+    buffer.commit(5);
+  }
+  constexpr auto type = protocol::frame_type::priority;
+  constexpr uint8_t flags = 0;
+  detail::write_frame(next_layer(), type, flags, stream_id,
+                      buffer.data(), ec);
+  buffer.consume(5);
+}
+
+template <typename Stream>
 void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
 {
   if (self.settings != settings_sent) {
@@ -325,6 +359,21 @@ void basic_connection<Stream>::send_window_update(
 }
 
 template <typename Stream>
+typename basic_connection<Stream>::buffer_type&
+basic_connection<Stream>::read_payload(size_t size,
+                                       boost::system::error_code& ec)
+{
+  auto& buffer = input_buffers();
+  assert(buffer.size() == 0);
+  auto bytes_read = boost::asio::read(next_layer(), buffer.prepare(size), ec);
+  buffer.commit(bytes_read);
+  if (!ec) {
+    assert(bytes_read == size);
+  }
+  return buffer;
+}
+
+template <typename Stream>
 void basic_connection<Stream>::handle_data(
     const protocol::frame_header& header,
     boost::system::error_code& ec)
@@ -356,14 +405,7 @@ void basic_connection<Stream>::handle_data(
       return;
   }
   // TODO: read into buffers provided by caller
-  auto& buffer = input_buffers();
-  auto buf = buffer.prepare(header.length);
-  boost::asio::read(next_layer(), buf, ec);
-  if (ec) {
-    return;
-  }
-  // TODO: decode padding/body
-  buffer.commit(0); // discard
+  read_payload(header.length, ec);
 }
 
 template <typename Stream>
@@ -427,18 +469,14 @@ void basic_connection<Stream>::handle_headers(
         return;
     }
   }
-  auto& buffers = input_buffers();
-  assert(buffers.size() == 0);
-  if (header.length) {
-    // read the payload
-    auto buf = buffers.prepare(header.length);
-    const auto bytes_read = boost::asio::read(next_layer(), buf, ec);
-    if (ec) {
-      return;
-    }
-    buffers.commit(bytes_read);
+  if (header.length == 0) {
+    return;
   }
-  auto buf = buffers.data();
+  auto& buffer = read_payload(header.length, ec);
+  if (ec) {
+    return;
+  }
+  auto buf = buffer.data();
   auto pos = boost::asio::buffers_begin(buf);
   auto end = boost::asio::buffers_end(buf);
 
@@ -464,12 +502,49 @@ void basic_connection<Stream>::handle_headers(
     }
     // TODO: store fields
   }
-  buffers.consume(header.length);
+  buffer.consume(header.length);
 
   if (padding > static_cast<size_t>(std::distance(pos, end))) {
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
+}
+
+template <typename Stream>
+void basic_connection<Stream>::handle_priority(
+    const protocol::frame_header& header,
+    boost::system::error_code& ec)
+{
+  if (header.stream_id == 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  if (header.length != 5) {
+    ec = make_error_code(protocol::error::frame_size_error);
+    return;
+  }
+  auto stream = streams.find(header.stream_id, detail::stream_id_less{});
+  if (stream == streams.end()) {
+    // new idle stream
+    auto impl = std::make_unique<detail::stream_impl>();
+    impl->id = header.stream_id;
+    impl->state = protocol::stream_state::idle;
+    impl->inbound_window = self.settings.initial_window_size;
+    impl->outbound_window = peer.settings.initial_window_size;
+    stream = streams.insert(streams.end(), *impl.release());
+  }
+  auto& buffer = read_payload(header.length, ec);
+  if (ec) {
+    return;
+  }
+  auto pos = boost::asio::buffers_begin(buffer.data());
+  pos = protocol::detail::decode_priority(pos, stream->priority);
+  buffer.consume(5);
+  if (stream->id == stream->priority.dependency) {
+    ec = make_error_code(protocol::error::protocol_error); // XXX: stream error
+    return;
+  }
+  // TODO: reprioritize
 }
 
 template <typename Stream>
@@ -647,7 +722,9 @@ void basic_connection<Stream>::run(boost::system::error_code& ec)
       case protocol::frame_type::headers:
         handle_headers(header, ec);
         break;
-      //case protocol::frame_type::priority:
+      case protocol::frame_type::priority:
+        handle_priority(header, ec);
+        break;
       //case protocol::frame_type::rst_stream:
       case protocol::frame_type::settings:
         handle_settings(header, ec);
