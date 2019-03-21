@@ -64,6 +64,11 @@ class basic_connection {
     return *self.buffer;
   }
 
+  template <typename ConstBufferSequence>
+  void send_data(const ConstBufferSequence& buffers,
+                 protocol::stream_identifier stream_id,
+                 boost::system::error_code& ec);
+
   template <typename Fields>
   void send_headers(const Fields& fields,
                     protocol::stream_identifier stream_id,
@@ -74,6 +79,9 @@ class basic_connection {
   void send_window_update(protocol::stream_identifier stream_id,
                           protocol::flow_control_size_type increment,
                           boost::system::error_code& ec);
+
+  void handle_data(const protocol::frame_header& header,
+                   boost::system::error_code& ec);
 
   void handle_headers(const protocol::frame_header& header,
                       boost::system::error_code& ec);
@@ -157,6 +165,38 @@ void checked_adjust_window(protocol::flow_control_ssize_type& window,
   window += increment;
 }
 } // namespace detail
+
+template <typename Stream>
+template <typename ConstBufferSequence>
+void basic_connection<Stream>::send_data(
+    const ConstBufferSequence& buffers,
+    protocol::stream_identifier stream_id,
+    boost::system::error_code& ec)
+{
+  if (stream_id == 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  auto stream = streams.find(stream_id, detail::stream_id_less{});
+  if (stream == streams.end()) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  switch (stream->state) {
+    // allowed states
+    case protocol::stream_state::open: break;
+    case protocol::stream_state::half_closed_remote: break;
+    // disallowed states
+    default:
+      ec = make_error_code(protocol::error::stream_closed);
+      return;
+  }
+
+  constexpr auto type = protocol::frame_type::data;
+  constexpr uint8_t flags = 0;
+  detail::write_frame(next_layer(), type, flags, stream_id,
+                      buffers, ec);
+}
 
 template <typename Stream>
 template <typename Fields>
@@ -285,6 +325,48 @@ void basic_connection<Stream>::send_window_update(
 }
 
 template <typename Stream>
+void basic_connection<Stream>::handle_data(
+    const protocol::frame_header& header,
+    boost::system::error_code& ec)
+{
+  if (header.stream_id == 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  auto stream = streams.find(header.stream_id, detail::stream_id_less{});
+  if (stream == streams.end()) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  switch (stream->state) {
+    // allowed states
+    case protocol::stream_state::open:
+      if (header.flags & protocol::frame_flag_end_stream) {
+        stream->state = protocol::stream_state::half_closed_remote;
+      }
+      break;
+    case protocol::stream_state::half_closed_local:
+      if (header.flags & protocol::frame_flag_end_stream) {
+        stream->state = protocol::stream_state::closed;
+      }
+      break;
+    // disallowed states
+    default:
+      ec = make_error_code(protocol::error::stream_closed);
+      return;
+  }
+  // TODO: read into buffers provided by caller
+  auto& buffer = input_buffers();
+  auto buf = buffer.prepare(header.length);
+  boost::asio::read(next_layer(), buf, ec);
+  if (ec) {
+    return;
+  }
+  // TODO: decode padding/body
+  buffer.commit(0); // discard
+}
+
+template <typename Stream>
 void basic_connection<Stream>::handle_headers(
     const protocol::frame_header& header,
     boost::system::error_code& ec)
@@ -311,21 +393,28 @@ void basic_connection<Stream>::handle_headers(
     stream = streams.insert(streams.end(), *impl.release());
     // TODO: close any of peer's idle streams with lower id
   } else {
+    // existing stream
     stream = streams.find(header.stream_id, detail::stream_id_less{});
     if (stream == streams.end()) {
       ec = make_error_code(protocol::error::protocol_error);
       return;
     }
-    // existing stream
     switch (stream->state) {
       // allowed states
       case protocol::stream_state::idle:
         stream->state = protocol::stream_state::open;
-        break;
+        [[fallthrough]];
       case protocol::stream_state::open:
+        if (header.flags & protocol::frame_flag_end_stream) {
+          stream->state = protocol::stream_state::half_closed_remote;
+        }
         break;
       case protocol::stream_state::reserved_remote:
-        stream->state = protocol::stream_state::half_closed_local;
+        if (header.flags & protocol::frame_flag_end_stream) {
+          stream->state = protocol::stream_state::closed;
+        } else {
+          stream->state = protocol::stream_state::half_closed_local;
+        }
         break;
       // disallowed states
       case protocol::stream_state::half_closed_remote:
@@ -552,7 +641,9 @@ void basic_connection<Stream>::run(boost::system::error_code& ec)
       return;
     }
     switch (static_cast<protocol::frame_type>(header.type)) {
-      //case protocol::frame_type::data:
+      case protocol::frame_type::data:
+        handle_data(header, ec);
+        break;
       case protocol::frame_type::headers:
         handle_headers(header, ec);
         break;
