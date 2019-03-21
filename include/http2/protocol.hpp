@@ -30,6 +30,12 @@ using stream_identifier = uint32_t;
 constexpr bool client_initiated(stream_identifier id) { return (id & 1) == 1; } // odd
 constexpr bool server_initiated(stream_identifier id) { return (id & 1) == 0; } // even
 
+struct stream_priority {
+  stream_identifier dependency = 0;
+  bool exclusive = false;
+  uint8_t weight = 15;
+};
+
 // 6. Frame Definitions
 enum class frame_type : uint8_t {
   data = 0,

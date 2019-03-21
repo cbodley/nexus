@@ -11,14 +11,12 @@ namespace bi = boost::intrusive;
 struct stream_impl : bi::set_base_hook<bi::optimize_size<true>> {
   protocol::stream_identifier id = 0;
   protocol::stream_state state = protocol::stream_state::idle;
+  protocol::stream_priority priority;
   // flow control
   protocol::flow_control_ssize_type inbound_window =
       protocol::default_setting_initial_window_size;
   protocol::flow_control_ssize_type outbound_window =
       protocol::default_setting_initial_window_size;
-  // prioritization
-  protocol::stream_identifier stream_dependency = 0;
-  uint16_t weight = 16; // [1, 256]
 };
 
 struct stream_id_less {

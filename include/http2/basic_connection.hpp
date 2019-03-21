@@ -9,8 +9,11 @@
 #include <http2/error.hpp>
 #include <http2/protocol.hpp>
 #include <http2/detail/frame.hpp>
+#include <http2/detail/priority.hpp>
 #include <http2/detail/settings.hpp>
 #include <http2/detail/stream.hpp>
+
+#include <http2/detail/hpack/header.hpp>
 
 namespace http2 {
 
@@ -37,6 +40,7 @@ class basic_connection {
     protocol::stream_identifier stream_in_headers = 0;
     protocol::stream_identifier next_stream_id;
     std::optional<buffer_type> buffer;
+    std::optional<detail::hpack::dynamic_table> table;
 
     explicit constexpr endpoint(client_tag_t) : next_stream_id(1) {}
     explicit constexpr endpoint(server_tag_t) : next_stream_id(2) {}
@@ -60,10 +64,19 @@ class basic_connection {
     return *self.buffer;
   }
 
+  template <typename Fields>
+  void send_headers(const Fields& fields,
+                    protocol::stream_identifier stream_id,
+                    boost::system::error_code& ec);
+
   void send_settings(boost::system::error_code& ec);
+
   void send_window_update(protocol::stream_identifier stream_id,
                           protocol::flow_control_size_type increment,
                           boost::system::error_code& ec);
+
+  void handle_headers(const protocol::frame_header& header,
+                      boost::system::error_code& ec);
 
   void handle_settings(const protocol::frame_header& header,
                        boost::system::error_code& ec);
@@ -94,6 +107,9 @@ class basic_connection {
       peer(client_tag),
       settings_desired(settings)
   {}
+  ~basic_connection() {
+    streams.clear_and_dispose(std::default_delete<detail::stream_impl>{});
+  }
 
   next_layer_type& next_layer() { return stream; }
   const next_layer_type& next_layer() const { return stream; }
@@ -143,6 +159,74 @@ void checked_adjust_window(protocol::flow_control_ssize_type& window,
 } // namespace detail
 
 template <typename Stream>
+template <typename Fields>
+void basic_connection<Stream>::send_headers(
+    const Fields& fields,
+    protocol::stream_identifier stream_id,
+    boost::system::error_code& ec)
+{
+  detail::stream_set::iterator stream;
+
+  if (stream_id) {
+    stream = streams.find(stream_id, detail::stream_id_less{});
+    if (stream == streams.end()) {
+      ec = make_error_code(protocol::error::protocol_error);
+      return;
+    }
+    switch (stream->state) {
+      // allowed states
+      case protocol::stream_state::idle:
+        stream->state = protocol::stream_state::open;
+        break;
+      case protocol::stream_state::open:
+        break;
+      case protocol::stream_state::reserved_local:
+        stream->state = protocol::stream_state::half_closed_remote;
+        break;
+      case protocol::stream_state::half_closed_remote:
+        break;
+      // disallowed states
+      case protocol::stream_state::reserved_remote:
+        ec = make_error_code(protocol::error::protocol_error);
+        return;
+      case protocol::stream_state::half_closed_local:
+        [[fallthrough]];
+      case protocol::stream_state::closed:
+        ec = make_error_code(protocol::error::stream_closed);
+        return;
+    }
+  } else {
+    stream_id = self.next_stream_id;
+    self.next_stream_id += 2;
+    // new stream
+    auto impl = std::make_unique<detail::stream_impl>();
+    impl->id = stream_id;
+    impl->state = protocol::stream_state::open;
+    impl->inbound_window = self.settings.initial_window_size;
+    impl->outbound_window = peer.settings.initial_window_size;
+    stream = streams.insert(streams.end(), *impl.release());
+    // TODO: close any of our idle streams with lower id
+  }
+  if (!peer.table) {
+    peer.table.emplace(peer.settings.header_table_size);
+  }
+  // TODO: buffer won't hold more than one frame
+  // TODO: stop encoding at the end of a buffer and restart with the next continuation
+  auto& buffer = output_buffers();
+  try {
+    detail::hpack::encode_headers(fields, *peer.table, buffer);
+  } catch (const std::length_error&) {
+    ec = make_error_code(protocol::error::frame_size_error);
+    return;
+  }
+  constexpr auto type = protocol::frame_type::headers;
+  constexpr uint8_t flags = 0;
+  detail::write_frame(next_layer(), type, flags, stream_id,
+                      buffer.data(), ec);
+  buffer.consume(buffer.size());
+}
+
+template <typename Stream>
 void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
 {
   if (self.settings != settings_sent) {
@@ -157,6 +241,10 @@ void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
 
   if (settings_desired.max_frame_size > settings_sent.max_frame_size) {
     self.buffer.emplace(settings_desired.max_frame_size);
+  }
+  if (settings_desired.header_table_size != settings_sent.header_table_size &&
+      peer.table) {
+    peer.table->set_size(settings_desired.header_table_size);
   }
   settings_sent = settings_desired;
 
@@ -194,6 +282,105 @@ void basic_connection<Stream>::send_window_update(
   detail::write_frame(next_layer(), type, flags, stream_id,
                       buffer.data(), ec);
   buffer.consume(4);
+}
+
+template <typename Stream>
+void basic_connection<Stream>::handle_headers(
+    const protocol::frame_header& header,
+    boost::system::error_code& ec)
+{
+  detail::stream_set::iterator stream;
+
+  if (header.stream_id == 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  if (protocol::client_initiated(header.stream_id) !=
+      protocol::client_initiated(peer.next_stream_id)) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  if (header.stream_id >= peer.next_stream_id) {
+    peer.next_stream_id = header.stream_id + 2;
+    // new stream
+    auto impl = std::make_unique<detail::stream_impl>();
+    impl->id = header.stream_id;
+    impl->state = protocol::stream_state::open;
+    impl->inbound_window = self.settings.initial_window_size;
+    impl->outbound_window = peer.settings.initial_window_size;
+    stream = streams.insert(streams.end(), *impl.release());
+    // TODO: close any of peer's idle streams with lower id
+  } else {
+    stream = streams.find(header.stream_id, detail::stream_id_less{});
+    if (stream == streams.end()) {
+      ec = make_error_code(protocol::error::protocol_error);
+      return;
+    }
+    // existing stream
+    switch (stream->state) {
+      // allowed states
+      case protocol::stream_state::idle:
+        stream->state = protocol::stream_state::open;
+        break;
+      case protocol::stream_state::open:
+        break;
+      case protocol::stream_state::reserved_remote:
+        stream->state = protocol::stream_state::half_closed_local;
+        break;
+      // disallowed states
+      case protocol::stream_state::half_closed_remote:
+        [[fallthrough]]
+      case protocol::stream_state::closed:
+        ec = make_error_code(protocol::error::stream_closed);
+        return;
+      default:
+        ec = make_error_code(protocol::error::protocol_error);
+        return;
+    }
+  }
+  auto& buffers = input_buffers();
+  assert(buffers.size() == 0);
+  if (header.length) {
+    // read the payload
+    auto buf = buffers.prepare(header.length);
+    const auto bytes_read = boost::asio::read(next_layer(), buf, ec);
+    if (ec) {
+      return;
+    }
+    buffers.commit(bytes_read);
+  }
+  auto buf = buffers.data();
+  auto pos = boost::asio::buffers_begin(buf);
+  auto end = boost::asio::buffers_end(buf);
+
+  size_t padding = 0;
+  if (header.flags & protocol::frame_flag_padded) {
+    padding = *pos++;
+  }
+  if (header.flags & protocol::frame_flag_priority) {
+    pos = protocol::detail::decode_priority(pos, stream->priority);
+    // TODO: reprioritize
+  }
+
+  if (!self.table) {
+    self.table.emplace(self.settings.header_table_size);
+  }
+  auto& table = *self.table;
+
+  std::string name, value;
+  while (pos != end) {
+    if (!detail::hpack::decode_header(pos, end, table, name, value)) {
+      ec = make_error_code(protocol::error::compression_error);
+      return;
+    }
+    // TODO: store fields
+  }
+  buffers.consume(header.length);
+
+  if (padding > static_cast<size_t>(std::distance(pos, end))) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
 }
 
 template <typename Stream>
@@ -237,6 +424,9 @@ void basic_connection<Stream>::handle_settings(
       switch (static_cast<protocol::setting_parameter>(param.identifier)) {
         case protocol::setting_parameter::header_table_size:
           values.header_table_size = param.value;
+          if (peer.table) {
+            peer.table->set_size(param.value);
+          }
           break;
         case protocol::setting_parameter::enable_push:
           values.enable_push = param.value;
@@ -363,7 +553,9 @@ void basic_connection<Stream>::run(boost::system::error_code& ec)
     }
     switch (static_cast<protocol::frame_type>(header.type)) {
       //case protocol::frame_type::data:
-      //case protocol::frame_type::headers:
+      case protocol::frame_type::headers:
+        handle_headers(header, ec);
+        break;
       //case protocol::frame_type::priority:
       //case protocol::frame_type::rst_stream:
       case protocol::frame_type::settings:

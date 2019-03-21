@@ -136,7 +136,7 @@ bool decode_header(RandomIterator& pos, RandomIterator end,
       return false;
     }
     table.set_size(index);
-    return true;
+    return true; // XXX: returns true with no name/value
   } else {
     if (!decode_integer<4>(pos, end, index, flags)) {
       return false;
