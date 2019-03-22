@@ -3,7 +3,7 @@
 #include <limits>
 #include <optional>
 
-#include <boost/asio/streambuf.hpp>
+#include <boost/beast/core/flat_buffer.hpp>
 
 #include <http2/error.hpp>
 #include <http2/protocol.hpp>
@@ -28,7 +28,7 @@ class basic_connection {
   using lowest_layer_type = typename next_layer_type::lowest_layer_type;
   using executor_type = typename next_layer_type::executor_type;
  protected:
-  using buffer_type = boost::asio::streambuf; // TODO: Allocator
+  using buffer_type = boost::beast::flat_buffer; // TODO: Allocator
   next_layer_type stream;
   detail::stream_set streams;
 
