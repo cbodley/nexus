@@ -4,7 +4,6 @@
 #include <optional>
 
 #include <boost/asio/streambuf.hpp>
-#include <boost/intrusive/set.hpp>
 
 #include <http2/error.hpp>
 #include <http2/protocol.hpp>
@@ -82,6 +81,10 @@ class basic_connection {
 
   void send_settings(boost::system::error_code& ec);
 
+  template <typename ConstBufferSequence>
+  void send_ping(const ConstBufferSequence& buffers,
+                 boost::system::error_code& ec);
+
   void send_window_update(protocol::stream_identifier stream_id,
                           protocol::flow_control_size_type increment,
                           boost::system::error_code& ec);
@@ -99,6 +102,9 @@ class basic_connection {
                        boost::system::error_code& ec);
   void handle_settings_ack(const protocol::frame_header& header,
                            boost::system::error_code& ec);
+
+  void handle_ping(const protocol::frame_header& header,
+                   boost::system::error_code& ec);
 
   void handle_window_update(const protocol::frame_header& header,
                             boost::system::error_code& ec);
@@ -347,6 +353,22 @@ void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
   detail::write_settings(next_layer(), buffer,
                          settings.begin(), settings_end, ec);
   // TODO: start timer for SETTINGS_TIMEOUT
+}
+
+template <typename Stream>
+template <typename ConstBufferSequence>
+void basic_connection<Stream>::send_ping(const ConstBufferSequence& buffers,
+                                         boost::system::error_code& ec)
+{
+  if (boost::asio::buffer_size(buffers) != 8) {
+    ec = make_error_code(protocol::error::frame_size_error);
+    return;
+  }
+  constexpr auto type = protocol::frame_type::ping;
+  constexpr uint8_t flags = 0;
+  constexpr protocol::stream_identifier stream_id = 0;
+  detail::write_frame(next_layer(), type, flags, stream_id,
+                      buffers, ec);
 }
 
 template <typename Stream>
@@ -682,6 +704,35 @@ void basic_connection<Stream>::handle_settings_ack(
 }
 
 template <typename Stream>
+void basic_connection<Stream>::handle_ping(
+    const protocol::frame_header& header,
+    boost::system::error_code& ec)
+{
+  if (header.length != 8) {
+    ec = make_error_code(protocol::error::frame_size_error);
+    return;
+  }
+  if (header.stream_id != 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  auto& buffer = read_payload(header.length, ec);
+  if (ec) {
+    return;
+  }
+  if (header.flags & protocol::frame_flag_ack) {
+    return; // TODO: notify ping caller
+  }
+  // send an ack
+  constexpr auto type = protocol::frame_type::ping;
+  constexpr uint8_t flags = protocol::frame_flag_ack;
+  constexpr protocol::stream_identifier stream_id = 0;
+  detail::write_frame(next_layer(), type, flags, stream_id,
+                      buffer.data(), ec);
+  buffer.consume(8);
+}
+
+template <typename Stream>
 void basic_connection<Stream>::handle_window_update(
     const protocol::frame_header& header,
     boost::system::error_code& ec)
@@ -755,7 +806,9 @@ void basic_connection<Stream>::run(boost::system::error_code& ec)
         handle_settings(header, ec);
         break;
       //case protocol::frame_type::push_promise:
-      //case protocol::frame_type::ping:
+      case protocol::frame_type::ping:
+        handle_ping(header, ec);
+        break;
       //case protocol::frame_type::goaway:
       case protocol::frame_type::window_update:
         handle_window_update(header, ec);

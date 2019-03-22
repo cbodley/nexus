@@ -54,6 +54,10 @@ add_executable(test_basic_connection_priority test_basic_connection_priority.cc)
 target_link_libraries(test_basic_connection_priority http2 test_base)
 add_test(test_basic_connection_priority test_basic_connection_priority)
 
+add_executable(test_basic_connection_ping test_basic_connection_ping.cc)
+target_link_libraries(test_basic_connection_ping http2 test_base)
+add_test(test_basic_connection_ping test_basic_connection_ping)
+
 find_package(OpenSSL 1.0.2 REQUIRED)
 
 add_executable(test_ssl_alpn test_ssl_alpn.cc)
