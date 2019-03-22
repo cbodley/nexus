@@ -41,6 +41,12 @@ class test_basic_connection : public basic_connection<Stream> {
     }
     return &*stream;
   }
+  protocol::flow_control_ssize_type get_inbound_window() const {
+    return this->self.window;
+  }
+  protocol::flow_control_ssize_type get_outbound_window() const {
+    return this->peer.window;
+  }
 };
 
 TEST(BasicConnectionData, client)
@@ -60,6 +66,12 @@ TEST(BasicConnectionData, client)
       ASSERT_EQ(ok, ec);
       client.open_stream(1);
       client.send_data(boost::asio::buffer("abc", 3), 1, ec);
+      // adjust connection and stream flow control window
+      EXPECT_EQ(protocol::default_setting_initial_window_size - 3,
+                client.get_outbound_window());
+      auto stream1 = client.get_stream(1);
+      EXPECT_EQ(protocol::default_setting_initial_window_size - 3,
+                stream1->outbound_window);
       ASSERT_EQ(ok, ec);
       client.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
@@ -101,8 +113,12 @@ TEST(BasicConnectionData, server)
       server.run(ec);
       ASSERT_EQ(boost::asio::error::eof, ec);
       const auto stream1 = server.get_stream(1);
+      EXPECT_EQ(protocol::default_setting_initial_window_size - 3,
+                server.get_inbound_window());
       ASSERT_NE(nullptr, stream1);
       EXPECT_EQ(protocol::stream_state::open, stream1->state);
+      EXPECT_EQ(protocol::default_setting_initial_window_size - 3,
+                stream1->inbound_window);
       EXPECT_EQ(nullptr, server.get_stream(2));
       server.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });

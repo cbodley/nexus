@@ -173,6 +173,22 @@ void checked_adjust_window(protocol::flow_control_ssize_type& window,
   }
   window += increment;
 }
+void account_data(protocol::flow_control_ssize_type& connection_window,
+                  protocol::flow_control_ssize_type& stream_window,
+                  protocol::flow_control_ssize_type size,
+                  boost::system::error_code& ec)
+{
+  checked_adjust_window(connection_window, -size, ec);
+  if (connection_window < 0) {
+    ec = make_error_code(protocol::error::flow_control_error);
+    return;
+  }
+  checked_adjust_window(stream_window, -size, ec);
+  if (stream_window < 0) {
+    ec = make_error_code(protocol::error::flow_control_error);
+    return;
+  }
+}
 } // namespace detail
 
 template <typename Stream>
@@ -200,7 +216,11 @@ void basic_connection<Stream>::send_data(
       ec = make_error_code(protocol::error::stream_closed);
       return;
   }
-
+  detail::account_data(peer.window, stream->outbound_window,
+                       boost::asio::buffer_size(buffers), ec);
+  if (ec) {
+    return;
+  }
   constexpr auto type = protocol::frame_type::data;
   constexpr uint8_t flags = 0;
   detail::write_frame(next_layer(), type, flags, stream_id,
@@ -403,6 +423,11 @@ void basic_connection<Stream>::handle_data(
     default:
       ec = make_error_code(protocol::error::stream_closed);
       return;
+  }
+  detail::account_data(self.window, stream->inbound_window,
+                       header.length, ec);
+  if (ec) {
+    return;
   }
   // TODO: read into buffers provided by caller
   read_payload(header.length, ec);
