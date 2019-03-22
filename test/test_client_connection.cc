@@ -26,39 +26,49 @@ TEST(ClientConnection, upgrade)
   auto acceptor = start_listener(ioctx);
   auto port = acceptor.local_endpoint().port();
 
-  // client
+  // client_connection
   std::thread thread([&] {
       client_connection<tcp::socket> client{protocol::default_settings, ioctx};
-
-      boost::system::error_code connect_ec;
       auto addr = boost::asio::ip::make_address("127.0.0.1");
-      client.next_layer().connect(tcp::endpoint(addr, port), connect_ec);
-      ASSERT_EQ(ok, connect_ec);
+      boost::system::error_code ec;
+      client.next_layer().connect(tcp::endpoint(addr, port), ec);
+      ASSERT_EQ(ok, ec);
 
-      boost::system::error_code upgrade_ec;
-      client.upgrade("127.0.0.1", "/", upgrade_ec);
-      ASSERT_EQ(ok, upgrade_ec);
+      client.upgrade("127.0.0.1", "/", ec);
+      ASSERT_EQ(ok, ec);
 
-      boost::system::error_code shutdown_ec;
-      client.next_layer().shutdown(tcp::socket::shutdown_both, shutdown_ec);
+      client.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
-  // server
+  // raw server
   {
     tcp::socket server{ioctx};
 
-    boost::system::error_code accept_ec;
-    acceptor.accept(server, accept_ec);
-    ASSERT_EQ(ok, accept_ec);
+    boost::system::error_code ec;
+    acceptor.accept(server, ec);
+    ASSERT_EQ(ok, ec);
 
+    namespace http = boost::beast::http;
+    // read the upgrade request
+    boost::beast::flat_buffer buffer;
+    http::request<http::empty_body> req;
+    http::read(server, buffer, req, ec);
+    ASSERT_EQ(ok, ec);
+    // send the response
+    http::response<http::empty_body> res{http::status::switching_protocols, req.version()};
+    http::write(server, res, ec);
+    ASSERT_EQ(ok, ec);
     // read preface
     std::string preface(protocol::client_connection_preface.size(), '\0');
-    boost::system::error_code preface_ec;
-    boost::asio::read(server, boost::asio::buffer(preface), preface_ec);
-    ASSERT_EQ(ok, preface_ec);
+    boost::asio::read(server, boost::asio::buffer(preface), ec);
+    ASSERT_EQ(ok, ec);
     EXPECT_EQ(protocol::client_connection_preface, preface);
+    // read SETTINGS
+    std::string settings(9, '\0');
+    boost::asio::read(server, boost::asio::buffer(settings), ec);
+    ASSERT_EQ(ok, ec);
+    EXPECT_EQ(std::string_view("\0\0\0\x4\0\0\0\0\0", 9), settings);
 
-    boost::system::error_code shutdown_ec;
-    server.shutdown(tcp::socket::shutdown_both, shutdown_ec);
+    server.shutdown(tcp::socket::shutdown_both, ec);
   }
 
   ioctx.run();
