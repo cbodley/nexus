@@ -2,13 +2,13 @@
 
 #include <type_traits>
 
-#include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/beast/core/buffers_cat.hpp>
 
 #include <http2/error.hpp>
 #include <http2/protocol.hpp>
+#include <http2/detail/buffer.hpp>
 
 namespace http2 {
 namespace protocol::detail {
@@ -64,10 +64,11 @@ void read_frame_header(SyncReadStream& stream,
 }
 
 template <typename SyncWriteStream, typename ConstBufferSequence>
-void write_frame(SyncWriteStream& stream, protocol::frame_type type,
+auto write_frame(SyncWriteStream& stream, protocol::frame_type type,
                  uint8_t flags, protocol::stream_identifier stream_id,
                  const ConstBufferSequence& payload,
                  boost::system::error_code& ec)
+  -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>
 {
   protocol::frame_header header;
   header.length = boost::asio::buffer_size(payload);

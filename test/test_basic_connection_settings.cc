@@ -75,7 +75,11 @@ TEST(BasicConnectionSettings, client)
     ASSERT_EQ(ok, ec);
     EXPECT_EQ(std::string_view("\0\0\6\4\0\0\0\0\0\0\5\0\xff\xff\xff", 15), frame);
     // send settings ack
-    detail::write_settings_ack(server, ec);
+    constexpr auto type = protocol::frame_type::settings;
+    constexpr auto flags = protocol::frame_flag_ack;
+    constexpr protocol::stream_identifier stream_id = 0;
+    auto payload = boost::asio::const_buffer(); // empty
+    detail::write_frame(server, type, flags, stream_id, payload, ec);
     ASSERT_EQ(ok, ec);
 
     server.shutdown(tcp::socket::shutdown_both, ec);

@@ -3,11 +3,9 @@
 #include <boost/system/system_error.hpp>
 #include <http2/protocol.hpp>
 
-namespace http2 {
+namespace http2::protocol {
 
 /// protocol error category
-namespace protocol {
-
 inline const boost::system::error_category& error_category()
 {
   struct category : public boost::system::error_category {
@@ -63,8 +61,7 @@ inline boost::system::error_condition make_error_condition(error e)
   return {static_cast<int>(e), error_category()};
 }
 
-} // namespace protocol
-} // namespace http2
+} // namespace http::protocol
 
 namespace boost::system {
 

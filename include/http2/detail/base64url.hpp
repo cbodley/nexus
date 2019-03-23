@@ -1,22 +1,11 @@
 #pragma once
 
 #include <string>
-#include <boost/asio/buffer.hpp>
-#include <boost/asio/buffers_iterator.hpp>
+#include <http2/detail/buffer.hpp>
 #include <boost/system/system_error.hpp>
 
 // url/filename-safe base64 encoding from RFC4648 without padding
 namespace http2::detail::base64url {
-
-template <typename T>
-constexpr bool is_mutable_buffer_sequence =
-    boost::asio::is_mutable_buffer_sequence<T>::value;
-template <typename T>
-constexpr bool is_const_buffer_sequence =
-    boost::asio::is_const_buffer_sequence<T>::value;
-template <typename T>
-constexpr bool is_dynamic_buffer =
-    boost::asio::is_dynamic_buffer<T>::value;
 
 inline constexpr char alphabet[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -64,8 +53,8 @@ inline void encode1(InputIterator& in, OutputIterator& out)
 
 template <typename ConstBufferSequence, typename DynamicBuffer>
 auto encode(const ConstBufferSequence& input, DynamicBuffer& output)
-  -> std::enable_if_t<is_const_buffer_sequence<ConstBufferSequence> &&
-                      is_dynamic_buffer<DynamicBuffer>>
+  -> std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence> &&
+                      is_dynamic_buffer_v<DynamicBuffer>>
 {
   const auto inlen = boost::asio::buffer_size(input);
   const auto outlen = (inlen + 2) / 3 * 4;
@@ -231,8 +220,8 @@ inline void decode2(InputIterator& in, OutputIterator& out,
 template <typename ConstBufferSequence, typename DynamicBuffer>
 auto decode(const ConstBufferSequence& input, DynamicBuffer& output,
             boost::system::error_code& ec)
-  -> std::enable_if_t<is_const_buffer_sequence<ConstBufferSequence> &&
-                      is_dynamic_buffer<DynamicBuffer>>
+  -> std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence> &&
+                      is_dynamic_buffer_v<DynamicBuffer>>
 {
   const auto inlen = boost::asio::buffer_size(input);
   const auto outlen = (inlen + 3) / 4 * 3;
@@ -268,8 +257,8 @@ auto decode(const ConstBufferSequence& input, DynamicBuffer& output,
 
 template <typename ConstBufferSequence, typename DynamicBuffer>
 auto decode(const ConstBufferSequence& input, DynamicBuffer& output)
-  -> std::enable_if_t<is_const_buffer_sequence<ConstBufferSequence> &&
-                      is_dynamic_buffer<DynamicBuffer>>
+  -> std::enable_if_t<is_const_buffer_sequence_v<ConstBufferSequence> &&
+                      is_dynamic_buffer_v<DynamicBuffer>>
 {
   boost::system::error_code ec;
   decode(input, output, ec);

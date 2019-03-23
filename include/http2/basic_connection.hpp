@@ -350,8 +350,14 @@ void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
 
   auto& buffer = output_buffers();
   assert(buffer.size() == 0);
-  detail::write_settings(next_layer(), buffer,
-                         settings.begin(), settings_end, ec);
+  detail::encode_settings(buffer, settings.begin(), settings_end);
+
+  // write the settings frame
+  constexpr auto type = protocol::frame_type::settings;
+  constexpr uint8_t flags = 0;
+  constexpr protocol::stream_identifier stream_id = 0;
+  detail::write_frame(stream, type, flags, stream_id, buffer.data(), ec);
+  buffer.consume(buffer.size());
   // TODO: start timer for SETTINGS_TIMEOUT
 }
 
@@ -684,7 +690,11 @@ void basic_connection<Stream>::handle_settings(
   }
 
   // TODO: queue ack if someone else is writing
-  detail::write_settings_ack(next_layer(), ec);
+  constexpr auto type = protocol::frame_type::settings;
+  constexpr auto flags = protocol::frame_flag_ack;
+  constexpr protocol::stream_identifier stream_id = 0;
+  auto payload = boost::asio::const_buffer(); // empty
+  detail::write_frame(next_layer(), type, flags, stream_id, payload, ec);
 }
 
 template <typename Stream>

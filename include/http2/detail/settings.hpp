@@ -2,10 +2,10 @@
 
 #include <type_traits>
 
-#include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/write.hpp>
 
 #include <http2/error.hpp>
+#include <http2/detail/buffer.hpp>
 #include <http2/detail/frame.hpp>
 
 namespace http2 {
@@ -70,13 +70,11 @@ InputIterator decode_setting(InputIterator pos, setting_parameter_pair& param)
 
 namespace detail {
 
-template <typename SyncWriteStream, typename DynamicBuffer,
-          typename RandomSettingIterator>
-void write_settings(SyncWriteStream& stream,
-                    DynamicBuffer& buffers,
-                    RandomSettingIterator first,
-                    RandomSettingIterator last,
-                    boost::system::error_code& ec)
+template <typename DynamicBuffer, typename RandomSettingIterator>
+auto encode_settings(DynamicBuffer& buffers,
+                     RandomSettingIterator first,
+                     RandomSettingIterator last)
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>>
 {
   // encode each parameter into the payload
   const size_t count = std::distance(first, last);
@@ -87,23 +85,6 @@ void write_settings(SyncWriteStream& stream,
     pos = protocol::detail::encode_setting(*param, pos);
   }
   buffers.commit(size);
-  // write the settings frame
-  constexpr auto type = protocol::frame_type::settings;
-  constexpr uint8_t flags = 0;
-  constexpr protocol::stream_identifier stream_id = 0;
-  detail::write_frame(stream, type, flags, stream_id, buffers.data(), ec);
-  buffers.consume(size);
-}
-
-template <typename SyncWriteStream>
-void write_settings_ack(SyncWriteStream& stream,
-                        boost::system::error_code& ec)
-{
-  constexpr auto type = protocol::frame_type::settings;
-  constexpr auto flags = protocol::frame_flag_ack;
-  constexpr protocol::stream_identifier stream_id = 0;
-  auto payload = boost::asio::const_buffer(); // empty
-  detail::write_frame(stream, type, flags, stream_id, payload, ec);
 }
 
 } // namespace detail
