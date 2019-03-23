@@ -31,7 +31,18 @@ template <typename Stream>
 void server_connection<Stream>::accept(boost::system::error_code& ec)
 {
   // read client connection preface
+  std::string preface(protocol::client_connection_preface.size(), '\0');
+  // TODO: use read_some for preface so we can fail early on mismatch
+  boost::asio::read(this->next_layer(), boost::asio::buffer(preface), ec);
+  if (ec) {
+    return;
+  }
+  if (preface != protocol::client_connection_preface) {
+    ec = make_error_code(protocol::error::http_1_1_required); // XXX
+    return;
+  }
   // send a SETTINGS frame
+  this->send_settings(ec);
 }
 
 template <typename Stream>
@@ -41,7 +52,10 @@ void server_connection<Stream>::upgrade([[maybe_unused]] std::string_view client
   // respond to the client with 101 Switching Protocols
   namespace http = boost::beast::http;
   http::response<http::empty_body> res{http::status::switching_protocols, 11};
-  http::write(this->stream, res, ec);
+  http::write(this->next_layer(), res, ec);
+  if (ec) {
+    return;
+  }
   // TODO: decode client_settings
   // send a SETTINGS frame
   // read client connection preface

@@ -28,7 +28,9 @@ TEST(ClientConnection, upgrade)
 
   // client_connection
   std::thread thread([&] {
-      client_connection<tcp::socket> client{protocol::default_settings, ioctx};
+      protocol::setting_values settings;
+      settings.max_concurrent_streams = 4;
+      client_connection<tcp::socket> client{settings, ioctx};
       auto addr = boost::asio::ip::make_address("127.0.0.1");
       boost::system::error_code ec;
       client.next_layer().connect(tcp::endpoint(addr, port), ec);
@@ -53,6 +55,14 @@ TEST(ClientConnection, upgrade)
     http::request<http::empty_body> req;
     http::read(server, buffer, req, ec);
     ASSERT_EQ(ok, ec);
+    ASSERT_NE(req.end(), req.find("host"));
+    ASSERT_EQ(boost::string_view("127.0.0.1"), req.find("host")->value());
+    ASSERT_NE(req.end(), req.find("upgrade"));
+    ASSERT_EQ(boost::string_view("h2c"), req.find("upgrade")->value());
+    ASSERT_NE(req.end(), req.find("connection"));
+    ASSERT_EQ(boost::string_view("HTTP2-Settings"), req.find("connection")->value());
+    ASSERT_NE(req.end(), req.find("HTTP2-Settings"));
+    ASSERT_EQ(boost::string_view("AAMAAAAE"), req.find("HTTP2-Settings")->value());
     // send the response
     http::response<http::empty_body> res{http::status::switching_protocols, req.version()};
     http::write(server, res, ec);

@@ -79,6 +79,11 @@ class basic_connection {
                      protocol::stream_identifier stream_id,
                      boost::system::error_code& ec);
 
+  template <typename DynamicBuffer>
+  auto prepare_settings(DynamicBuffer& buffers,
+                        boost::system::error_code& ec)
+    -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>>;
+
   void send_settings(boost::system::error_code& ec);
 
   template <typename ConstBufferSequence>
@@ -98,10 +103,10 @@ class basic_connection {
   void handle_priority(const protocol::frame_header& header,
                        boost::system::error_code& ec);
 
+  void on_settings_ack();
+
   void handle_settings(const protocol::frame_header& header,
                        boost::system::error_code& ec);
-  void handle_settings_ack(const protocol::frame_header& header,
-                           boost::system::error_code& ec);
 
   void handle_ping(const protocol::frame_header& header,
                    boost::system::error_code& ec);
@@ -327,7 +332,11 @@ void basic_connection<Stream>::send_priority(
 }
 
 template <typename Stream>
-void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
+template <typename DynamicBuffer>
+auto basic_connection<Stream>::prepare_settings(
+    DynamicBuffer& buffers,
+    boost::system::error_code& ec)
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>>
 {
   if (self.settings != settings_sent) {
     // our last settings haven't been acked yet
@@ -348,9 +357,14 @@ void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
   }
   settings_sent = settings_desired;
 
+  detail::encode_settings(buffers, settings.begin(), settings_end);
+}
+
+template <typename Stream>
+void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
+{
   auto& buffer = output_buffers();
-  assert(buffer.size() == 0);
-  detail::encode_settings(buffer, settings.begin(), settings_end);
+  prepare_settings(buffer, ec);
 
   // write the settings frame
   constexpr auto type = protocol::frame_type::settings;
@@ -610,7 +624,11 @@ void basic_connection<Stream>::handle_settings(
     return;
   }
   if (header.flags & protocol::frame_flag_ack) {
-    handle_settings_ack(header, ec);
+    if (header.length != 0) {
+      ec = make_error_code(protocol::error::frame_size_error);
+      return;
+    }
+    on_settings_ack();
     return;
   }
   if (header.length % 6 != 0) {
@@ -698,14 +716,8 @@ void basic_connection<Stream>::handle_settings(
 }
 
 template <typename Stream>
-void basic_connection<Stream>::handle_settings_ack(
-    const protocol::frame_header& header,
-    boost::system::error_code& ec)
+void basic_connection<Stream>::on_settings_ack()
 {
-  if (header.length != 0) {
-    ec = make_error_code(protocol::error::frame_size_error);
-    return;
-  }
   // safe to shrink after ack
   if (self.settings.max_frame_size > settings_sent.max_frame_size) {
     self.buffer.emplace(settings_sent.max_frame_size);
