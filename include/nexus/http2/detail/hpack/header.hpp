@@ -7,11 +7,11 @@
 
 #include <boost/asio/buffer.hpp>
 
-#include <http2/detail/hpack/integer.hpp>
-#include <http2/detail/hpack/string.hpp>
+#include <nexus/http2/detail/hpack/integer.hpp>
+#include <nexus/http2/detail/hpack/string.hpp>
 
-#include <http2/detail/hpack/dynamic_table.hpp>
-#include <http2/detail/hpack/static_table.hpp>
+#include <nexus/http2/detail/hpack/dynamic_table.hpp>
+#include <nexus/http2/detail/hpack/static_table.hpp>
 
 namespace nexus::http2::detail::hpack {
 

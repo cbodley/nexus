@@ -4,9 +4,9 @@
 
 #include <boost/asio/write.hpp>
 
-#include <http2/error.hpp>
-#include <http2/detail/buffer.hpp>
-#include <http2/detail/frame.hpp>
+#include <nexus/http2/error.hpp>
+#include <nexus/http2/detail/buffer.hpp>
+#include <nexus/http2/detail/frame.hpp>
 
 namespace nexus::http2 {
 

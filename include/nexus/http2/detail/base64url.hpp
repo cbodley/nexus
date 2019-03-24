@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <http2/detail/buffer.hpp>
+#include <nexus/http2/detail/buffer.hpp>
 #include <boost/system/system_error.hpp>
 
 // url/filename-safe base64 encoding from RFC4648 without padding

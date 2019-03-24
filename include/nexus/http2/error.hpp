@@ -1,7 +1,7 @@
 #pragma once
 
 #include <boost/system/system_error.hpp>
-#include <http2/protocol.hpp>
+#include <nexus/http2/protocol.hpp>
 
 namespace nexus::http2::protocol {
 

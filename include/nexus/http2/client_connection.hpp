@@ -4,8 +4,8 @@
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
 
-#include <http2/basic_connection.hpp>
-#include <http2/detail/base64url.hpp>
+#include <nexus/http2/basic_connection.hpp>
+#include <nexus/http2/detail/base64url.hpp>
 
 namespace nexus::http2 {
 

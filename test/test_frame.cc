@@ -1,4 +1,4 @@
-#include <http2/detail/frame.hpp>
+#include <nexus/http2/detail/frame.hpp>
 #include <gtest/gtest.h>
 
 namespace nexus::http2 {

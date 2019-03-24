@@ -1,4 +1,4 @@
-#include <http2/detail/hpack/integer.hpp>
+#include <nexus/http2/detail/hpack/integer.hpp>
 #include <optional>
 #include <random>
 #include <gtest/gtest.h>

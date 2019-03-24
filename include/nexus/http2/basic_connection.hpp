@@ -5,14 +5,14 @@
 
 #include <boost/beast/core/flat_buffer.hpp>
 
-#include <http2/error.hpp>
-#include <http2/protocol.hpp>
-#include <http2/detail/frame.hpp>
-#include <http2/detail/priority.hpp>
-#include <http2/detail/settings.hpp>
-#include <http2/detail/stream.hpp>
+#include <nexus/http2/error.hpp>
+#include <nexus/http2/protocol.hpp>
+#include <nexus/http2/detail/frame.hpp>
+#include <nexus/http2/detail/priority.hpp>
+#include <nexus/http2/detail/settings.hpp>
+#include <nexus/http2/detail/stream.hpp>
 
-#include <http2/detail/hpack/header.hpp>
+#include <nexus/http2/detail/hpack/header.hpp>
 
 namespace nexus::http2 {
 

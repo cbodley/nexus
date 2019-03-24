@@ -6,9 +6,9 @@
 #include <boost/asio/write.hpp>
 #include <boost/beast/core/buffers_cat.hpp>
 
-#include <http2/error.hpp>
-#include <http2/protocol.hpp>
-#include <http2/detail/buffer.hpp>
+#include <nexus/http2/error.hpp>
+#include <nexus/http2/protocol.hpp>
+#include <nexus/http2/detail/buffer.hpp>
 
 namespace nexus::http2 {
 namespace protocol::detail {

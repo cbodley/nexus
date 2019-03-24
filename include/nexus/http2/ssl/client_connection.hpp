@@ -1,10 +1,10 @@
 #pragma once
 
-#include <http2/basic_connection.hpp>
-#include <http2/ssl/alpn.hpp>
-
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/write.hpp>
+
+#include <nexus/http2/basic_connection.hpp>
+#include <nexus/http2/ssl/alpn.hpp>
 
 namespace nexus::http2::ssl {
 

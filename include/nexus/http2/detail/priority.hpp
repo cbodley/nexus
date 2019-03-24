@@ -1,6 +1,6 @@
 #pragma once
 
-#include <http2/protocol.hpp>
+#include <nexus/http2/protocol.hpp>
 
 namespace nexus::http2::protocol::detail {
 
