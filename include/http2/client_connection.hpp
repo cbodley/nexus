@@ -7,7 +7,7 @@
 #include <http2/basic_connection.hpp>
 #include <http2/detail/base64url.hpp>
 
-namespace http2 {
+namespace nexus::http2 {
 
 using string_view = boost::beast::string_view;
 
@@ -76,4 +76,4 @@ void client_connection<Stream>::upgrade(string_view host, string_view target,
   this->send_settings(ec);
 }
 
-} // namespace http2
+} // namespace nexus::http2

@@ -1,7 +1,7 @@
 #include <http2/detail/hpack/dynamic_table.hpp>
 #include <gtest/gtest.h>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 // typedef for a table with overhead=0 to make some math easier
 using dynamic_table_0 = basic_dynamic_table<uint32_t, 0>;
@@ -149,4 +149,4 @@ TEST(HPACKDynamicTable, set_size_evict)
   EXPECT_FALSE(table.lookup(2, nullptr, nullptr));
 }
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

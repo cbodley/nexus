@@ -10,7 +10,7 @@
 
 namespace http = boost::beast::http;
 
-namespace http2 {
+namespace nexus::http2 {
 
 static const boost::system::error_code ok;
 
@@ -91,4 +91,4 @@ TEST(ServerConnection, upgrade)
   thread.join();
 }
 
-} // namespace http2
+} // namespace nexus::http2

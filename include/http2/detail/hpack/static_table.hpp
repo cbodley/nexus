@@ -3,7 +3,7 @@
 #include <iterator>
 #include <string_view>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 struct static_table_entry {
   std::string_view name;
@@ -75,4 +75,4 @@ static constexpr static_table_entry static_table[] = {
 };
 static constexpr size_t static_table_size = std::size(static_table);
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

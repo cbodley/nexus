@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 template <typename SizeType = uint32_t,
           SizeType entry_size_overhead = 32,
@@ -138,4 +138,4 @@ class basic_dynamic_table {
 
 using dynamic_table = basic_dynamic_table<>;
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

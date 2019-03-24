@@ -1,7 +1,7 @@
 #include <http2/detail/base64url.hpp>
 #include <gtest/gtest.h>
 
-namespace http2 {
+namespace nexus::http2 {
 
 TEST(Base64Url, encode)
 {
@@ -40,4 +40,4 @@ TEST(Base64Url, decode)
   EXPECT_EQ(detail::base64url::error::invalid_character, decode_ec("aa=="));
 }
 
-} // namespace http2
+} // namespace nexus::http2

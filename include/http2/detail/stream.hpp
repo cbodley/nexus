@@ -4,7 +4,7 @@
 
 #include <http2/protocol.hpp>
 
-namespace http2::detail {
+namespace nexus::http2::detail {
 
 namespace bi = boost::intrusive;
 
@@ -35,4 +35,4 @@ struct stream_id_less {
 };
 using stream_set = bi::set<stream_impl, bi::compare<stream_id_less>>;
 
-} // namespace http2::detail
+} // namespace nexus::http2::detail

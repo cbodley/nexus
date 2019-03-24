@@ -7,7 +7,7 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 template <typename T> struct numeric_traits : std::numeric_limits<T> {};
 
@@ -108,4 +108,4 @@ bool decode_integer(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
   return true;
 }
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

@@ -3,7 +3,7 @@
 #include <random>
 #include <gtest/gtest.h>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 static std::string encode_string(std::string_view str)
 {
@@ -55,4 +55,4 @@ TEST(HPACKString, decode)
   }
 }
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

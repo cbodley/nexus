@@ -1,15 +1,15 @@
 add_executable(test_hpack_integer test_hpack_integer.cc)
-target_link_libraries(test_hpack_integer http2 test_base)
+target_link_libraries(test_hpack_integer nexus test_base)
 add_test(test_hpack_integer test_hpack_integer)
 
 add_executable(test_hpack_string test_hpack_string.cc)
-target_link_libraries(test_hpack_string http2 test_base)
+target_link_libraries(test_hpack_string nexus test_base)
 add_test(test_hpack_string test_hpack_string)
 
 add_executable(test_hpack_dynamic_table test_hpack_dynamic_table.cc)
-target_link_libraries(test_hpack_dynamic_table http2 test_base)
+target_link_libraries(test_hpack_dynamic_table nexus test_base)
 add_test(test_hpack_dynamic_table test_hpack_dynamic_table)
 
 add_executable(test_hpack_header test_hpack_header.cc)
-target_link_libraries(test_hpack_header http2 test_base)
+target_link_libraries(test_hpack_header nexus test_base)
 add_test(test_hpack_header test_hpack_header)

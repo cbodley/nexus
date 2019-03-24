@@ -5,7 +5,7 @@
 
 #include <boost/asio/ssl.hpp>
 
-namespace http2::ssl {
+namespace nexus::http2::ssl {
 
 // helpers for application layer protocol negotiation. alpn is a tls extension
 // that http/2 relies on to negotiate the 'h2' protocol during the ssl handshake
@@ -206,4 +206,4 @@ inline void set_alpn_select_cb(boost::asio::ssl::context& ctx,
   ::SSL_CTX_set_alpn_select_cb(ctx.native_handle(), cb, arg);
 }
 
-} // namespace http2::ssl
+} // namespace nexus::http2::ssl

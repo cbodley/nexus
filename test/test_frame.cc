@@ -1,7 +1,7 @@
 #include <http2/detail/frame.hpp>
 #include <gtest/gtest.h>
 
-namespace http2 {
+namespace nexus::http2 {
 
 TEST(Frame, encode)
 {
@@ -36,4 +36,4 @@ TEST(Frame, decode)
   EXPECT_EQ(0x06070809, header.stream_id);
 }
 
-} // namespace http2
+} // namespace nexus::http2

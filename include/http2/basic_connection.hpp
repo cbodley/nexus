@@ -14,7 +14,7 @@
 
 #include <http2/detail/hpack/header.hpp>
 
-namespace http2 {
+namespace nexus::http2 {
 
 struct client_tag_t {};
 inline constexpr client_tag_t client_tag{};
@@ -888,4 +888,4 @@ void basic_connection<Stream>::adjust_outbound_window(
   // TODO: schedule writes if increment > 0
 }
 
-} // namespace http2
+} // namespace nexus::http2

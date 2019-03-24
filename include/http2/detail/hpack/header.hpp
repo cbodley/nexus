@@ -13,7 +13,7 @@
 #include <http2/detail/hpack/dynamic_table.hpp>
 #include <http2/detail/hpack/static_table.hpp>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 template <typename DynamicBuffer>
 size_t encode_table_size_update(uint32_t size, DynamicBuffer& buffers)
@@ -219,4 +219,4 @@ bool decode_headers(RandomIterator& pos, RandomIterator end,
   return true;
 }
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

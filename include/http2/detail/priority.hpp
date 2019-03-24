@@ -2,7 +2,7 @@
 
 #include <http2/protocol.hpp>
 
-namespace http2::protocol::detail {
+namespace nexus::http2::protocol::detail {
 
 template <typename OutputIterator>
 OutputIterator encode_priority(const stream_priority& prio, OutputIterator pos)
@@ -29,4 +29,4 @@ InputIterator decode_priority(InputIterator pos, stream_priority& prio)
   return pos;
 }
 
-} // namespace http::protocol::detail
+} // namespace nexus::http::protocol::detail

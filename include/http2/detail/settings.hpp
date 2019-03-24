@@ -8,7 +8,7 @@
 #include <http2/detail/buffer.hpp>
 #include <http2/detail/frame.hpp>
 
-namespace http2 {
+namespace nexus::http2 {
 
 namespace protocol::detail {
 
@@ -88,4 +88,4 @@ auto encode_settings(DynamicBuffer& buffers,
 }
 
 } // namespace detail
-} // namespace http2
+} // namespace nexus::http2

@@ -4,7 +4,7 @@
 #include <limits>
 #include <string_view>
 
-namespace http2::protocol {
+namespace nexus::http2::protocol {
 
 static constexpr std::string_view client_connection_preface =
     "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
@@ -142,4 +142,4 @@ enum class error {
   http_1_1_required = 0xd,
 };
 
-} // namespace http2::protocol
+} // namespace nexus::http2::protocol

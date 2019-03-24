@@ -3,7 +3,7 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ssl.hpp>
 
-namespace http2::detail::test {
+namespace nexus::http2::detail::test {
 
 inline void use_server_certificate(boost::asio::ssl::context& ctx)
 {
@@ -63,4 +63,4 @@ jW1cAHWRuauMrbBR1d6+6KCM3/+pb4/WOWgppqE=
 )"));
 }
 
-} // namespace http2::detail::test
+} // namespace nexus::http2::detail::test

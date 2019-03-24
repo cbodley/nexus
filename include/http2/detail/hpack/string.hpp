@@ -8,7 +8,7 @@
 
 #include <http2/detail/hpack/integer.hpp>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 template <typename DynamicBuffer>
 size_t encode_string(std::string_view str, DynamicBuffer& buffer)
@@ -48,4 +48,4 @@ bool decode_string(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
   return true;
 }
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

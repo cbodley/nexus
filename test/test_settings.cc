@@ -1,7 +1,7 @@
 #include <http2/detail/settings.hpp>
 #include <gtest/gtest.h>
 
-namespace http2 {
+namespace nexus::http2 {
 
 TEST(Settings, copy)
 {
@@ -71,4 +71,4 @@ TEST(Settings, decode)
   EXPECT_EQ(0x03040506, param.value);
 }
 
-} // namespace http2
+} // namespace nexus::http2

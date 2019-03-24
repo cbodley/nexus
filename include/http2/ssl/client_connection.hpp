@@ -6,7 +6,7 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/write.hpp>
 
-namespace http2::ssl {
+namespace nexus::http2::ssl {
 
 template <typename Stream>
 class client_connection : public basic_connection<Stream> {
@@ -49,4 +49,4 @@ void client_connection<Stream>::handshake(boost::system::error_code& ec)
   this->send_settings(ec);
 }
 
-} // namespace http2::ssl
+} // namespace nexus::http2::ssl

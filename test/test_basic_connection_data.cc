@@ -5,7 +5,7 @@
 #include <boost/beast/http/fields.hpp>
 #include <gtest/gtest.h>
 
-namespace http2 {
+namespace nexus::http2 {
 
 static const boost::system::error_code ok;
 
@@ -139,4 +139,4 @@ TEST(BasicConnectionData, server)
   thread.join();
 }
 
-} // namespace http2
+} // namespace nexus::http2

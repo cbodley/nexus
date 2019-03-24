@@ -10,7 +10,7 @@
 #include <http2/protocol.hpp>
 #include <http2/detail/buffer.hpp>
 
-namespace http2 {
+namespace nexus::http2 {
 namespace protocol::detail {
 
 template <typename OutputIterator>
@@ -88,4 +88,4 @@ auto write_frame(SyncWriteStream& stream, protocol::frame_type type,
 }
 
 } // namespace detail
-} // namespace http2
+} // namespace nexus::http2

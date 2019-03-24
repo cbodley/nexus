@@ -3,7 +3,7 @@
 #include <boost/system/system_error.hpp>
 #include <http2/protocol.hpp>
 
-namespace http2::protocol {
+namespace nexus::http2::protocol {
 
 /// protocol error category
 inline const boost::system::error_category& error_category()
@@ -61,12 +61,12 @@ inline boost::system::error_condition make_error_condition(error e)
   return {static_cast<int>(e), error_category()};
 }
 
-} // namespace http::protocol
+} // namespace nexus::http::protocol
 
 namespace boost::system {
 
 /// enables implicit conversion to boost::system::error_condition
 template <>
-struct is_error_condition_enum<http2::protocol::error> : public std::true_type {};
+struct is_error_condition_enum<nexus::http2::protocol::error> : public std::true_type {};
 
 } // namespace boost::system

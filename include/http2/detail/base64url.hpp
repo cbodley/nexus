@@ -5,7 +5,7 @@
 #include <boost/system/system_error.hpp>
 
 // url/filename-safe base64 encoding from RFC4648 without padding
-namespace http2::detail::base64url {
+namespace nexus::http2::detail::base64url {
 
 inline constexpr char alphabet[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -129,17 +129,17 @@ inline boost::system::error_condition make_error_condition(error e)
   return {static_cast<int>(e), error_category()};
 }
 
-} // namespace http2::detail::base64url
+} // namespace nexus::http2::detail::base64url
 
 namespace boost::system {
 
 /// enables implicit conversion to boost::system::error_condition
 template <>
-struct is_error_condition_enum<http2::detail::base64url::error> : public std::true_type {};
+struct is_error_condition_enum<nexus::http2::detail::base64url::error> : public std::true_type {};
 
 } // namespace boost::system
 
-namespace http2::detail::base64url {
+namespace nexus::http2::detail::base64url {
 
 // map ascii characters back to their index in alphabet
 inline constexpr uint8_t reverse_alphabet[256] = {
@@ -285,4 +285,4 @@ std::string decode(std::string_view input)
   return output;
 }
 
-} // namespace http2::detail::base64url
+} // namespace nexus::http2::detail::base64url

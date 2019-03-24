@@ -3,7 +3,7 @@
 #include <random>
 #include <gtest/gtest.h>
 
-namespace http2::detail::hpack {
+namespace nexus::http2::detail::hpack {
 
 using uint128_t = unsigned __int128;
 
@@ -1126,4 +1126,4 @@ TEST(HPACKIntegerOverflow, decode_prefix_1_uint64)
   EXPECT_FALSE(decode_integer<1>(pos, end, value, padding));
 }
 
-} // namespace http2::detail::hpack
+} // namespace nexus::http2::detail::hpack

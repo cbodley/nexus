@@ -8,7 +8,7 @@
 #include <http2/basic_connection.hpp>
 #include <http2/detail/base64url.hpp>
 
-namespace http2 {
+namespace nexus::http2 {
 
 // TODO: bool valid_upgrade_request(boost::beast::http::request<...>&);
 
@@ -108,4 +108,4 @@ void server_connection<Stream>::upgrade(std::string_view client_settings,
   this->handle_settings(header, ec);
 }
 
-} // namespace http2
+} // namespace nexus::http2
