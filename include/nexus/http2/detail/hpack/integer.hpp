@@ -4,15 +4,15 @@
 #include <cstddef>
 #include <limits>
 
-#include <boost/asio/buffer.hpp>
-#include <boost/asio/buffers_iterator.hpp>
+#include <nexus/http2/detail/buffer.hpp>
 
 namespace nexus::http2::detail::hpack {
 
 template <typename T> struct numeric_traits : std::numeric_limits<T> {};
 
 template <size_t PrefixN, typename IntegerT, typename DynamicBuffer>
-size_t encode_integer(IntegerT value, uint8_t padding, DynamicBuffer& buffer)
+auto encode_integer(IntegerT value, uint8_t padding, DynamicBuffer& buffer)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   using numeric_traits = numeric_traits<IntegerT>;
 
@@ -54,9 +54,8 @@ size_t encode_integer(IntegerT value, uint8_t padding, DynamicBuffer& buffer)
   return count;
 }
 
-template <size_t PrefixN, typename ConstBufferSequence, typename IntegerT>
-bool decode_integer(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
-                    boost::asio::buffers_iterator<ConstBufferSequence> end,
+template <size_t PrefixN, typename InputIterator, typename IntegerT>
+bool decode_integer(InputIterator& pos, InputIterator end,
                     IntegerT& value, uint8_t& padding)
 {
   using numeric_traits = numeric_traits<IntegerT>;

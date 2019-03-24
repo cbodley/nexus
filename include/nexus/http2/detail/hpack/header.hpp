@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-#include <boost/asio/buffer.hpp>
+#include <nexus/http2/detail/buffer.hpp>
 
 #include <nexus/http2/detail/hpack/integer.hpp>
 #include <nexus/http2/detail/hpack/string.hpp>
@@ -16,30 +16,34 @@
 namespace nexus::http2::detail::hpack {
 
 template <typename DynamicBuffer>
-size_t encode_table_size_update(uint32_t size, DynamicBuffer& buffers)
+auto encode_table_size_update(uint32_t size, DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   return encode_integer<5>(size, 0x20, buffers);
 }
 
 template <typename DynamicBuffer>
-size_t encode_indexed_header(uint32_t index, DynamicBuffer& buffers)
+auto encode_indexed_header(uint32_t index, DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   return encode_integer<7>(index, 0x80, buffers);
 }
 
 template <typename DynamicBuffer>
-size_t encode_literal_header(uint32_t index,
-                             std::string_view value,
-                             DynamicBuffer& buffers)
+auto encode_literal_header(uint32_t index,
+                           std::string_view value,
+                           DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   size_t count = encode_integer<6>(index, 0x40, buffers);
   return count + encode_string(value, buffers);
 }
 
 template <typename DynamicBuffer>
-size_t encode_literal_header(std::string_view name,
-                             std::string_view value,
-                             DynamicBuffer& buffers)
+auto encode_literal_header(std::string_view name,
+                           std::string_view value,
+                           DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   uint32_t index = 0;
   size_t count = encode_integer<6>(index, 0x40, buffers);
@@ -48,18 +52,20 @@ size_t encode_literal_header(std::string_view name,
 }
 
 template <typename DynamicBuffer>
-size_t encode_literal_header_no_index(uint32_t index,
-                                      std::string_view value,
-                                      DynamicBuffer& buffers)
+auto encode_literal_header_no_index(uint32_t index,
+                                    std::string_view value,
+                                    DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   size_t count = encode_integer<4>(index, 0, buffers);
   return count + encode_string(value, buffers);
 }
 
 template <typename DynamicBuffer>
-size_t encode_literal_header_no_index(std::string_view name,
-                                      std::string_view value,
-                                      DynamicBuffer& buffers)
+auto encode_literal_header_no_index(std::string_view name,
+                                    std::string_view value,
+                                    DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   uint32_t index = 0;
   size_t count = encode_integer<4>(index, 0, buffers);
@@ -68,9 +74,10 @@ size_t encode_literal_header_no_index(std::string_view name,
 }
 
 template <typename SizeType, typename Allocator, typename DynamicBuffer>
-size_t encode_header(std::string_view name, std::string_view value,
-                     basic_dynamic_table<SizeType, 32, Allocator>& table,
-                     DynamicBuffer& buffers)
+auto encode_header(std::string_view name, std::string_view value,
+                   basic_dynamic_table<SizeType, 32, Allocator>& table,
+                   DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   // TODO: filter for 'never indexed' headers
   // search dynamic table
@@ -190,9 +197,10 @@ bool decode_header(RandomIterator& pos, RandomIterator end,
 
 template <typename Fields, typename SizeType,
           typename Allocator, typename DynamicBuffer>
-size_t encode_headers(const Fields& fields,
-                      basic_dynamic_table<SizeType, 32, Allocator>& table,
-                      DynamicBuffer& buffers)
+auto encode_headers(const Fields& fields,
+                    basic_dynamic_table<SizeType, 32, Allocator>& table,
+                    DynamicBuffer& buffers)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   size_t count = 0;
   for (const auto& f : fields) {

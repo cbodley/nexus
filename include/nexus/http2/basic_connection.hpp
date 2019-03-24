@@ -66,9 +66,10 @@ class basic_connection {
   buffer_type& read_payload(size_t size, boost::system::error_code& ec);
 
   template <typename ConstBufferSequence>
-  void send_data(const ConstBufferSequence& buffers,
+  auto send_data(const ConstBufferSequence& buffers,
                  protocol::stream_identifier stream_id,
-                 boost::system::error_code& ec);
+                 boost::system::error_code& ec)
+    -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>;
 
   template <typename Fields>
   void send_headers(const Fields& fields,
@@ -87,8 +88,9 @@ class basic_connection {
   void send_settings(boost::system::error_code& ec);
 
   template <typename ConstBufferSequence>
-  void send_ping(const ConstBufferSequence& buffers,
-                 boost::system::error_code& ec);
+  auto send_ping(const ConstBufferSequence& buffers,
+                 boost::system::error_code& ec)
+    -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>;
 
   void send_window_update(protocol::stream_identifier stream_id,
                           protocol::flow_control_size_type increment,
@@ -169,6 +171,8 @@ class basic_connection {
     settings_desired.max_header_list_size = value;
   }
 
+  // TODO: ping()
+
   void run(boost::system::error_code& ec);
 };
 
@@ -209,10 +213,11 @@ void account_data(protocol::flow_control_ssize_type& connection_window,
 
 template <typename Stream>
 template <typename ConstBufferSequence>
-void basic_connection<Stream>::send_data(
+auto basic_connection<Stream>::send_data(
     const ConstBufferSequence& buffers,
     protocol::stream_identifier stream_id,
     boost::system::error_code& ec)
+  -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>
 {
   if (stream_id == 0) {
     ec = make_error_code(protocol::error::protocol_error);
@@ -382,8 +387,9 @@ void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
 
 template <typename Stream>
 template <typename ConstBufferSequence>
-void basic_connection<Stream>::send_ping(const ConstBufferSequence& buffers,
+auto basic_connection<Stream>::send_ping(const ConstBufferSequence& buffers,
                                          boost::system::error_code& ec)
+  -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>
 {
   if (boost::asio::buffer_size(buffers) != 8) {
     ec = make_error_code(protocol::error::frame_size_error);

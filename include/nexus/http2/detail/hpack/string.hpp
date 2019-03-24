@@ -3,15 +3,14 @@
 #include <cstdint>
 #include <cstddef>
 
-#include <boost/asio/buffer.hpp>
-#include <boost/asio/buffers_iterator.hpp>
-
+#include <nexus/http2/detail/buffer.hpp>
 #include <nexus/http2/detail/hpack/integer.hpp>
 
 namespace nexus::http2::detail::hpack {
 
 template <typename DynamicBuffer>
-size_t encode_string(std::string_view str, DynamicBuffer& buffer)
+auto encode_string(std::string_view str, DynamicBuffer& buffer)
+  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   constexpr uint8_t not_huffman_flag = 0x0;
   size_t size = str.size();
