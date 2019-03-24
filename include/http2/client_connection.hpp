@@ -43,9 +43,10 @@ void client_connection<Stream>::upgrade(string_view host, string_view target,
     // send an upgrade request with http/1.1
     http::request<http::empty_body> req(http::verb::get, target, 11);
     req.set(http::field::host, host);
-    req.set(http::field::upgrade, "h2c");
-    req.set(http::field::connection, "HTTP2-Settings");
     req.set("HTTP2-Settings", std::move(settings));
+    req.insert(http::field::connection, "HTTP2-Settings");
+    req.set(http::field::upgrade, "h2c");
+    req.insert(http::field::connection, "Upgrade");
     http::write(this->next_layer(), req, ec);
     if (ec) {
       return;

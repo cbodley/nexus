@@ -105,8 +105,13 @@ class basic_connection {
 
   void on_settings_ack();
 
+  template <typename ConstBufferSequence>
+  auto apply_settings(const ConstBufferSequence& buffers,
+                      boost::system::error_code& ec)
+    -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>;
+
   void handle_settings(const protocol::frame_header& header,
-                       boost::system::error_code& ec);
+                     boost::system::error_code& ec);
 
   void handle_ping(const protocol::frame_header& header,
                    boost::system::error_code& ec);
@@ -615,43 +620,28 @@ void basic_connection<Stream>::handle_priority(
 }
 
 template <typename Stream>
-void basic_connection<Stream>::handle_settings(
-    const protocol::frame_header& header,
-    boost::system::error_code& ec)
+void basic_connection<Stream>::on_settings_ack()
 {
-  if (header.stream_id != 0) {
-    ec = make_error_code(protocol::error::protocol_error);
-    return;
+  // safe to shrink after ack
+  if (self.settings.max_frame_size > settings_sent.max_frame_size) {
+    self.buffer.emplace(settings_sent.max_frame_size);
   }
-  if (header.flags & protocol::frame_flag_ack) {
-    if (header.length != 0) {
-      ec = make_error_code(protocol::error::frame_size_error);
-      return;
-    }
-    on_settings_ack();
-    return;
-  }
-  if (header.length % 6 != 0) {
-    ec = make_error_code(protocol::error::frame_size_error);
-    return;
-  }
-  auto& buffers = input_buffers();
-  {
-    // read the payload
-    auto buf = buffers.prepare(header.length);
-    const auto bytes_read = boost::asio::read(next_layer(), buf, ec);
-    if (ec) {
-      return;
-    }
-    buffers.commit(bytes_read);
-  }
+  self.settings = settings_sent;
+}
+
+template <typename Stream>
+template <typename ConstBufferSequence>
+auto basic_connection<Stream>::apply_settings(
+    const ConstBufferSequence& buffers,
+    boost::system::error_code& ec)
+  -> std::enable_if_t<detail::is_const_buffer_sequence_v<ConstBufferSequence>>
+{
   protocol::setting_values& values = peer.settings;
   const protocol::setting_values oldvalues = values;
   {
     // decode changes and process each in order
-    auto buf = buffers.data();
-    auto pos = boost::asio::buffers_begin(buf);
-    auto end = boost::asio::buffers_end(buf);
+    auto pos = boost::asio::buffers_begin(buffers);
+    auto end = boost::asio::buffers_end(buffers);
     while (pos != end) {
       protocol::setting_parameter_pair param;
       pos = protocol::detail::decode_setting(pos, param);
@@ -690,7 +680,6 @@ void basic_connection<Stream>::handle_settings(
         default: break; // ignore unrecognized settings
       }
     }
-    buffers.consume(header.length);
   }
   // reallocate frame buffer after all settings are decoded
   if (values.max_frame_size != oldvalues.max_frame_size) {
@@ -706,23 +695,50 @@ void basic_connection<Stream>::handle_settings(
       return;
     }
   }
+}
 
+template <typename Stream>
+void basic_connection<Stream>::handle_settings(
+    const protocol::frame_header& header,
+    boost::system::error_code& ec)
+{
+  if (header.stream_id != 0) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
+  if (header.flags & protocol::frame_flag_ack) {
+    if (header.length != 0) {
+      ec = make_error_code(protocol::error::frame_size_error);
+      return;
+    }
+    on_settings_ack();
+    return;
+  }
+  if (header.length % 6 != 0) {
+    ec = make_error_code(protocol::error::frame_size_error);
+    return;
+  }
+  auto& buffers = input_buffers();
+  {
+    // read the payload
+    auto buf = buffers.prepare(header.length);
+    const auto bytes_read = boost::asio::read(next_layer(), buf, ec);
+    if (ec) {
+      return;
+    }
+    buffers.commit(bytes_read);
+  }
+  apply_settings(buffers.data(), ec);
+  buffers.consume(buffers.size());
+  if (ec) {
+    return;
+  }
   // TODO: queue ack if someone else is writing
   constexpr auto type = protocol::frame_type::settings;
   constexpr auto flags = protocol::frame_flag_ack;
   constexpr protocol::stream_identifier stream_id = 0;
   auto payload = boost::asio::const_buffer(); // empty
   detail::write_frame(next_layer(), type, flags, stream_id, payload, ec);
-}
-
-template <typename Stream>
-void basic_connection<Stream>::on_settings_ack()
-{
-  // safe to shrink after ack
-  if (self.settings.max_frame_size > settings_sent.max_frame_size) {
-    self.buffer.emplace(settings_sent.max_frame_size);
-  }
-  self.settings = settings_sent;
 }
 
 template <typename Stream>

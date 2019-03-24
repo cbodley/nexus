@@ -36,48 +36,56 @@ TEST(ServerConnection, upgrade)
       // server
       server_connection<tcp::socket> server{protocol::default_settings, ioctx};
 
-      boost::system::error_code accept_ec;
-      acceptor.accept(server.next_layer(), accept_ec);
-      ASSERT_EQ(ok, accept_ec);
+      boost::system::error_code ec;
+      acceptor.accept(server.next_layer(), ec);
+      ASSERT_EQ(ok, ec);
 
-      boost::system::error_code upgrade_ec;
-      server.upgrade("", upgrade_ec);
-      ASSERT_EQ(ok, upgrade_ec);
+      server.upgrade("", ec);
+      ASSERT_EQ(ok, ec);
 
-      boost::system::error_code shutdown_ec;
-      server.next_layer().shutdown(tcp::socket::shutdown_both, shutdown_ec);
+      server.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
   {
     // client
     tcp::socket client{ioctx};
 
-    boost::system::error_code connect_ec;
+    boost::system::error_code ec;
     auto addr = boost::asio::ip::make_address("127.0.0.1");
-    client.connect(tcp::endpoint(addr, port), connect_ec);
-    ASSERT_EQ(ok, connect_ec);
+    client.connect(tcp::endpoint(addr, port), ec);
+    ASSERT_EQ(ok, ec);
     {
       // read the 101 Switching Protocols response
       boost::beast::flat_buffer buffer;
       http::response<http::empty_body> res;
-      boost::system::error_code read_ec;
-      http::read(client, buffer, res, read_ec);
-      ASSERT_EQ(ok, read_ec);
+      http::read(client, buffer, res, ec);
+      ASSERT_EQ(ok, ec);
       EXPECT_EQ(http::status::switching_protocols, res.result());
       EXPECT_EQ(11, res.version());
+      ASSERT_NE(res.end(), res.find("upgrade"));
+      EXPECT_EQ(boost::string_view("h2c"), res.find("upgrade")->value());
+      ASSERT_NE(res.end(), res.find("connection"));
+      EXPECT_EQ(boost::string_view("Upgrade"), res.find("connection")->value());
     }
     {
       // send the client connection preface
       auto buffer = boost::asio::buffer(protocol::client_connection_preface.data(),
                                         protocol::client_connection_preface.size());
-      boost::system::error_code preface_ec;
-      boost::asio::write(client, buffer, preface_ec);
-      ASSERT_EQ(ok, preface_ec);
+      boost::asio::write(client, buffer, ec);
+      ASSERT_EQ(ok, ec);
     }
     // send a SETTINGS frame
+    constexpr auto type = protocol::frame_type::settings;
+    constexpr auto flags = 0;
+    constexpr protocol::stream_identifier stream_id = 0;
+    auto payload = boost::asio::const_buffer(); // empty
+    detail::write_frame(client, type, flags, stream_id, payload, ec);
+    ASSERT_EQ(ok, ec);
     // read server SETTINGS frame
+    protocol::frame_header header;
+    detail::read_frame_header(client, header, ec);
+    ASSERT_EQ(ok, ec);
 
-    boost::system::error_code shutdown_ec;
-    client.shutdown(tcp::socket::shutdown_both, shutdown_ec);
+    client.shutdown(tcp::socket::shutdown_both, ec);
   }
   ioctx.run();
   thread.join();

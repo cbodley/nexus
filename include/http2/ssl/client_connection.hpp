@@ -23,7 +23,7 @@ void client_connection<Stream>::handshake(boost::system::error_code& ec)
 {
   // request h2 protocol with alpn
   auto protocols = http2::ssl::alpn::make_protocol_list("h2");
-  http2::ssl::set_alpn_protos(this->stream, protocols, ec);
+  http2::ssl::set_alpn_protos(this->next_layer(), protocols, ec);
   if (ec) {
     return;
   }
@@ -33,7 +33,7 @@ void client_connection<Stream>::handshake(boost::system::error_code& ec)
     return;
   }
   // require h2 protocol
-  if (http2::ssl::get_alpn_selected(this->stream) != "h2") {
+  if (http2::ssl::get_alpn_selected(this->next_layer()) != "h2") {
     using protocol::make_error_code;
     ec = make_error_code(protocol::error::http_1_1_required);
     return;
@@ -41,7 +41,12 @@ void client_connection<Stream>::handshake(boost::system::error_code& ec)
   // send the client connection preface
   auto buffer = boost::asio::buffer(protocol::client_connection_preface.data(),
                                     protocol::client_connection_preface.size());
-  boost::asio::write(this->stream, buffer, ec);
+  boost::asio::write(this->next_layer(), buffer, ec);
+  if (ec) {
+    return;
+  }
+  // send a SETTINGS frame
+  this->send_settings(ec);
 }
 
 } // namespace http2::ssl

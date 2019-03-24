@@ -34,19 +34,17 @@ TEST(SslClientConnection, handshake)
       ssl::client_connection<ssl_stream> client{protocol::default_settings,
                                                 ioctx, ctx};
 
-      boost::system::error_code connect_ec;
+      boost::system::error_code ec;
       auto addr = boost::asio::ip::make_address("127.0.0.1");
-      client.lowest_layer().connect(tcp::endpoint(addr, port), connect_ec);
-      ASSERT_EQ(ok, connect_ec);
+      client.lowest_layer().connect(tcp::endpoint(addr, port), ec);
+      ASSERT_EQ(ok, ec);
 
-      boost::system::error_code handshake_ec;
-      client.handshake(handshake_ec);
-      ASSERT_EQ(ok, handshake_ec);
+      client.handshake(ec);
+      ASSERT_EQ(ok, ec);
       EXPECT_EQ("h2", ssl::get_alpn_selected(client.next_layer()));
 
-      boost::system::error_code shutdown_ec;
-      client.next_layer().shutdown(shutdown_ec);
-      client.lowest_layer().shutdown(tcp::socket::shutdown_both, shutdown_ec);
+      client.next_layer().shutdown(ec);
+      client.lowest_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
   // server
   {
@@ -57,25 +55,27 @@ TEST(SslClientConnection, handshake)
 
     boost::asio::ssl::stream<tcp::socket> server{ioctx, ctx};
 
-    boost::system::error_code accept_ec;
-    acceptor.accept(server.next_layer(), accept_ec);
-    ASSERT_EQ(ok, accept_ec);
+    boost::system::error_code ec;
+    acceptor.accept(server.next_layer(), ec);
+    ASSERT_EQ(ok, ec);
 
-    boost::system::error_code handshake_ec;
-    server.handshake(boost::asio::ssl::stream_base::server, handshake_ec);
-    ASSERT_EQ(ok, handshake_ec);
+    server.handshake(boost::asio::ssl::stream_base::server, ec);
+    ASSERT_EQ(ok, ec);
     EXPECT_EQ("h2", ssl::get_alpn_selected(server));
 
     // read preface
     std::string preface(protocol::client_connection_preface.size(), '\0');
-    boost::system::error_code preface_ec;
-    boost::asio::read(server, boost::asio::buffer(preface), preface_ec);
-    ASSERT_EQ(ok, preface_ec);
+    boost::asio::read(server, boost::asio::buffer(preface), ec);
+    ASSERT_EQ(ok, ec);
     EXPECT_EQ(protocol::client_connection_preface, preface);
+    // read SETTINGS
+    std::string settings(9, '\0');
+    boost::asio::read(server, boost::asio::buffer(settings), ec);
+    ASSERT_EQ(ok, ec);
+    EXPECT_EQ(std::string_view("\0\0\0\x4\0\0\0\0\0", 9), settings);
 
-    boost::system::error_code shutdown_ec;
-    server.shutdown(shutdown_ec);
-    server.next_layer().shutdown(tcp::socket::shutdown_both, shutdown_ec);
+    server.shutdown(ec);
+    server.next_layer().shutdown(tcp::socket::shutdown_both, ec);
   }
 
   ioctx.run();
@@ -96,19 +96,17 @@ TEST(SslClientConnection, handshake_no_alpn)
       ssl::client_connection<ssl_stream> client{protocol::default_settings,
                                                 ioctx, ctx};
 
-      boost::system::error_code connect_ec;
+      boost::system::error_code ec;
       auto addr = boost::asio::ip::make_address("127.0.0.1");
-      client.lowest_layer().connect(tcp::endpoint(addr, port), connect_ec);
-      ASSERT_EQ(ok, connect_ec);
+      client.lowest_layer().connect(tcp::endpoint(addr, port), ec);
+      ASSERT_EQ(ok, ec);
 
-      boost::system::error_code handshake_ec;
-      client.handshake(handshake_ec);
-      EXPECT_EQ(http2::protocol::error::http_1_1_required, handshake_ec);
+      client.handshake(ec);
+      EXPECT_EQ(http2::protocol::error::http_1_1_required, ec);
       EXPECT_EQ("", ssl::get_alpn_selected(client.next_layer()));
 
-      boost::system::error_code shutdown_ec;
-      client.next_layer().shutdown(shutdown_ec);
-      client.lowest_layer().shutdown(tcp::socket::shutdown_both, shutdown_ec);
+      client.next_layer().shutdown(ec);
+      client.lowest_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
   // server
   {
@@ -117,18 +115,16 @@ TEST(SslClientConnection, handshake_no_alpn)
 
     boost::asio::ssl::stream<tcp::socket> server{ioctx, ctx};
 
-    boost::system::error_code accept_ec;
-    acceptor.accept(server.next_layer(), accept_ec);
-    ASSERT_EQ(ok, accept_ec);
+    boost::system::error_code ec;
+    acceptor.accept(server.next_layer(), ec);
+    ASSERT_EQ(ok, ec);
 
-    boost::system::error_code handshake_ec;
-    server.handshake(boost::asio::ssl::stream_base::server, handshake_ec);
-    ASSERT_EQ(ok, handshake_ec);
+    server.handshake(boost::asio::ssl::stream_base::server, ec);
+    ASSERT_EQ(ok, ec);
     EXPECT_EQ("", ssl::get_alpn_selected(server));
 
-    boost::system::error_code shutdown_ec;
-    server.shutdown(shutdown_ec);
-    server.next_layer().shutdown(tcp::socket::shutdown_both, shutdown_ec);
+    server.shutdown(ec);
+    server.next_layer().shutdown(tcp::socket::shutdown_both, ec);
   }
 
   ioctx.run();
