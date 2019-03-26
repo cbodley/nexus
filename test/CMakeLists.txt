@@ -22,6 +22,10 @@ add_executable(test_base64url test_base64url.cc)
 target_link_libraries(test_base64url nexus test_base)
 add_test(test_base64url test_base64url)
 
+add_executable(test_stream_buffer test_stream_buffer.cc)
+target_link_libraries(test_stream_buffer nexus test_base)
+add_test(test_stream_buffer test_stream_buffer)
+
 add_executable(test_protocol test_protocol.cc)
 target_link_libraries(test_protocol nexus test_base)
 #add_test(test_protocol test_protocol) # just test compile
