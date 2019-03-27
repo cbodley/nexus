@@ -66,6 +66,10 @@ add_executable(test_basic_connection_ping test_basic_connection_ping.cc)
 target_link_libraries(test_basic_connection_ping nexus test_base)
 add_test(test_basic_connection_ping test_basic_connection_ping)
 
+add_executable(test_basic_stream test_basic_stream.cc)
+target_link_libraries(test_basic_stream nexus test_base)
+add_test(test_basic_stream test_basic_stream)
+
 find_package(OpenSSL 1.0.2 REQUIRED)
 
 add_executable(test_ssl_alpn test_ssl_alpn.cc)

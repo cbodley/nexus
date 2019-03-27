@@ -10,7 +10,7 @@
 #include <nexus/http2/detail/frame.hpp>
 #include <nexus/http2/detail/priority.hpp>
 #include <nexus/http2/detail/settings.hpp>
-#include <nexus/http2/detail/stream.hpp>
+#include <nexus/http2/detail/stream_scheduler.hpp>
 
 #include <nexus/http2/detail/hpack/header.hpp>
 
@@ -22,15 +22,9 @@ struct server_tag_t {};
 inline constexpr server_tag_t server_tag{};
 
 template <typename Stream>
-class basic_connection {
- public:
-  using next_layer_type = Stream;
-  using lowest_layer_type = typename next_layer_type::lowest_layer_type;
-  using executor_type = typename next_layer_type::executor_type;
+class basic_connection : public detail::stream_scheduler<Stream> {
  protected:
   using buffer_type = boost::beast::flat_buffer; // TODO: Allocator
-  next_layer_type stream;
-  detail::stream_set streams;
 
   struct endpoint {
     protocol::setting_values settings = protocol::default_settings;
@@ -129,7 +123,7 @@ class basic_connection {
   template <typename ...Args>
   basic_connection(client_tag_t, const protocol::setting_values& settings,
                    Args&& ...args)
-    : stream(std::forward<Args>(args)...),
+    : detail::stream_scheduler<Stream>(std::in_place, std::forward<Args>(args)...),
       self(client_tag),
       peer(server_tag),
       settings_desired(settings)
@@ -137,20 +131,11 @@ class basic_connection {
   template <typename ...Args>
   basic_connection(server_tag_t, const protocol::setting_values& settings,
                    Args&& ...args)
-    : stream(std::forward<Args>(args)...),
+    : detail::stream_scheduler<Stream>(std::in_place, std::forward<Args>(args)...),
       self(server_tag),
       peer(client_tag),
       settings_desired(settings)
   {}
-  ~basic_connection() {
-    streams.clear_and_dispose(std::default_delete<detail::stream_impl>{});
-  }
-
-  next_layer_type& next_layer() { return stream; }
-  const next_layer_type& next_layer() const { return stream; }
-  lowest_layer_type& lowest_layer() { return stream.lowest_layer(); }
-  const lowest_layer_type& lowest_layer() const { return stream.lowest_layer(); }
-  executor_type get_executor() { return stream.get_executor(); }
 
   void set_header_table_size(protocol::setting_value value) {
     settings_desired.max_header_list_size = value;
@@ -223,8 +208,8 @@ auto basic_connection<Stream>::send_data(
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
-  auto stream = streams.find(stream_id, detail::stream_id_less{});
-  if (stream == streams.end()) {
+  auto stream = this->streams.find(stream_id, detail::stream_id_less{});
+  if (stream == this->streams.end()) {
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
@@ -244,7 +229,7 @@ auto basic_connection<Stream>::send_data(
   }
   constexpr auto type = protocol::frame_type::data;
   constexpr uint8_t flags = 0;
-  detail::write_frame(next_layer(), type, flags, stream_id,
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
                       buffers, ec);
 }
 
@@ -258,8 +243,8 @@ void basic_connection<Stream>::send_headers(
   detail::stream_set::iterator stream;
 
   if (stream_id) {
-    stream = streams.find(stream_id, detail::stream_id_less{});
-    if (stream == streams.end()) {
+    stream = this->streams.find(stream_id, detail::stream_id_less{});
+    if (stream == this->streams.end()) {
       ec = make_error_code(protocol::error::protocol_error);
       return;
     }
@@ -294,7 +279,7 @@ void basic_connection<Stream>::send_headers(
     impl->state = protocol::stream_state::open;
     impl->inbound_window = self.settings.initial_window_size;
     impl->outbound_window = peer.settings.initial_window_size;
-    stream = streams.insert(streams.end(), *impl.release());
+    stream = this->streams.insert(this->streams.end(), *impl.release());
     // TODO: close any of our idle streams with lower id
   }
   if (!peer.table) {
@@ -311,7 +296,7 @@ void basic_connection<Stream>::send_headers(
   }
   constexpr auto type = protocol::frame_type::headers;
   constexpr uint8_t flags = 0;
-  detail::write_frame(next_layer(), type, flags, stream_id,
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
                       buffer.data(), ec);
   buffer.consume(buffer.size());
 }
@@ -336,7 +321,7 @@ void basic_connection<Stream>::send_priority(
   }
   constexpr auto type = protocol::frame_type::priority;
   constexpr uint8_t flags = 0;
-  detail::write_frame(next_layer(), type, flags, stream_id,
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
                       buffer.data(), ec);
   buffer.consume(5);
 }
@@ -380,7 +365,8 @@ void basic_connection<Stream>::send_settings(boost::system::error_code& ec)
   constexpr auto type = protocol::frame_type::settings;
   constexpr uint8_t flags = 0;
   constexpr protocol::stream_identifier stream_id = 0;
-  detail::write_frame(stream, type, flags, stream_id, buffer.data(), ec);
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
+                      buffer.data(), ec);
   buffer.consume(buffer.size());
   // TODO: start timer for SETTINGS_TIMEOUT
 }
@@ -398,7 +384,7 @@ auto basic_connection<Stream>::send_ping(const ConstBufferSequence& buffers,
   constexpr auto type = protocol::frame_type::ping;
   constexpr uint8_t flags = 0;
   constexpr protocol::stream_identifier stream_id = 0;
-  detail::write_frame(next_layer(), type, flags, stream_id,
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
                       buffers, ec);
 }
 
@@ -426,7 +412,7 @@ void basic_connection<Stream>::send_window_update(
   }
   constexpr auto type = protocol::frame_type::window_update;
   constexpr uint8_t flags = 0;
-  detail::write_frame(next_layer(), type, flags, stream_id,
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
                       buffer.data(), ec);
   buffer.consume(4);
 }
@@ -438,7 +424,7 @@ basic_connection<Stream>::read_payload(size_t size,
 {
   auto& buffer = input_buffers();
   assert(buffer.size() == 0);
-  auto bytes_read = boost::asio::read(next_layer(), buffer.prepare(size), ec);
+  auto bytes_read = boost::asio::read(this->next_layer(), buffer.prepare(size), ec);
   buffer.commit(bytes_read);
   if (!ec) {
     assert(bytes_read == size);
@@ -455,8 +441,8 @@ void basic_connection<Stream>::handle_data(
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
-  auto stream = streams.find(header.stream_id, detail::stream_id_less{});
-  if (stream == streams.end()) {
+  auto stream = this->streams.find(header.stream_id, detail::stream_id_less{});
+  if (stream == this->streams.end()) {
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
@@ -510,12 +496,12 @@ void basic_connection<Stream>::handle_headers(
     impl->state = protocol::stream_state::open;
     impl->inbound_window = self.settings.initial_window_size;
     impl->outbound_window = peer.settings.initial_window_size;
-    stream = streams.insert(streams.end(), *impl.release());
+    stream = this->streams.insert(this->streams.end(), *impl.release());
     // TODO: close any of peer's idle streams with lower id
   } else {
     // existing stream
-    stream = streams.find(header.stream_id, detail::stream_id_less{});
-    if (stream == streams.end()) {
+    stream = this->streams.find(header.stream_id, detail::stream_id_less{});
+    if (stream == this->streams.end()) {
       ec = make_error_code(protocol::error::protocol_error);
       return;
     }
@@ -601,15 +587,15 @@ void basic_connection<Stream>::handle_priority(
     ec = make_error_code(protocol::error::frame_size_error);
     return;
   }
-  auto stream = streams.find(header.stream_id, detail::stream_id_less{});
-  if (stream == streams.end()) {
+  auto stream = this->streams.find(header.stream_id, detail::stream_id_less{});
+  if (stream == this->streams.end()) {
     // new idle stream
     auto impl = std::make_unique<detail::stream_impl>();
     impl->id = header.stream_id;
     impl->state = protocol::stream_state::idle;
     impl->inbound_window = self.settings.initial_window_size;
     impl->outbound_window = peer.settings.initial_window_size;
-    stream = streams.insert(streams.end(), *impl.release());
+    stream = this->streams.insert(this->streams.end(), *impl.release());
   }
   auto& buffer = read_payload(header.length, ec);
   if (ec) {
@@ -728,7 +714,7 @@ void basic_connection<Stream>::handle_settings(
   {
     // read the payload
     auto buf = buffers.prepare(header.length);
-    const auto bytes_read = boost::asio::read(next_layer(), buf, ec);
+    const auto bytes_read = boost::asio::read(this->next_layer(), buf, ec);
     if (ec) {
       return;
     }
@@ -744,7 +730,7 @@ void basic_connection<Stream>::handle_settings(
   constexpr auto flags = protocol::frame_flag_ack;
   constexpr protocol::stream_identifier stream_id = 0;
   auto payload = boost::asio::const_buffer(); // empty
-  detail::write_frame(next_layer(), type, flags, stream_id, payload, ec);
+  detail::write_frame(this->next_layer(), type, flags, stream_id, payload, ec);
 }
 
 template <typename Stream>
@@ -771,7 +757,7 @@ void basic_connection<Stream>::handle_ping(
   constexpr auto type = protocol::frame_type::ping;
   constexpr uint8_t flags = protocol::frame_flag_ack;
   constexpr protocol::stream_identifier stream_id = 0;
-  detail::write_frame(next_layer(), type, flags, stream_id,
+  detail::write_frame(this->next_layer(), type, flags, stream_id,
                       buffer.data(), ec);
   buffer.consume(8);
 }
@@ -790,7 +776,7 @@ void basic_connection<Stream>::handle_window_update(
     // read the payload
     auto& buffer = input_buffers();
     auto buf = buffer.prepare(4);
-    boost::asio::read(next_layer(), buf, ec);
+    boost::asio::read(this->next_layer(), buf, ec);
     if (ec) {
       return;
     }
@@ -815,8 +801,8 @@ void basic_connection<Stream>::handle_window_update(
   if (header.stream_id == 0) {
     detail::checked_adjust_window(peer.window, increment, ec);
   } else {
-    auto s = streams.find(header.stream_id, detail::stream_id_less{});
-    if (s != streams.end()) {
+    auto s = this->streams.find(header.stream_id, detail::stream_id_less{});
+    if (s != this->streams.end()) {
       detail::checked_adjust_window(s->outbound_window, increment, ec);
     }
   }
@@ -827,7 +813,7 @@ void basic_connection<Stream>::run(boost::system::error_code& ec)
 {
   while (!ec) {
     protocol::frame_header header;
-    detail::read_frame_header(next_layer(), header, ec);
+    detail::read_frame_header(this->next_layer(), header, ec);
     if (ec) {
       return;
     }
@@ -871,7 +857,7 @@ void basic_connection<Stream>::adjust_inbound_window(
     boost::system::error_code& ec)
 {
   detail::checked_adjust_window(self.window, increment, ec);
-  for (auto& s : streams) {
+  for (auto& s : this->streams) {
     detail::checked_adjust_window(s.inbound_window, increment, ec);
     if (ec) {
       return;
@@ -885,7 +871,7 @@ void basic_connection<Stream>::adjust_outbound_window(
     boost::system::error_code& ec)
 {
   detail::checked_adjust_window(peer.window, increment, ec);
-  for (auto& s : streams) {
+  for (auto& s : this->streams) {
     detail::checked_adjust_window(s.outbound_window, increment, ec);
     if (ec) {
       return;

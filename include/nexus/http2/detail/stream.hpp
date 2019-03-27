@@ -3,8 +3,14 @@
 #include <boost/intrusive/set.hpp>
 
 #include <nexus/http2/protocol.hpp>
+#include <nexus/http2/detail/stream_buffer.hpp>
 
 namespace nexus::http2::detail {
+
+struct stream_waiter {
+  virtual void complete(boost::system::error_code ec) = 0;
+  virtual ~stream_waiter() {}
+};
 
 namespace bi = boost::intrusive;
 
@@ -17,6 +23,13 @@ struct stream_impl : bi::set_base_hook<bi::optimize_size<true>> {
       protocol::default_setting_initial_window_size;
   protocol::flow_control_ssize_type outbound_window =
       protocol::default_setting_initial_window_size;
+
+  stream_waiter* reader = nullptr;
+  boost::intrusive::list<stream_buffer> buffers;
+
+  ~stream_impl() {
+    buffers.clear_and_dispose(std::default_delete<stream_buffer>{});
+  }
 };
 
 struct stream_id_less {

@@ -9,8 +9,8 @@
 namespace nexus::http2::detail {
 
 class stream_buffer : // TODO: custom Allocator support
-    public boost::intrusive::list_base_hook<>,
-    public boost::beast::flat_static_buffer_base
+    public boost::beast::flat_static_buffer_base,
+    public boost::intrusive::list_base_hook<>
 {
   char storage[1];
   stream_buffer(size_t n) : flat_static_buffer_base(&storage, n) {}
