@@ -34,6 +34,10 @@ add_executable(test_error test_error.cc)
 target_link_libraries(test_error nexus test_base)
 #add_test(test_error test_error) # just test compile
 
+add_executable(test_fields test_fields.cc)
+target_link_libraries(test_fields nexus test_base)
+add_test(test_fields test_fields)
+
 add_executable(test_frame test_frame.cc)
 target_link_libraries(test_frame nexus test_base)
 add_test(test_frame test_frame)
