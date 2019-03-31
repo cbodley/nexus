@@ -8,13 +8,11 @@
 
 namespace nexus::http2 {
 
-template <typename Stream>
 class basic_stream {
-  using scheduler_type = detail::stream_scheduler<Stream>;
-  scheduler_type& scheduler;
+  detail::stream_scheduler& scheduler;
   protocol::stream_identifier stream_id = 0; // no id until headers
  public:
-  basic_stream(scheduler_type& scheduler) : scheduler(scheduler) {}
+  basic_stream(detail::stream_scheduler& scheduler) : scheduler(scheduler) {}
 
   // TODO: get/set flow control window size
   // TODO: get/set priority
@@ -62,14 +60,17 @@ class basic_stream {
     -> std::enable_if_t<detail::is_body_writer_v<BodyWriter>, size_t>;
 };
 
-template <typename Stream>
 template <bool isRequest, typename Body, typename Fields>
-size_t basic_stream<Stream>::read(
+size_t basic_stream::read(
     boost::beast::http::message<isRequest, Body, Fields>& message,
     boost::system::error_code& ec)
 {
   size_t count = scheduler.read_header(stream_id, message.base(), ec);
   if (ec) {
+    return count;
+  }
+  auto payload_size = message.payload_size();
+  if (payload_size && *payload_size == 0) {
     return count;
   }
   typename Body::reader body{message};

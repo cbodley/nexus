@@ -22,8 +22,14 @@ struct server_tag_t {};
 inline constexpr server_tag_t server_tag{};
 
 template <typename Stream>
-class basic_connection : public detail::stream_scheduler<Stream> {
+class basic_connection : public detail::stream_scheduler {
+ public:
+  using next_layer_type = Stream;
+  using lowest_layer_type = typename next_layer_type::lowest_layer_type;
+  using executor_type = typename next_layer_type::executor_type;
  protected:
+  next_layer_type stream;
+
   using buffer_type = boost::beast::flat_buffer; // TODO: Allocator
 
   struct endpoint {
@@ -43,6 +49,8 @@ class basic_connection : public detail::stream_scheduler<Stream> {
 
   protocol::setting_values settings_sent = protocol::default_settings;
   protocol::setting_values settings_desired;
+
+  detail::stream_buffer_pool buffer_pool;
 
   buffer_type& output_buffers() {
     if (!peer.buffer) {
@@ -93,6 +101,10 @@ class basic_connection : public detail::stream_scheduler<Stream> {
   void handle_data(const protocol::frame_header& header,
                    boost::system::error_code& ec);
 
+  void read_headers_payload(const protocol::frame_header& header,
+                            detail::stream_impl& stream,
+                            boost::system::error_code& ec);
+
   void handle_headers(const protocol::frame_header& header,
                       boost::system::error_code& ec);
 
@@ -123,19 +135,29 @@ class basic_connection : public detail::stream_scheduler<Stream> {
   template <typename ...Args>
   basic_connection(client_tag_t, const protocol::setting_values& settings,
                    Args&& ...args)
-    : detail::stream_scheduler<Stream>(std::in_place, std::forward<Args>(args)...),
+    : stream(std::forward<Args>(args)...),
       self(client_tag),
       peer(server_tag),
-      settings_desired(settings)
+      settings_desired(settings),
+      buffer_pool(self.settings.max_frame_size,
+                  self.settings.initial_window_size / self.settings.max_frame_size)
   {}
   template <typename ...Args>
   basic_connection(server_tag_t, const protocol::setting_values& settings,
                    Args&& ...args)
-    : detail::stream_scheduler<Stream>(std::in_place, std::forward<Args>(args)...),
+    : stream(std::forward<Args>(args)...),
       self(server_tag),
       peer(client_tag),
-      settings_desired(settings)
+      settings_desired(settings),
+      buffer_pool(self.settings.max_frame_size,
+                  self.settings.initial_window_size / self.settings.max_frame_size)
   {}
+
+  next_layer_type& next_layer() { return stream; }
+  const next_layer_type& next_layer() const { return stream; }
+  lowest_layer_type& lowest_layer() { return stream.lowest_layer(); }
+  const lowest_layer_type& lowest_layer() const { return stream.lowest_layer(); }
+  executor_type get_executor() { return stream.get_executor(); }
 
   void set_header_table_size(protocol::setting_value value) {
     settings_desired.max_header_list_size = value;
@@ -468,8 +490,67 @@ void basic_connection<Stream>::handle_data(
   if (ec) {
     return;
   }
-  // TODO: read into buffers provided by caller
-  read_payload(header.length, ec);
+  auto buffer = buffer_pool.get();
+  assert(buffer->max_size() >= header.length);
+  assert(buffer->size() == 0);
+  auto buf = buffer->prepare(header.length);
+  auto bytes_read = boost::asio::read(this->next_layer(), buf, ec);
+  buffer->commit(bytes_read);
+  if (ec) {
+    buffer->consume(bytes_read);
+    buffer_pool.put(std::move(buffer));
+  } else {
+    stream->buffers.push_back(*buffer.release());
+  }
+  if (stream->reader) {
+    stream->reader->complete(ec);
+  }
+}
+
+template <typename Stream>
+void basic_connection<Stream>::read_headers_payload(
+    const protocol::frame_header& header,
+    detail::stream_impl& stream,
+    boost::system::error_code& ec)
+{
+  auto& buffer = read_payload(header.length, ec);
+  if (ec) {
+    return;
+  }
+  auto buf = buffer.data();
+  auto pos = boost::asio::buffers_begin(buf);
+  auto end = boost::asio::buffers_end(buf);
+
+  size_t padding = 0;
+  if (header.flags & protocol::frame_flag_padded) {
+    padding = *pos++;
+  }
+  if (header.flags & protocol::frame_flag_priority) {
+    pos = protocol::detail::decode_priority(pos, stream.priority);
+    // TODO: reprioritize
+  }
+
+  if (!self.table) {
+    self.table.emplace(self.settings.header_table_size);
+  }
+  auto& table = *self.table;
+
+  std::string name, value;
+  while (pos != end) {
+    if (!detail::hpack::decode_header(pos, end, table, name, value)) {
+      ec = make_error_code(protocol::error::compression_error);
+      return;
+    }
+    auto f = detail::make_field(boost::asio::buffer(name),
+                                boost::asio::buffer(value));
+    stream.headers.push_back(*f.release());
+  }
+  buffer.consume(header.length);
+
+  if (padding > static_cast<size_t>(std::distance(pos, end))) {
+    ec = make_error_code(protocol::error::protocol_error);
+    return;
+  }
 }
 
 template <typename Stream>
@@ -533,44 +614,19 @@ void basic_connection<Stream>::handle_headers(
         return;
     }
   }
-  if (header.length == 0) {
-    return;
+  if (header.length) {
+    read_headers_payload(header, *stream, ec);
   }
-  auto& buffer = read_payload(header.length, ec);
-  if (ec) {
-    return;
-  }
-  auto buf = buffer.data();
-  auto pos = boost::asio::buffers_begin(buf);
-  auto end = boost::asio::buffers_end(buf);
-
-  size_t padding = 0;
-  if (header.flags & protocol::frame_flag_padded) {
-    padding = *pos++;
-  }
-  if (header.flags & protocol::frame_flag_priority) {
-    pos = protocol::detail::decode_priority(pos, stream->priority);
-    // TODO: reprioritize
-  }
-
-  if (!self.table) {
-    self.table.emplace(self.settings.header_table_size);
-  }
-  auto& table = *self.table;
-
-  std::string name, value;
-  while (pos != end) {
-    if (!detail::hpack::decode_header(pos, end, table, name, value)) {
-      ec = make_error_code(protocol::error::compression_error);
-      return;
+  if (header.flags & protocol::frame_flag_end_headers) {
+    stream->read_headers = true;
+    if (stream->reader) {
+      stream->reader->complete(ec);
+    } else {
+      this->accept_streams.push_back(*stream);
+      if (!this->accept_waiters.empty()) {
+        this->accept_waiters.front().complete(ec);
+      }
     }
-    // TODO: store fields
-  }
-  buffer.consume(header.length);
-
-  if (padding > static_cast<size_t>(std::distance(pos, end))) {
-    ec = make_error_code(protocol::error::protocol_error);
-    return;
   }
 }
 
@@ -617,6 +673,7 @@ void basic_connection<Stream>::on_settings_ack()
   // safe to shrink after ack
   if (self.settings.max_frame_size > settings_sent.max_frame_size) {
     self.buffer.emplace(settings_sent.max_frame_size);
+    buffer_pool.set_buffer_size(settings_sent.max_frame_size);
   }
   self.settings = settings_sent;
 }

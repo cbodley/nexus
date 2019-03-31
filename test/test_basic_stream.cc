@@ -36,16 +36,16 @@ TEST(BasicStream, message)
   ASSERT_EQ(ok, ec);
 
   std::thread client_read_thread([&client] {
-      basic_stream<tcp::socket> stream{client};
+      basic_stream stream{client};
       boost::beast::http::request<boost::beast::http::string_body> req;
       boost::system::error_code ec;
       stream.read(req, ec);
-      ASSERT_EQ(protocol::error::protocol_error, ec); // XXX
+      ASSERT_EQ(ok, ec);
     });
   std::thread client_run_thread([&] {
       boost::system::error_code ec;
       client.run(ec);
-      ASSERT_EQ(protocol::error::protocol_error, ec); // XXX
+      ASSERT_EQ(boost::asio::error::eof, ec);
       client.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
   // raw server
@@ -56,8 +56,9 @@ TEST(BasicStream, message)
     acceptor.accept(server, ec);
     ASSERT_EQ(ok, ec);
     // send headers frame
-    detail::write_frame(server, protocol::frame_type::headers,
-                        protocol::frame_flag_end_stream, 1,
+    constexpr uint8_t flags = protocol::frame_flag_end_stream |
+                              protocol::frame_flag_end_headers;
+    detail::write_frame(server, protocol::frame_type::headers, flags, 2,
                         boost::asio::buffer("", 0), ec);
     ASSERT_EQ(ok, ec);
     server.shutdown(tcp::socket::shutdown_both, ec);

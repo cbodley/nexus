@@ -21,14 +21,8 @@ constexpr bool is_body_reader_v = boost::beast::http::is_body_reader<T>::value;
 template <typename T>
 constexpr bool is_body_writer_v = boost::beast::http::is_body_writer<T>::value;
 
-template <typename Stream>
 class stream_scheduler {
- public:
-  using next_layer_type = Stream;
-  using lowest_layer_type = typename next_layer_type::lowest_layer_type;
-  using executor_type = typename next_layer_type::executor_type;
  protected:
-  next_layer_type stream;
   stream_set streams;
 
   struct waiter : stream_waiter {
@@ -46,25 +40,21 @@ class stream_scheduler {
   struct reader : waiter {
     std::optional<boost::system::error_code> result;
     void complete(boost::system::error_code ec) override {
-      std::scoped_lock lock{this->mutex};
+      std::scoped_lock lock{mutex};
       result = ec;
-      this->cond.notify_one();
+      cond.notify_one();
     }
   };
+  struct accepter : reader, bi::list_base_hook<> {};
+
+  // waiters for the next incoming stream
+  bi::list<accepter> accept_waiters;
+  // remote streams that haven't been accepted yet
+  bi::list<stream_impl> accept_streams;
  public:
-  template <typename ...Args>
-  stream_scheduler(std::in_place_t, Args&& ...args)
-    : stream(std::forward<Args>(args)...)
-  {}
   ~stream_scheduler() {
     streams.clear_and_dispose(std::default_delete<stream_impl>{});
   }
-
-  next_layer_type& next_layer() { return stream; }
-  const next_layer_type& next_layer() const { return stream; }
-  lowest_layer_type& lowest_layer() { return stream.lowest_layer(); }
-  const lowest_layer_type& lowest_layer() const { return stream.lowest_layer(); }
-  executor_type get_executor() { return stream.get_executor(); }
 
   template <typename Fields>
   auto read_header(protocol::stream_identifier& stream_id,
@@ -87,39 +77,77 @@ class stream_scheduler {
                          boost::system::error_code& ec);
 };
 
-template <typename Stream>
 template <typename Fields>
-auto stream_scheduler<Stream>::read_header(
+auto stream_scheduler::read_header(
     protocol::stream_identifier& stream_id,
-    [[maybe_unused]] Fields& fields,
+    Fields& fields,
     boost::system::error_code& ec)
   -> std::enable_if_t<is_fields_v<Fields>, size_t>
 {
+  auto stream = streams.end();
   if (stream_id == 0) {
-    ec = make_error_code(protocol::error::protocol_error);
-    return 0;
+    // take the first accept stream
+    if (accept_streams.empty()) {
+      accepter a;
+      std::unique_lock lock{a.mutex};
+      accept_waiters.push_back(a);
+      a.cond.wait(lock, [&a] { return a.result; });
+      ec = *a.result;
+      accept_waiters.erase(accept_waiters.iterator_to(a));
+      if (ec) {
+        return 0;
+      }
+    }
+    assert(!accept_streams.empty());
+    stream = streams.iterator_to(accept_streams.front());
+    accept_streams.pop_front();
+    stream_id = stream->id;
+  } else {
+    stream = streams.find(stream_id, stream_id_less{});
+    if (stream == streams.end()) {
+      ec = make_error_code(protocol::error::protocol_error);
+      return 0;
+    }
   }
+  assert(stream != streams.end());
+  if (!stream->read_headers) {
+    reader r;
+    std::unique_lock lock{r.mutex};
+    stream->reader = &r;
+    r.cond.wait(lock, [&r] { return r.result; });
+    ec = *r.result;
+    stream->reader = nullptr;
+  }
+  // copy out the fields, TODO: specialize for http2::basic_fields
+  auto headers = std::move(stream->headers);
+  for (const auto& h : headers) {
+    if (h.name() != boost::beast::http::field::unknown) {
+      fields.insert(h.name(), h.value());
+    } else {
+      fields.insert(h.name_string(), h.value());
+    }
+  }
+  headers.clear_and_dispose(std::default_delete<detail::field_pair<>>{});
   return 0;
 }
 
-template <typename Stream>
 template <typename BodyReader>
-size_t stream_scheduler<Stream>::read_some_body(
+size_t stream_scheduler::read_some_body(
     protocol::stream_identifier stream_id,
-    BodyReader& reader,
+    BodyReader& body,
     boost::system::error_code& ec)
 {
   if (stream_id == 0) {
     ec = make_error_code(protocol::error::protocol_error);
     return 0;
   }
-  auto stream = this->streams.find(stream_id, stream_id_less{});
-  if (stream == this->streams.end()) {
+  auto stream = streams.find(stream_id, stream_id_less{});
+  if (stream == streams.end()) {
     ec = make_error_code(protocol::error::protocol_error);
     return 0;
   }
   {
-    typename stream_scheduler<Stream>::reader r;
+    reader r;
     std::unique_lock lock{r.mutex};
     stream->reader = &r;
     r.cond.wait(lock, [&r] { return r.result; });
@@ -129,7 +157,7 @@ size_t stream_scheduler<Stream>::read_some_body(
   size_t count = 0;
   for (auto i = stream->buffers.begin(); i != stream->buffers.end(); ) {
     auto& buffer = *i;
-    const size_t bytes = reader.put(buffer.data(), ec);
+    const size_t bytes = body.put(buffer.data(), ec);
     count += bytes;
   }
   // TODO: return buffers to the pool
