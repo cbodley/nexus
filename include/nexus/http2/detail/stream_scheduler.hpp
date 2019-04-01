@@ -24,10 +24,10 @@ constexpr bool is_body_writer_v = boost::beast::http::is_body_writer<T>::value;
 class stream_scheduler {
  protected:
   stream_set streams;
+  std::mutex mutex;
 
   struct waiter : stream_waiter {
     protocol::stream_identifier stream_id;
-    std::mutex mutex;
     std::condition_variable cond;
   };
 
@@ -40,7 +40,6 @@ class stream_scheduler {
   struct reader : waiter {
     std::optional<boost::system::error_code> result;
     void complete(boost::system::error_code ec) override {
-      std::scoped_lock lock{mutex};
       result = ec;
       cond.notify_one();
     }
@@ -51,6 +50,7 @@ class stream_scheduler {
   bi::list<accepter> accept_waiters;
   // remote streams that haven't been accepted yet
   bi::list<stream_impl> accept_streams;
+
  public:
   ~stream_scheduler() {
     streams.clear_and_dispose(std::default_delete<stream_impl>{});
@@ -84,16 +84,16 @@ auto stream_scheduler::read_header(
     boost::system::error_code& ec)
   -> std::enable_if_t<is_fields_v<Fields>, size_t>
 {
+  std::unique_lock lock{mutex};
+
   auto stream = streams.end();
   if (stream_id == 0) {
     // take the first accept stream
     if (accept_streams.empty()) {
       accepter a;
-      std::unique_lock lock{a.mutex};
       accept_waiters.push_back(a);
       a.cond.wait(lock, [&a] { return a.result; });
       ec = *a.result;
-      accept_waiters.erase(accept_waiters.iterator_to(a));
       if (ec) {
         return 0;
       }
@@ -112,7 +112,6 @@ auto stream_scheduler::read_header(
   assert(stream != streams.end());
   if (!stream->read_headers) {
     reader r;
-    std::unique_lock lock{r.mutex};
     stream->reader = &r;
     r.cond.wait(lock, [&r] { return r.result; });
     ec = *r.result;
@@ -141,6 +140,8 @@ size_t stream_scheduler::read_some_body(
     ec = make_error_code(protocol::error::protocol_error);
     return 0;
   }
+  std::unique_lock lock{mutex};
+
   auto stream = streams.find(stream_id, stream_id_less{});
   if (stream == streams.end()) {
     ec = make_error_code(protocol::error::protocol_error);
@@ -148,7 +149,6 @@ size_t stream_scheduler::read_some_body(
   }
   {
     reader r;
-    std::unique_lock lock{r.mutex};
     stream->reader = &r;
     r.cond.wait(lock, [&r] { return r.result; });
     ec = *r.result;

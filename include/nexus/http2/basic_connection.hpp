@@ -101,9 +101,10 @@ class basic_connection : public detail::stream_scheduler {
   void handle_data(const protocol::frame_header& header,
                    boost::system::error_code& ec);
 
-  void read_headers_payload(const protocol::frame_header& header,
-                            detail::stream_impl& stream,
-                            boost::system::error_code& ec);
+  void process_headers_payload(const protocol::frame_header& header,
+                               buffer_type& buffer,
+                               detail::stream_impl& stream,
+                               boost::system::error_code& ec);
 
   void handle_headers(const protocol::frame_header& header,
                       boost::system::error_code& ec);
@@ -230,24 +231,28 @@ auto basic_connection<Stream>::send_data(
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
-  auto stream = this->streams.find(stream_id, detail::stream_id_less{});
-  if (stream == this->streams.end()) {
-    ec = make_error_code(protocol::error::protocol_error);
-    return;
-  }
-  switch (stream->state) {
-    // allowed states
-    case protocol::stream_state::open: break;
-    case protocol::stream_state::half_closed_remote: break;
-    // disallowed states
-    default:
-      ec = make_error_code(protocol::error::stream_closed);
+  {
+    std::scoped_lock lock{this->mutex};
+
+    auto stream = this->streams.find(stream_id, detail::stream_id_less{});
+    if (stream == this->streams.end()) {
+      ec = make_error_code(protocol::error::protocol_error);
       return;
-  }
-  detail::account_data(peer.window, stream->outbound_window,
-                       boost::asio::buffer_size(buffers), ec);
-  if (ec) {
-    return;
+    }
+    switch (stream->state) {
+      // allowed states
+      case protocol::stream_state::open: break;
+      case protocol::stream_state::half_closed_remote: break;
+      // disallowed states
+      default:
+        ec = make_error_code(protocol::error::stream_closed);
+        return;
+    }
+    detail::account_data(peer.window, stream->outbound_window,
+                         boost::asio::buffer_size(buffers), ec);
+    if (ec) {
+      return;
+    }
   }
   constexpr auto type = protocol::frame_type::data;
   constexpr uint8_t flags = 0;
@@ -262,8 +267,9 @@ void basic_connection<Stream>::send_headers(
     protocol::stream_identifier stream_id,
     boost::system::error_code& ec)
 {
-  detail::stream_set::iterator stream;
+  std::unique_lock lock{this->mutex};
 
+  detail::stream_set::iterator stream;
   if (stream_id) {
     stream = this->streams.find(stream_id, detail::stream_id_less{});
     if (stream == this->streams.end()) {
@@ -316,6 +322,8 @@ void basic_connection<Stream>::send_headers(
     ec = make_error_code(protocol::error::frame_size_error);
     return;
   }
+  lock.unlock();
+
   constexpr auto type = protocol::frame_type::headers;
   constexpr uint8_t flags = 0;
   detail::write_frame(this->next_layer(), type, flags, stream_id,
@@ -508,15 +516,12 @@ void basic_connection<Stream>::handle_data(
 }
 
 template <typename Stream>
-void basic_connection<Stream>::read_headers_payload(
+void basic_connection<Stream>::process_headers_payload(
     const protocol::frame_header& header,
+    buffer_type& buffer,
     detail::stream_impl& stream,
     boost::system::error_code& ec)
 {
-  auto& buffer = read_payload(header.length, ec);
-  if (ec) {
-    return;
-  }
   auto buf = buffer.data();
   auto pos = boost::asio::buffers_begin(buf);
   auto end = boost::asio::buffers_end(buf);
@@ -558,17 +563,19 @@ void basic_connection<Stream>::handle_headers(
     const protocol::frame_header& header,
     boost::system::error_code& ec)
 {
-  detail::stream_set::iterator stream;
-
   if (header.stream_id == 0) {
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
+  std::unique_lock lock{this->mutex};
+
   if (protocol::client_initiated(header.stream_id) !=
       protocol::client_initiated(peer.next_stream_id)) {
     ec = make_error_code(protocol::error::protocol_error);
     return;
   }
+
+  detail::stream_set::iterator stream;
   if (header.stream_id >= peer.next_stream_id) {
     peer.next_stream_id = header.stream_id + 2;
     // new stream
@@ -615,16 +622,23 @@ void basic_connection<Stream>::handle_headers(
     }
   }
   if (header.length) {
-    read_headers_payload(header, *stream, ec);
+    lock.unlock();
+    auto& buffer = read_payload(header.length, ec);
+    lock.lock();
+    if (!ec) {
+      process_headers_payload(header, buffer, *stream, ec);
+    }
   }
   if (header.flags & protocol::frame_flag_end_headers) {
     stream->read_headers = true;
     if (stream->reader) {
       stream->reader->complete(ec);
+      stream->reader = nullptr;
     } else {
       this->accept_streams.push_back(*stream);
       if (!this->accept_waiters.empty()) {
         this->accept_waiters.front().complete(ec);
+        this->accept_waiters.pop_front();
       }
     }
   }
