@@ -7,7 +7,7 @@
 
 namespace nexus {
 
-boost::system::error_code ok{};
+static const boost::system::error_code ok;
 
 TEST(EchoStream, Sync)
 {

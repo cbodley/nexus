@@ -1,7 +1,8 @@
 #include <nexus/http2/server_connection.hpp>
+#include <echo_stream.hpp>
+#include <joined_stream.hpp>
 #include <thread>
-#include <boost/asio/ip/tcp.hpp>
-
+#include <boost/asio/io_context.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
@@ -14,45 +15,26 @@ namespace nexus::http2 {
 
 static const boost::system::error_code ok;
 
-using boost::asio::ip::tcp;
-tcp::acceptor start_listener(boost::asio::io_context& ioctx)
-{
-  tcp::acceptor acceptor(ioctx);
-  tcp::endpoint endpoint(tcp::v4(), 0);
-  acceptor.open(endpoint.protocol());
-  acceptor.bind(endpoint);
-  acceptor.listen();
-  return acceptor;
-}
-
 TEST(ServerConnection, upgrade)
 {
   boost::asio::io_context ioctx;
-
-  auto acceptor = start_listener(ioctx);
-  auto port = acceptor.local_endpoint().port();
+  test::echo_stream in{ioctx.get_executor()};
+  test::echo_stream out{ioctx.get_executor()};
+  using joined_stream = test::joined_stream<decltype(in), decltype(out)>;
 
   std::thread thread([&] {
       // server
-      server_connection<tcp::socket> server{protocol::default_settings, ioctx};
+      server_connection<joined_stream> server{protocol::default_settings, in, out};
 
       boost::system::error_code ec;
-      acceptor.accept(server.next_layer(), ec);
-      ASSERT_EQ(ok, ec);
-
       server.upgrade("", ec);
       ASSERT_EQ(ok, ec);
-
-      server.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
   {
     // client
-    tcp::socket client{ioctx};
+    auto client = test::join_streams(out, in);
 
     boost::system::error_code ec;
-    auto addr = boost::asio::ip::make_address("127.0.0.1");
-    client.connect(tcp::endpoint(addr, port), ec);
-    ASSERT_EQ(ok, ec);
     {
       // read the 101 Switching Protocols response
       boost::beast::flat_buffer buffer;
@@ -84,8 +66,6 @@ TEST(ServerConnection, upgrade)
     protocol::frame_header header;
     detail::read_frame_header(client, header, ec);
     ASSERT_EQ(ok, ec);
-
-    client.shutdown(tcp::socket::shutdown_both, ec);
   }
   ioctx.run();
   thread.join();

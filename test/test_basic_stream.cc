@@ -1,7 +1,9 @@
 #include <nexus/http2/basic_stream.hpp>
 #include <nexus/http2/basic_connection.hpp>
+#include <echo_stream.hpp>
+#include <joined_stream.hpp>
 #include <thread>
-#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/beast/http.hpp>
 #include <gtest/gtest.h>
@@ -10,30 +12,17 @@ namespace nexus::http2 {
 
 static const boost::system::error_code ok;
 
-using boost::asio::ip::tcp;
-tcp::acceptor start_listener(boost::asio::io_context& ioctx)
-{
-  tcp::acceptor acceptor(ioctx);
-  tcp::endpoint endpoint(tcp::v4(), 0);
-  acceptor.open(endpoint.protocol());
-  acceptor.bind(endpoint);
-  acceptor.listen();
-  return acceptor;
-}
-
 TEST(BasicStream, message)
 {
   boost::asio::io_context ioctx;
-
-  auto acceptor = start_listener(ioctx);
-  auto port = acceptor.local_endpoint().port();
+  test::echo_stream in{ioctx.get_executor()};
+  test::echo_stream out{ioctx.get_executor()};
+  using joined_stream = test::joined_stream<decltype(in), decltype(out)>;
 
   // basic_connection as client
-  basic_connection<tcp::socket> client{client_tag, protocol::default_settings, ioctx};
+  basic_connection<joined_stream> client{client_tag, protocol::default_settings,
+                                         in, out};
   boost::system::error_code ec;
-  auto addr = boost::asio::ip::make_address("127.0.0.1");
-  client.next_layer().connect(tcp::endpoint(addr, port), ec);
-  ASSERT_EQ(ok, ec);
 
   std::thread client_read_thread([&client] {
       basic_stream stream{client};
@@ -46,22 +35,19 @@ TEST(BasicStream, message)
       boost::system::error_code ec;
       client.run(ec);
       ASSERT_EQ(boost::asio::error::eof, ec);
-      client.next_layer().shutdown(tcp::socket::shutdown_both, ec);
     });
   // raw server
   {
-    tcp::socket server{ioctx};
+    auto server = test::join_streams(out, in);
 
-    boost::system::error_code ec;
-    acceptor.accept(server, ec);
-    ASSERT_EQ(ok, ec);
     // send headers frame
     constexpr uint8_t flags = protocol::frame_flag_end_stream |
                               protocol::frame_flag_end_headers;
+    boost::system::error_code ec;
     detail::write_frame(server, protocol::frame_type::headers, flags, 2,
                         boost::asio::buffer("", 0), ec);
     ASSERT_EQ(ok, ec);
-    server.shutdown(tcp::socket::shutdown_both, ec);
+    in.close();
   };
 
   ioctx.run();
