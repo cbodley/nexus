@@ -107,7 +107,7 @@ struct setting_values {
   setting_value max_frame_size = default_setting_max_frame_size;
   setting_value max_header_list_size = default_setting_max_header_list_size;
 };
-static constexpr setting_values default_settings{};
+inline const setting_values default_settings{};
 
 inline bool operator==(const setting_values& lhs, const setting_values& rhs) {
   return std::equal(&lhs.header_table_size,
