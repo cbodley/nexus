@@ -1,0 +1,3 @@
+add_executable(test_echo_stream test_echo_stream.cc)
+target_link_libraries(test_echo_stream nexus test_base)
+add_test(test_echo_stream test_echo_stream)

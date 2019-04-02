@@ -16,3 +16,5 @@ if(NEXUS_TEST_ADDRESS_SANITIZER)
        target_compile_options(test_base INTERFACE "-fsanitize=address")
        target_link_libraries(test_base INTERFACE "-fsanitize=address")
 endif()
+
+add_subdirectory(test)
