@@ -2,6 +2,7 @@ add_subdirectory(dependency)
 
 add_library(test_base INTERFACE)
 target_link_libraries(test_base INTERFACE gtest_main)
+target_include_directories(test_base INTERFACE include)
 
 # all warnings as errors
 if(MSVC)
@@ -15,6 +16,10 @@ if(NEXUS_TEST_ADDRESS_SANITIZER)
 	target_compile_options(test_base INTERFACE "-fsanitize=address")
 	target_link_libraries(test_base INTERFACE "-fsanitize=address")
 endif()
+
+add_executable(test_echo_stream test_echo_stream.cc)
+target_link_libraries(test_echo_stream nexus test_base)
+add_test(test_echo_stream test_echo_stream)
 
 add_subdirectory(hpack)
 
