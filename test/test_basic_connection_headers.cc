@@ -54,7 +54,7 @@ TEST(BasicConnectionHeaders, client)
     ASSERT_EQ(ok, ec);
     EXPECT_EQ(std::string_view("\0\0\x9\x1\0\0\0\0\x1" // header
                                "\x40\3foo\3bar", 18), frame);
-    ASSERT_EQ(ok, ec);
+    in.close();
   }
 
   ioctx.run();

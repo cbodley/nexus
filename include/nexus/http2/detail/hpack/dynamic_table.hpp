@@ -14,14 +14,13 @@ class basic_dynamic_table {
   using size_type = SizeType;
   using allocator_type = Allocator;
 
-  using storage_type = std::vector<char, allocator_type>;
-  storage_type storage;
+  std::vector<char, allocator_type> storage;
 
   struct segment { size_type offset; size_type length; };
   struct entry { segment name, value; };
-  using deque_allocator = typename std::allocator_traits<allocator_type>::
+  using entry_allocator = typename std::allocator_traits<allocator_type>::
       template rebind_alloc<entry>;
-  std::deque<entry, deque_allocator> entries;
+  std::deque<entry, entry_allocator> entries;
 
   size_type size;
   size_type free;
@@ -125,10 +124,13 @@ class basic_dynamic_table {
     for (uint32_t i = 0; i < entries.size(); i++) {
       const auto& e = entries[i];
       if (equals(name, e.name, end)) {
-        index = i;
         if (equals(value, e.value, end)) {
+          index = i;
           has_value = true;
           break;
+        }
+        if (!index) {
+          index = i;
         }
       }
     }
