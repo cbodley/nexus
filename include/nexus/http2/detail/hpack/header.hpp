@@ -79,28 +79,22 @@ auto encode_header(std::string_view name, std::string_view value,
                    DynamicBuffer& buffers)
   -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
-  // TODO: filter for 'never indexed' headers
-  // search dynamic table
-  bool has_value = false;
-  auto index = table.search(name, value, has_value);
-  if (index) {
-    *index += 1 + static_table_size;
-    if (has_value) {
-      return encode_indexed_header(*index, buffers);
-    }
-  }
+  // TODO: accept 'never indexed' headers
+
   // search static table
-  constexpr auto entry_less = [] (const static_table_entry& entry,
-                                  std::string_view name) {
-    return entry.name < name;
-  };
-  auto p = std::lower_bound(std::begin(static_table),
-                            std::end(static_table),
-                            name, entry_less);
-  if (p != std::end(static_table) && p->name == name) {
-    index = 1 + std::distance(std::begin(static_table), p);
-    if (p->value == value) {
-      return encode_indexed_header(*index, buffers);
+  bool has_value = false;
+  auto index = static_table::search(name, value, has_value);
+  if (index && has_value) {
+    return encode_indexed_header(*index, buffers);
+  }
+  // search dynamic table
+  auto dynindex = table.search(name, value, has_value);
+  if (dynindex) {
+    *dynindex += 1 + static_table::size;
+    if (has_value) {
+      return encode_indexed_header(*dynindex, buffers);
+    } else if (!index) {
+      index = dynindex;
     }
   }
   // skip the dynamic table if it's too big
@@ -152,15 +146,15 @@ bool decode_header(RandomIterator& pos, RandomIterator end,
 
   if (index > 0) {
     --index;
-    if (index < static_table_size) {
-      const auto& e = static_table[index];
+    if (index < static_table::size) {
+      const auto& e = static_table::table[index];
       name.assign(e.name);
       if (indexed_value) {
         value.assign(e.value);
         return true;
       }
     } else {
-      index -= static_table_size;
+      index -= static_table::size;
       if (indexed_value) {
         return table.lookup(index, &name, &value);
       }

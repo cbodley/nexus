@@ -51,9 +51,9 @@ TEST(HPACKHeader, decode_dynamic_value)
   std::vector<uint8_t> encoded;
   {
     auto buf = boost::asio::dynamic_buffer(encoded);
-    ASSERT_EQ(1u, encode_indexed_header(static_table_size+1, buf));
-    ASSERT_EQ(1u, encode_indexed_header(static_table_size+3, buf));
-    ASSERT_EQ(1u, encode_indexed_header(static_table_size+4, buf));
+    ASSERT_EQ(1u, encode_indexed_header(static_table::size+1, buf));
+    ASSERT_EQ(1u, encode_indexed_header(static_table::size+3, buf));
+    ASSERT_EQ(1u, encode_indexed_header(static_table::size+4, buf));
     ASSERT_EQ(3u, encoded.size());
   }
   {
@@ -109,9 +109,9 @@ TEST(HPACKHeader, decode_dynamic_name)
   std::vector<uint8_t> encoded;
   {
     auto buf = boost::asio::dynamic_buffer(encoded);
-    ASSERT_EQ(3u, encode_literal_header(static_table_size+1, "x", buf));
-    ASSERT_EQ(4u, encode_literal_header(static_table_size+4, "y", buf));
-    ASSERT_EQ(4u, encode_literal_header(static_table_size+6, "z", buf));
+    ASSERT_EQ(3u, encode_literal_header(static_table::size+1, "x", buf));
+    ASSERT_EQ(4u, encode_literal_header(static_table::size+4, "y", buf));
+    ASSERT_EQ(4u, encode_literal_header(static_table::size+6, "z", buf));
     ASSERT_EQ(11u, encoded.size());
   }
   {
@@ -166,9 +166,9 @@ TEST(HPACKHeader, decode_table_size_update)
   {
     auto buf = boost::asio::dynamic_buffer(encoded);
     ASSERT_EQ(5u, encode_literal_header("a", "b", buf));
-    ASSERT_EQ(1u, encode_indexed_header(static_table_size+1, buf));
+    ASSERT_EQ(1u, encode_indexed_header(static_table::size+1, buf));
     ASSERT_EQ(1u, encode_table_size_update(16, buf));
-    ASSERT_EQ(1u, encode_indexed_header(static_table_size+1, buf));
+    ASSERT_EQ(1u, encode_indexed_header(static_table::size+1, buf));
     ASSERT_EQ(8u, encoded.size());
   }
   {

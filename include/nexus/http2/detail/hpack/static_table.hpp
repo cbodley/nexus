@@ -3,14 +3,14 @@
 #include <iterator>
 #include <string_view>
 
-namespace nexus::http2::detail::hpack {
+namespace nexus::http2::detail::hpack::static_table {
 
-struct static_table_entry {
+struct entry {
   std::string_view name;
   std::string_view value;
 };
 
-static constexpr static_table_entry static_table[] = {
+inline constexpr entry table[] = {
   { ":authority", "" },
   { ":method", "GET" },
   { ":method", "POST" },
@@ -73,6 +73,40 @@ static constexpr static_table_entry static_table[] = {
   { "via", "" },
   { "www-authenticate", "" },
 };
-static constexpr size_t static_table_size = std::size(static_table);
+inline constexpr size_t size = std::size(table);
 
-} // namespace nexus::http2::detail::hpack
+// searches for the best matching entry, returning its 1-based index
+inline std::optional<uint32_t> search(std::string_view name,
+                                      std::string_view value,
+                                      bool& has_value)
+{
+  // search the table for matching names
+  struct compare_names {
+    constexpr bool operator()(const entry& e, std::string_view name) {
+      return e.name < name;
+    }
+    constexpr bool operator()(std::string_view name, const entry& e) {
+      return name < e.name;
+    }
+  };
+  auto matches = std::equal_range(std::begin(table), std::end(table),
+                                  name, compare_names{});
+  // search matches for value
+  constexpr auto compare_values = [] (const entry& e, std::string_view value) {
+    return e.value < value;
+  };
+  auto p = std::lower_bound(matches.first, matches.second,
+                            value, compare_values);
+
+  std::optional<uint32_t> index;
+  if (p != matches.second) {
+    has_value = true;
+    index = 1 + std::distance(std::begin(table), p);
+  } else if (matches.first != matches.second) {
+    has_value = false;
+    index = 1 + std::distance(std::begin(table), matches.first);
+  }
+  return index;
+}
+
+} // namespace nexus::http2::detail::hpack::static_table
