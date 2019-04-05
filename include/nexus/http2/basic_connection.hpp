@@ -612,7 +612,7 @@ void basic_connection<Stream>::handle_headers(
         break;
       // disallowed states
       case protocol::stream_state::half_closed_remote:
-        [[fallthrough]]
+        [[fallthrough]];
       case protocol::stream_state::closed:
         ec = make_error_code(protocol::error::stream_closed);
         return;

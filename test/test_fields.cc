@@ -110,7 +110,6 @@ TEST(Fields, erase)
 using allocator_log = std::vector<size_t>;
 // mark highest bit for deallocation events
 constexpr size_t deallocate_flag = static_cast<size_t>(1) << (std::numeric_limits<size_t>::digits - 1);
-constexpr size_t size_mask = deallocate_flag - 1;
 
 template <typename T>
 struct logging_allocator : std::allocator<T> {
@@ -122,7 +121,7 @@ struct logging_allocator : std::allocator<T> {
   struct rebind { using other = logging_allocator<U>; };
 
   // converting copy constructor (requires friend)
-  template <typename> friend class logging_allocator;
+  template <typename> friend struct logging_allocator;
   template <typename U>
   logging_allocator(const logging_allocator<U>& other) : log(other.log) {}
 
