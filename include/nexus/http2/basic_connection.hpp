@@ -12,7 +12,7 @@
 #include <nexus/http2/detail/settings.hpp>
 #include <nexus/http2/detail/stream_scheduler.hpp>
 
-#include <nexus/http2/detail/hpack/header.hpp>
+#include <nexus/http2/hpack/header.hpp>
 
 namespace nexus::http2 {
 

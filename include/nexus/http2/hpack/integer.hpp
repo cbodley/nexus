@@ -5,7 +5,7 @@
 #include <limits>
 
 #include <nexus/http2/detail/buffer.hpp>
-#include <nexus/http2/detail/hpack/error.hpp>
+#include <nexus/http2/hpack/error.hpp>
 
 namespace nexus::http2::hpack {
 

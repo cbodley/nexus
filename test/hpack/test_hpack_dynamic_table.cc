@@ -1,4 +1,4 @@
-#include <nexus/http2/detail/hpack/dynamic_table.hpp>
+#include <nexus/http2/hpack/dynamic_table.hpp>
 #include <gtest/gtest.h>
 
 namespace nexus::http2::hpack {

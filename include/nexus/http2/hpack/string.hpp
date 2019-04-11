@@ -4,7 +4,7 @@
 #include <cstddef>
 
 #include <nexus/http2/detail/buffer.hpp>
-#include <nexus/http2/detail/hpack/integer.hpp>
+#include <nexus/http2/hpack/integer.hpp>
 
 namespace nexus::http2::hpack {
 

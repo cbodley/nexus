@@ -1,4 +1,5 @@
-#include <nexus/http2/detail/hpack/header.hpp>
+#include <nexus/http2/hpack/header.hpp>
+#include <nexus/http2/hpack/decoder.hpp>
 #include <boost/beast/http/fields.hpp>
 #include <gtest/gtest.h>
 
