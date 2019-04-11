@@ -13,7 +13,7 @@ bool operator==(const http::fields& lhs, const http::fields& rhs) {
 }
 } // namespace boost::beast::http
 
-namespace nexus::http2::detail::hpack {
+namespace nexus::http2::hpack {
 
 namespace http = boost::beast::http;
 
@@ -211,4 +211,4 @@ TEST(HPACKHeader, encode_fields)
   }
 }
 
-} // namespace nexus::http2::detail::hpack
+} // namespace nexus::http2::hpack

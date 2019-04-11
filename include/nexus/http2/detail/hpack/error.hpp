@@ -2,7 +2,7 @@
 
 #include <boost/system/error_code.hpp>
 
-namespace nexus::http2::detail::hpack {
+namespace nexus::http2::hpack {
 
 // hpack error conditions
 enum class error {
@@ -51,12 +51,12 @@ inline boost::system::error_condition make_error_condition(error e)
   return {static_cast<int>(e), error_category()};
 }
 
-} // namespace nexus::http2::detail::hpack
+} // namespace nexus::http2::hpack
 
 namespace boost::system {
 
 // enables implicit conversion to boost::system::error_condition
 template <>
-struct is_error_condition_enum<nexus::http2::detail::hpack::error> : public std::true_type {};
+struct is_error_condition_enum<nexus::http2::hpack::error> : public std::true_type {};
 
 } // namespace boost::system

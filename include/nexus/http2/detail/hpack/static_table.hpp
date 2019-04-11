@@ -3,7 +3,7 @@
 #include <iterator>
 #include <string_view>
 
-namespace nexus::http2::detail::hpack::static_table {
+namespace nexus::http2::hpack::static_table {
 
 struct entry {
   std::string_view name;
@@ -109,4 +109,4 @@ inline std::optional<uint32_t> search(std::string_view name,
   return index;
 }
 
-} // namespace nexus::http2::detail::hpack::static_table
+} // namespace nexus::http2::hpack::static_table

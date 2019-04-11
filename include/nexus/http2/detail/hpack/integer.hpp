@@ -7,13 +7,13 @@
 #include <nexus/http2/detail/buffer.hpp>
 #include <nexus/http2/detail/hpack/error.hpp>
 
-namespace nexus::http2::detail::hpack {
+namespace nexus::http2::hpack {
 
 template <typename T> struct numeric_traits : std::numeric_limits<T> {};
 
 template <size_t PrefixN, typename Integer, typename DynamicBuffer>
 auto encode_integer(Integer value, uint8_t padding, DynamicBuffer& buffer)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   using numeric_traits = numeric_traits<Integer>;
 
@@ -142,4 +142,4 @@ bool decode_integer(InputIterator& pos, InputIterator end,
   return s == state::done;
 }
 
-} // namespace nexus::http2::detail::hpack
+} // namespace nexus::http2::hpack

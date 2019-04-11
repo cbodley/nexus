@@ -13,18 +13,18 @@
 #include <nexus/http2/detail/hpack/dynamic_table.hpp>
 #include <nexus/http2/detail/hpack/static_table.hpp>
 
-namespace nexus::http2::detail::hpack {
+namespace nexus::http2::hpack {
 
 template <typename DynamicBuffer>
 auto encode_table_size_update(uint32_t size, DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   return encode_integer<5>(size, 0x20, buffers);
 }
 
 template <typename DynamicBuffer>
 auto encode_indexed_header(uint32_t index, DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   return encode_integer<7>(index, 0x80, buffers);
 }
@@ -33,7 +33,7 @@ template <typename DynamicBuffer>
 auto encode_literal_header(uint32_t index,
                            std::string_view value,
                            DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   size_t count = encode_integer<6>(index, 0x40, buffers);
   return count + encode_string(value, buffers);
@@ -43,7 +43,7 @@ template <typename DynamicBuffer>
 auto encode_literal_header(std::string_view name,
                            std::string_view value,
                            DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   uint32_t index = 0;
   size_t count = encode_integer<6>(index, 0x40, buffers);
@@ -55,7 +55,7 @@ template <typename DynamicBuffer>
 auto encode_literal_header_no_index(uint32_t index,
                                     std::string_view value,
                                     DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   size_t count = encode_integer<4>(index, 0, buffers);
   return count + encode_string(value, buffers);
@@ -65,7 +65,7 @@ template <typename DynamicBuffer>
 auto encode_literal_header_no_index(std::string_view name,
                                     std::string_view value,
                                     DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   uint32_t index = 0;
   size_t count = encode_integer<4>(index, 0, buffers);
@@ -77,7 +77,7 @@ template <typename SizeType, typename Allocator, typename DynamicBuffer>
 auto encode_header(std::string_view name, std::string_view value,
                    basic_dynamic_table<SizeType, 32, Allocator>& table,
                    DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   // TODO: accept 'never indexed' headers
 
@@ -194,7 +194,7 @@ template <typename Fields, typename SizeType,
 auto encode_headers(const Fields& fields,
                     basic_dynamic_table<SizeType, 32, Allocator>& table,
                     DynamicBuffer& buffers)
-  -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
   size_t count = 0;
   for (const auto& f : fields) {
@@ -221,4 +221,4 @@ bool decode_headers(RandomIterator& pos, RandomIterator end,
   return true;
 }
 
-} // namespace nexus::http2::detail::hpack
+} // namespace nexus::http2::hpack

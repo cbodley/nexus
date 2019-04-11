@@ -39,7 +39,7 @@ class basic_connection : public detail::stream_scheduler {
     protocol::stream_identifier stream_in_headers = 0;
     protocol::stream_identifier next_stream_id;
     std::optional<buffer_type> buffer;
-    std::optional<detail::hpack::dynamic_table> table;
+    std::optional<hpack::dynamic_table> table;
 
     explicit constexpr endpoint(client_tag_t) : next_stream_id(1) {}
     explicit constexpr endpoint(server_tag_t) : next_stream_id(2) {}
@@ -317,7 +317,7 @@ void basic_connection<Stream>::send_headers(
   // TODO: stop encoding at the end of a buffer and restart with the next continuation
   auto& buffer = output_buffers();
   try {
-    detail::hpack::encode_headers(fields, *peer.table, buffer);
+    hpack::encode_headers(fields, *peer.table, buffer);
   } catch (const std::length_error&) {
     ec = make_error_code(protocol::error::frame_size_error);
     return;
@@ -542,7 +542,7 @@ void basic_connection<Stream>::process_headers_payload(
 
   std::string name, value;
   while (pos != end) {
-    if (!detail::hpack::decode_header(pos, end, table, name, value)) {
+    if (!hpack::decode_header(pos, end, table, name, value)) {
       ec = make_error_code(protocol::error::compression_error);
       return;
     }
