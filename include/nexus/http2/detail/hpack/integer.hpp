@@ -5,16 +5,17 @@
 #include <limits>
 
 #include <nexus/http2/detail/buffer.hpp>
+#include <nexus/http2/detail/hpack/error.hpp>
 
 namespace nexus::http2::detail::hpack {
 
 template <typename T> struct numeric_traits : std::numeric_limits<T> {};
 
-template <size_t PrefixN, typename IntegerT, typename DynamicBuffer>
-auto encode_integer(IntegerT value, uint8_t padding, DynamicBuffer& buffer)
+template <size_t PrefixN, typename Integer, typename DynamicBuffer>
+auto encode_integer(Integer value, uint8_t padding, DynamicBuffer& buffer)
   -> std::enable_if_t<is_dynamic_buffer_v<DynamicBuffer>, size_t>
 {
-  using numeric_traits = numeric_traits<IntegerT>;
+  using numeric_traits = numeric_traits<Integer>;
 
   static_assert(PrefixN >= 1 && PrefixN <= 8);
   static_assert(numeric_traits::is_integer);
@@ -54,57 +55,91 @@ auto encode_integer(IntegerT value, uint8_t padding, DynamicBuffer& buffer)
   return count;
 }
 
-template <size_t PrefixN, typename InputIterator, typename IntegerT>
-bool decode_integer(InputIterator& pos, InputIterator end,
-                    IntegerT& value, uint8_t& padding)
+namespace integer {
+
+template <size_t PrefixN, typename Integer, typename State>
+State decode_prefix(uint8_t octet, Integer& value, uint8_t& padding,
+                    State suffix, State done)
 {
-  using numeric_traits = numeric_traits<IntegerT>;
-
   static_assert(PrefixN >= 1 && PrefixN <= 8);
-  static_assert(numeric_traits::is_integer);
-  static_assert(!numeric_traits::is_signed);
+  static constexpr uint8_t prefix_mask = (1 << PrefixN) - 1;
 
-  constexpr uint8_t prefix_mask = (1 << PrefixN) - 1;
+  using traits = numeric_traits<Integer>;
+  static_assert(traits::is_integer);
+  static_assert(!traits::is_signed);
 
-  if (pos == end) {
-    // TODO: throw on error and return iterator pos
-    return false;
-  }
-  uint8_t byte = *pos++;
-  value = byte & prefix_mask;
-  padding = byte & ~prefix_mask;
-
+  value = octet & prefix_mask;
+  padding = octet & ~prefix_mask;
   if (value < prefix_mask) {
-    return true;
+    return done;
   }
+  return suffix;
+}
 
-  uint8_t shift = 0;
+template <typename InputIterator, typename Integer, typename State>
+State decode_suffix(InputIterator& pos, InputIterator end,
+                    Integer& value, uint8_t& shift,
+                    State self, State done,
+                    boost::system::error_code& ec)
+{
+  using traits = numeric_traits<Integer>;
+  static_assert(traits::is_integer);
+  static_assert(!traits::is_signed);
+
+  uint8_t byte;
   do {
-    if (shift > numeric_traits::digits) {
-      return false;
+    if (shift > traits::digits) {
+      ec = make_error_code(error::decode_integer_overflow);
+      return self;
     }
     if (pos == end) {
-      return false;
+      return self;
     }
     byte = *pos++;
 
     if (shift) {
-      const IntegerT shift_mask = 127ull << (numeric_traits::digits - shift);
+      const Integer shift_mask = 127ull << (traits::digits - shift);
       if (byte & 127 & shift_mask) {
-        return false;
+        ec = make_error_code(error::decode_integer_overflow);
+        return self;
       }
     }
-    const IntegerT i = (byte & 127ull) << shift;
+    const Integer i = (byte & 127ull) << shift;
     // check overflow on addition
-    if (value > numeric_traits::max() - i) {
-      return false;
+    if (value > traits::max() - i) {
+      ec = make_error_code(error::decode_integer_overflow);
+      return self;
     }
 
     value += i;
     shift += 7;
   } while ((byte & 128) == 128); // high bit set
 
-  return true;
+  return done;
+}
+
+} // namespace integer
+
+template <size_t PrefixN, typename InputIterator, typename Integer>
+bool decode_integer(InputIterator& pos, InputIterator end,
+                    Integer& value, uint8_t& padding)
+{
+  enum class state { suffix, done };
+  if (pos == end) {
+    return false;
+  }
+  auto s = integer::decode_prefix<PrefixN>(*pos++, value, padding,
+                                           state::suffix, state::done);
+  if (s == state::suffix) {
+    uint8_t shift = 0;
+    boost::system::error_code ec;
+    s = integer::decode_suffix(pos, end, value, shift,
+                               state::suffix, state::done, ec);
+    if (ec) {
+      return false;
+    }
+  }
+  return s == state::done;
 }
 
 } // namespace nexus::http2::detail::hpack

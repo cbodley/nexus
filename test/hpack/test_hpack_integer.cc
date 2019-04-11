@@ -15,7 +15,7 @@ template <> struct numeric_traits<uint128_t> {
     return 0;
   }
   static constexpr uint128_t max() {
-    constexpr uint128_t ffs = 0xffffffff;
+    constexpr uint128_t ffs = 0xffffffffffffffffllu;
     return (ffs << 64) | ffs;
   }
 };
