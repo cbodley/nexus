@@ -11,6 +11,7 @@ enum class error {
   decode_integer_overflow,
   decode_truncated,
   exceeded_max_header_list_size,
+  huffman_not_supported, // XXX
 };
 
 // hpack error category
@@ -32,6 +33,8 @@ inline const boost::system::error_category& error_category()
           return "decode truncated";
         case error::exceeded_max_header_list_size:
           return "exceeded max header list size";
+        case error::huffman_not_supported:
+          return "huffman not supported";
         default:
           return "unknown";
       }

@@ -16,6 +16,8 @@ bool operator==(const http::fields& lhs, const http::fields& rhs) {
 
 namespace nexus::http2::hpack {
 
+static const boost::system::error_code ok;
+
 namespace http = boost::beast::http;
 
 TEST(HPACKHeader, decode_static_value)
@@ -31,20 +33,25 @@ TEST(HPACKHeader, decode_static_value)
     ASSERT_EQ(3u, encode_indexed_header(invalid_index, buf));
     ASSERT_EQ(5u, encoded.size());
   }
-  {
-    dynamic_table table(4096);
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    std::string name, value;
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ(":authority", name);
-    EXPECT_TRUE(value.empty());
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ(":method", name);
-    EXPECT_EQ("POST", value);
-    ASSERT_FALSE(decode_header(pos, end, table, name, value));
-  }
+
+  dynamic_table table(4096);
+  http::fields fields;
+  decoder d(table, fields, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(error::decode_invalid_index, ec);
+
+  ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
+  auto field = fields.begin();
+  EXPECT_EQ(":authority", field->name_string());
+  EXPECT_TRUE(field->value().empty());
+  ++field;
+  EXPECT_EQ(":method", field->name_string());
+  EXPECT_EQ("POST", field->value());
+
+  d.finish(ec);
+  EXPECT_EQ(ok, ec);
 }
 
 TEST(HPACKHeader, decode_dynamic_value)
@@ -57,23 +64,25 @@ TEST(HPACKHeader, decode_dynamic_value)
     ASSERT_EQ(1u, encode_indexed_header(static_table::size+4, buf));
     ASSERT_EQ(3u, encoded.size());
   }
-  {
-    dynamic_table table(4096);
-    table.insert("e", "f");
-    table.insert("c", "d");
-    table.insert("a", "b");
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    std::string name, value;
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ("a", name);
-    EXPECT_EQ("b", value);
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ("e", name);
-    EXPECT_EQ("f", value);
-    ASSERT_FALSE(decode_header(pos, end, table, name, value));
-  }
+
+  dynamic_table table(4096);
+  table.insert("e", "f");
+  table.insert("c", "d");
+  table.insert("a", "b");
+  http::fields fields;
+  decoder d(table, fields, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(error::decode_invalid_index, ec);
+
+  ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
+  auto field = fields.begin();
+  EXPECT_EQ("a", field->name_string());
+  EXPECT_EQ("b", field->value());
+  ++field;
+  EXPECT_EQ("e", field->name_string());
+  EXPECT_EQ("f", field->value());
 }
 
 TEST(HPACKHeader, decode_static_name)
@@ -89,20 +98,22 @@ TEST(HPACKHeader, decode_static_name)
     ASSERT_EQ(11u, encode_literal_header(invalid_index, "invalid", buf));
     ASSERT_EQ(25u, encoded.size());
   }
-  {
-    dynamic_table table(4096);
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    std::string name, value;
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ(":authority", name);
-    EXPECT_EQ("mah", value);
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ(":method", name);
-    EXPECT_EQ("OPTIONS", value);
-    ASSERT_FALSE(decode_header(pos, end, table, name, value));
-  }
+
+  dynamic_table table(4096);
+  http::fields fields;
+  decoder d(table, fields, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(error::decode_invalid_index, ec);
+
+  ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
+  auto field = fields.begin();
+  EXPECT_EQ(":authority", field->name_string());
+  EXPECT_EQ("mah", field->value());
+  ++field;
+  EXPECT_EQ(":method", field->name_string());
+  EXPECT_EQ("OPTIONS", field->value());
 }
 
 TEST(HPACKHeader, decode_dynamic_name)
@@ -115,23 +126,25 @@ TEST(HPACKHeader, decode_dynamic_name)
     ASSERT_EQ(4u, encode_literal_header(static_table::size+6, "z", buf));
     ASSERT_EQ(11u, encoded.size());
   }
-  {
-    dynamic_table table(4096);
-    table.insert("e", "f");
-    table.insert("c", "d");
-    table.insert("a", "b");
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    std::string name, value;
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ("a", name);
-    EXPECT_EQ("x", value);
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ("e", name);
-    EXPECT_EQ("y", value);
-    ASSERT_FALSE(decode_header(pos, end, table, name, value));
-  }
+
+  dynamic_table table(4096);
+  table.insert("e", "f");
+  table.insert("c", "d");
+  table.insert("a", "b");
+  http::fields fields;
+  decoder d(table, fields, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(error::decode_invalid_index, ec);
+
+  ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
+  auto field = fields.begin();
+  EXPECT_EQ("a", field->name_string());
+  EXPECT_EQ("x", field->value());
+  ++field;
+  EXPECT_EQ("e", field->name_string());
+  EXPECT_EQ("y", field->value());
 }
 
 TEST(HPACKHeader, decode_noindex)
@@ -144,21 +157,27 @@ TEST(HPACKHeader, decode_noindex)
     ASSERT_EQ(5u, encode_literal_header_no_index("c", "d", buf));
     ASSERT_EQ(8u, encoded.size());
   }
-  {
-    dynamic_table table(4096);
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    std::string name, value;
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ(":authority", name);
-    EXPECT_EQ("b", value);
-    EXPECT_FALSE(table.lookup(0, nullptr, nullptr)); // nothing inserted
-    ASSERT_TRUE(decode_header(pos, end, table, name, value));
-    EXPECT_EQ("c", name);
-    EXPECT_EQ("d", value);
-    EXPECT_FALSE(table.lookup(0, nullptr, nullptr)); // nothing inserted
-  }
+
+  dynamic_table table(4096);
+  http::fields fields;
+  decoder d(table, fields, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(ok, ec);
+
+  ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
+  auto field = fields.begin();
+  EXPECT_EQ(":authority", field->name_string());
+  EXPECT_EQ("b", field->value());
+  ++field;
+  EXPECT_EQ("c", field->name_string());
+  EXPECT_EQ("d", field->value());
+
+  EXPECT_FALSE(table.lookup(0, nullptr, nullptr)); // nothing inserted
+
+  d.finish(ec);
+  EXPECT_EQ(ok, ec);
 }
 
 TEST(HPACKHeader, decode_table_size_update)
@@ -172,20 +191,25 @@ TEST(HPACKHeader, decode_table_size_update)
     ASSERT_EQ(1u, encode_indexed_header(static_table::size+1, buf));
     ASSERT_EQ(8u, encoded.size());
   }
-  {
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    dynamic_table table(4096);
-    http::fields fields;
-    EXPECT_FALSE(decode_headers(pos, end, table, fields));
-    EXPECT_EQ(16, table.max_size());
-    EXPECT_FALSE(table.lookup(0, nullptr, nullptr));
-    http::fields expected;
-    expected.insert("a", "b");
-    expected.insert("a", "b");
-    EXPECT_EQ(expected, fields);
-  }
+
+  dynamic_table table(4096);
+  http::fields fields;
+  decoder d(table, fields, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(error::decode_invalid_index, ec);
+
+  ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
+  auto field = fields.begin();
+  EXPECT_EQ("a", field->name_string());
+  EXPECT_EQ("b", field->value());
+  ++field;
+  EXPECT_EQ("a", field->name_string());
+  EXPECT_EQ("b", field->value());
+
+  EXPECT_EQ(16, table.max_size());
+  EXPECT_FALSE(table.lookup(0, nullptr, nullptr));
 }
 
 TEST(HPACKHeader, encode_fields)
@@ -201,15 +225,15 @@ TEST(HPACKHeader, encode_fields)
     ASSERT_EQ(79u, encode_headers(fields, table, buf));
     ASSERT_EQ(79u, encoded.size());
   }
-  {
-    const auto in = boost::asio::buffer(encoded);
-    auto pos = boost::asio::buffers_begin(in);
-    auto end = boost::asio::buffers_end(in);
-    dynamic_table table(4096);
-    http::fields fields2;
-    ASSERT_TRUE(decode_headers(pos, end, table, fields2));
-    EXPECT_EQ(fields, fields2);
-  }
+
+  dynamic_table table(4096);
+  http::fields fields2;
+  decoder d(table, fields2, 4096);
+
+  boost::system::error_code ec;
+  d.decode(boost::asio::buffer(encoded), ec);
+  EXPECT_EQ(ok, ec);
+  EXPECT_EQ(fields, fields2);
 }
 
 } // namespace nexus::http2::hpack
