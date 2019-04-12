@@ -22,10 +22,41 @@ auto encode_string(std::string_view str, DynamicBuffer& buffer)
   return count + size;
 }
 
-template <typename ConstBufferSequence, typename DynamicBuffer>
-bool decode_string(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
-                   boost::asio::buffers_iterator<ConstBufferSequence> end,
+namespace string {
+
+template <typename InputIterator, typename Integer,
+          typename DynamicBuffer, typename State>
+State decode(InputIterator& pos, InputIterator end,
+             Integer& remaining, DynamicBuffer& buffers,
+             State self, State done)
+{
+  const size_t input_size = std::distance(pos, end);
+  if (input_size < remaining) {
+    auto output = buffers.prepare(input_size);
+    std::copy(pos, end, boost::asio::buffers_begin(output));
+    buffers.commit(input_size);
+    pos = end;
+    remaining -= input_size;
+    return self;
+  }
+  auto next = pos;
+  std::advance(next, remaining);
+  auto output = buffers.prepare(remaining);
+  std::copy(pos, next, boost::asio::buffers_begin(output));
+  buffers.commit(remaining);
+  pos = next;
+  remaining = 0;
+  return done;
+}
+
+// TODO: huffman_decode()
+
+} // namespace string
+
+template <typename InputIterator, typename DynamicBuffer>
+auto decode_string(InputIterator& pos, InputIterator end,
                    DynamicBuffer& buffers)
+  -> std::enable_if_t<detail::is_dynamic_buffer_v<DynamicBuffer>, bool>
 {
   uint32_t len = 0;
   uint8_t huffman_flag = 0;
@@ -38,13 +69,9 @@ bool decode_string(boost::asio::buffers_iterator<ConstBufferSequence>& pos,
   if (huffman_flag & 0x80) {
     return false; // TODO: huffman decode
   }
-  if (len) {
-    auto output = buffers.prepare(len);
-    std::copy(pos, pos + len, boost::asio::buffers_begin(output));
-    buffers.commit(len);
-    pos += len;
-  }
-  return true;
+  enum class state { string, done };
+  auto s = string::decode(pos, end, len, buffers, state::string, state::done);
+  return s == state::done;
 }
 
 } // namespace nexus::http2::hpack
