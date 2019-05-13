@@ -120,7 +120,7 @@ auto stream_scheduler::read_header(
   // copy out the fields, TODO: specialize for http2::basic_fields
   auto headers = std::move(stream->headers);
   for (const auto& h : headers) {
-    if (h.name() != boost::beast::http::field::unknown) {
+    if (h.name() != field::unknown) {
       fields.insert(h.name(), h.value());
     } else {
       fields.insert(h.name_string(), h.value());

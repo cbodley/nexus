@@ -5,17 +5,22 @@ namespace nexus::http2 {
 
 TEST(Fields, make_field)
 {
-  auto f1 = detail::make_field(boost::asio::buffer("abc", 3),
-                               boost::asio::buffer("def", 3));
-  EXPECT_EQ(boost::beast::http::field::unknown, f1->name());
-  EXPECT_EQ("abc", f1->name_string());
-  EXPECT_EQ("def", f1->value());
+  auto f1 = detail::make_field(field::status_200);
+  EXPECT_EQ(field::status_200, f1->name());
+  EXPECT_EQ(":status", f1->name_string());
+  EXPECT_EQ("200", f1->value());
 
-  auto f2 = detail::make_field(boost::beast::http::field::content_length,
+  auto f2 = detail::make_field(boost::asio::buffer("abc", 3),
+                               boost::asio::buffer("def", 3));
+  EXPECT_EQ(field::unknown, f2->name());
+  EXPECT_EQ("abc", f2->name_string());
+  EXPECT_EQ("def", f2->value());
+
+  auto f3 = detail::make_field(field::content_length,
                                boost::asio::buffer("123", 3));
-  EXPECT_EQ(boost::beast::http::field::content_length, f2->name());
-  EXPECT_EQ("Content-Length", f2->name_string());
-  EXPECT_EQ("123", f2->value());
+  EXPECT_EQ(field::content_length, f3->name());
+  EXPECT_EQ("content-length", f3->name_string());
+  EXPECT_EQ("123", f3->value());
 }
 
 TEST(Fields, insert)
@@ -24,49 +29,46 @@ TEST(Fields, insert)
 
   fields.insert("abc", "def");
   ASSERT_EQ(1u, std::distance(fields.begin(), fields.end()));
-  EXPECT_EQ(boost::beast::http::field::unknown, fields.begin()->name());
+  EXPECT_EQ(field::unknown, fields.begin()->name());
   EXPECT_EQ("abc", fields.begin()->name_string());
   EXPECT_EQ("def", fields.begin()->value());
 
-  fields.insert(boost::beast::http::field::content_length, "123");
+  fields.insert(field::content_length, "123");
   ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
-  EXPECT_EQ(boost::beast::http::field::unknown, fields.begin()->name());
+  EXPECT_EQ(field::unknown, fields.begin()->name());
   EXPECT_EQ("abc", fields.begin()->name_string());
   EXPECT_EQ("def", fields.begin()->value());
-  EXPECT_EQ(boost::beast::http::field::content_length,
-            std::next(fields.begin())->name());
-  EXPECT_EQ("Content-Length", std::next(fields.begin())->name_string());
+  EXPECT_EQ(field::content_length, std::next(fields.begin())->name());
+  EXPECT_EQ("content-length", std::next(fields.begin())->name_string());
   EXPECT_EQ("123", std::next(fields.begin())->value());
 }
 
 TEST(Fields, equal_range)
 {
   basic_fields<> fields;
-  fields.insert(boost::beast::http::field::connection, "xyz");
-  fields.insert(boost::beast::http::field::content_length, "123");
-  fields.insert(boost::beast::http::field::connection, "close");
+  fields.insert(field::authority, "xyz");
+  fields.insert(field::content_length, "123");
+  fields.insert(field::authority, "XYZ");
   fields.insert("abc", "def");
   fields.insert("xyz", "123");
   fields.insert("abc", "ghi");
   {
-    auto range = fields.equal_range(boost::beast::http::field::connection);
+    auto range = fields.equal_range(field::authority);
     ASSERT_EQ(2u, std::distance(range.first, range.second));
-    EXPECT_EQ(boost::beast::http::field::connection, range.first->name());
-    EXPECT_EQ("Connection", range.first->name_string());
+    EXPECT_EQ(field::authority, range.first->name());
+    EXPECT_EQ(":authority", range.first->name_string());
     EXPECT_EQ("xyz", range.first->value());
-    EXPECT_EQ(boost::beast::http::field::connection,
-              std::next(range.first)->name());
-    EXPECT_EQ("Connection", std::next(range.first)->name_string());
-    EXPECT_EQ("close", std::next(range.first)->value());
+    EXPECT_EQ(field::authority, std::next(range.first)->name());
+    EXPECT_EQ(":authority", std::next(range.first)->name_string());
+    EXPECT_EQ("XYZ", std::next(range.first)->value());
   }
   {
     auto range = fields.equal_range("abc");
     ASSERT_EQ(2u, std::distance(range.first, range.second));
-    EXPECT_EQ(boost::beast::http::field::unknown, range.first->name());
+    EXPECT_EQ(field::unknown, range.first->name());
     EXPECT_EQ("abc", range.first->name_string());
     EXPECT_EQ("def", range.first->value());
-    EXPECT_EQ(boost::beast::http::field::unknown,
-              std::next(range.first)->name());
+    EXPECT_EQ(field::unknown, std::next(range.first)->name());
     EXPECT_EQ("abc", std::next(range.first)->name_string());
     EXPECT_EQ("ghi", std::next(range.first)->value());
   }
@@ -75,8 +77,8 @@ TEST(Fields, equal_range)
 TEST(Fields, erase)
 {
   basic_fields<> fields;
-  fields.insert(boost::beast::http::field::connection, "xyz");
-  fields.insert(boost::beast::http::field::connection, "close");
+  fields.insert(field::authority, "xyz");
+  fields.insert(field::authority, "XYZ");
   fields.insert("abc", "def");
   fields.insert("foo", "bar");
   ASSERT_EQ(4u, std::distance(fields.begin(), fields.end()));
@@ -94,16 +96,16 @@ TEST(Fields, erase)
   }
   {
     // erase with iterator from equal_range()
-    auto range = fields.equal_range(boost::beast::http::field::connection);
+    auto range = fields.equal_range(field::authority);
     ASSERT_EQ(2u, std::distance(range.first, range.second));
     auto after = fields.erase(range.first);
     ASSERT_NE(basic_fields<>::const_name_iterator(), after);
-    EXPECT_EQ("close", after->value());
+    EXPECT_EQ("XYZ", after->value());
     ASSERT_EQ(2u, std::distance(fields.begin(), fields.end()));
     EXPECT_EQ("foo", std::next(fields.begin())->name_string());
-    range = fields.equal_range(boost::beast::http::field::connection);
+    range = fields.equal_range(field::authority);
     ASSERT_EQ(1u, std::distance(range.first, range.second));
-    EXPECT_EQ("close", range.first->value());
+    EXPECT_EQ("XYZ", range.first->value());
   }
 }
 
@@ -150,7 +152,7 @@ TEST(Fields, allocator)
   allocator_log log;
   {
     fields_type fields(&log);
-    auto f = fields.insert(boost::beast::http::field::connection, "xyz");
+    auto f = fields.insert(field::authority, "xyz");
     ASSERT_EQ(1u, log.size());
     EXPECT_EQ(base_size + 3, log[0]);
     fields.erase(f);
