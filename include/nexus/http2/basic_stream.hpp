@@ -73,7 +73,7 @@ size_t basic_stream::read(
   if (payload_size && *payload_size == 0) {
     return count;
   }
-  typename Body::reader body{message};
+  typename Body::reader body{message, message.body()};
   body.init(boost::none, ec);
   while (!ec) {
     count += scheduler.read_some_body(stream_id, body, ec);

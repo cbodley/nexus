@@ -12,6 +12,8 @@ namespace nexus::http2 {
 
 static const boost::system::error_code ok;
 
+namespace http = boost::beast::http;
+
 TEST(BasicStream, message)
 {
   boost::asio::io_context ioctx;
@@ -22,11 +24,9 @@ TEST(BasicStream, message)
   // basic_connection as client
   basic_connection<joined_stream> client{client_tag, protocol::default_settings,
                                          in, out};
-  boost::system::error_code ec;
-
   std::thread client_read_thread([&client] {
       basic_stream stream{client};
-      boost::beast::http::request<boost::beast::http::string_body> req;
+      http::request<http::string_body, basic_fields<>> req;
       boost::system::error_code ec;
       stream.read(req, ec);
       ASSERT_EQ(ok, ec);
