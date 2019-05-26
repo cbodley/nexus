@@ -21,4 +21,5 @@ if(NEXUS_TEST_ADDRESS_SANITIZER)
 endif()
 
 add_subdirectory(hpack)
+add_subdirectory(http)
 add_subdirectory(http2)
