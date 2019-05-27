@@ -220,7 +220,7 @@ struct name_iless : boost::beast::iless {
                             const field_pair<Allocator>& rhs) const {
     return operator()(lhs, rhs.name_string());
   }
-  constexpr bool operator()(std::string_view lhs, std::string_view rhs) const {
+  bool operator()(std::string_view lhs, std::string_view rhs) const {
     return iless::operator()({lhs.data(), lhs.size()},
                             {rhs.data(), rhs.size()});
   }
