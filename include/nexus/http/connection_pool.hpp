@@ -92,11 +92,11 @@ class connection_pool {
       intrusive_ptr_add_ref(impl.get());
 
       if (secure) {
-        impl->async_connect_ssl(host, service,
+        impl->async_connect_ssl(host, service, std::nullopt,
                                 detail::pool_connect_op{pool, impl,
                                                         std::move(handler)});
       } else {
-        impl->async_connect(host, service,
+        impl->async_connect(host, service, std::nullopt,
                             detail::pool_connect_op{pool, impl,
                                                     std::move(handler)});
       }

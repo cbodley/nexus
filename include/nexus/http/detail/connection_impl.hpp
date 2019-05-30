@@ -1,6 +1,10 @@
 #pragma once
 
+#include <chrono>
+#include <optional>
 #include <string_view>
+#include <boost/asio/basic_waitable_timer.hpp>
+#include <boost/asio/bind_executor.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/executor.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -23,6 +27,8 @@ class connection_impl : public boost::intrusive_ref_counter<connection_impl>,
   boost::asio::executor ex;
   boost::asio::ip::tcp::resolver resolver;
   boost::beast::ssl_stream<boost::asio::ip::tcp::socket> stream;
+  using Clock = std::chrono::steady_clock;
+  boost::asio::basic_waitable_timer<Clock> timer;
   boost::beast::multi_buffer parse_buffer;
   bool resolving = false;
   bool connected = false;
@@ -32,7 +38,7 @@ class connection_impl : public boost::intrusive_ref_counter<connection_impl>,
   explicit connection_impl(boost::asio::io_context& context,
                            const boost::asio::executor& ex,
                            boost::asio::ssl::context& ssl)
-    : ex(ex), resolver(context), stream(context, ssl) {}
+    : ex(ex), resolver(context), stream(context, ssl), timer(context) {}
 
   boost::beast::multi_buffer& get_parse_buffer() { return parse_buffer; }
 
@@ -59,11 +65,23 @@ class connection_impl : public boost::intrusive_ref_counter<connection_impl>,
   template <typename CompletionToken> // void(error_code)
   auto async_connect(std::string_view host,
                      std::string_view service,
+                     std::optional<Clock::duration> timeout,
                      CompletionToken&& token)
   {
-    return async_tcp_connect(resolver, stream.next_layer(),
-                             resolving, connected, host, service,
-                             std::forward<CompletionToken>(token));
+    using Signature = void(boost::system::error_code);
+    boost::asio::async_completion<CompletionToken, Signature> init(token);
+    auto& handler = init.completion_handler;
+    if (timeout) {
+      timer.expires_after(*timeout);
+      auto ex2 = boost::asio::get_associated_executor(handler, ex);
+      auto h = [this] (boost::system::error_code ec) {
+        if (ec != boost::asio::error::operation_aborted) { cancel(); }
+      };
+      timer.async_wait(boost::asio::bind_executor(ex2, std::move(h)));
+    }
+    async_tcp_connect(resolver, stream.next_layer(), resolving, connected,
+                      host, service, std::move(handler));
+    return init.result.get();
   }
 
   void connect_ssl(std::string_view host,
@@ -89,11 +107,23 @@ class connection_impl : public boost::intrusive_ref_counter<connection_impl>,
   template <typename CompletionToken> // void(error_code)
   auto async_connect_ssl(std::string_view host,
                          std::string_view service,
+                         std::optional<Clock::duration> timeout,
                          CompletionToken&& token)
   {
-    return async_ssl_connect(resolver, stream, resolving,
-                             connected, secure, host, service,
-                             std::forward<CompletionToken>(token));
+    using Signature = void(boost::system::error_code);
+    boost::asio::async_completion<CompletionToken, Signature> init(token);
+    auto& handler = init.completion_handler;
+    if (timeout) {
+      timer.expires_after(*timeout);
+      auto ex2 = boost::asio::get_associated_executor(handler, ex);
+      auto h = [this] (boost::system::error_code ec) {
+        if (ec != boost::asio::error::operation_aborted) { cancel(); }
+      };
+      timer.async_wait(boost::asio::bind_executor(ex2, std::move(h)));
+    }
+    async_ssl_connect(resolver, stream, resolving, connected,
+                      secure, host, service, std::move(handler));
+    return init.result.get();
   }
 
   size_t available(boost::system::error_code& ec)

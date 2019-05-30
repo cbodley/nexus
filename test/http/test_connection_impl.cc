@@ -120,7 +120,7 @@ TEST(ConnectionImpl, async_resolve_cancel)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect("127.0.0.1", "0", capture(ec));
+  impl.async_connect("127.0.0.1", "0", std::nullopt, capture(ec));
 
   impl.cancel(); // cancel before running resolve handler
 
@@ -136,7 +136,8 @@ TEST(ConnectionImpl, async_connect_cancel)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect("1.1.1.1", "0", capture(ec)); // blocks trying to connect
+  // blocks trying to connect
+  impl.async_connect("1.1.1.1", "0", std::nullopt, capture(ec));
 
   EXPECT_EQ(1, ioctx.run_for(10ms)); // resolve
   ASSERT_FALSE(ec);
@@ -158,7 +159,7 @@ TEST(ConnectionImpl, async_connect)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect("127.0.0.1", port, capture(ec));
+  impl.async_connect("127.0.0.1", port, std::nullopt, capture(ec));
 
   EXPECT_LT(1, ioctx.run()); // resolve, connect
   ASSERT_TRUE(ec);
@@ -178,7 +179,7 @@ TEST(ConnectionImpl, async_connect_refused)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect("127.0.0.1", port, capture(ec));
+  impl.async_connect("127.0.0.1", port, std::nullopt, capture(ec));
 
   EXPECT_LT(1, ioctx.run()); // resolve, connect
   ASSERT_TRUE(ec);
@@ -208,7 +209,7 @@ TEST(ConnectionImpl, async_connect_ssl)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect_ssl("127.0.0.1", port, capture(ec));
+  impl.async_connect_ssl("127.0.0.1", port, std::nullopt, capture(ec));
 
   EXPECT_LT(2, ioctx.run()); // resolve, connect, handshake
   ASSERT_TRUE(ec);
@@ -230,7 +231,7 @@ TEST(ConnectionImpl, async_resolve_ssl_cancel)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect_ssl("1.1.1.1", port, capture(ec));
+  impl.async_connect_ssl("1.1.1.1", port, std::nullopt, capture(ec));
 
   impl.cancel(); // cancel before running resolve handler
 
@@ -249,7 +250,7 @@ TEST(ConnectionImpl, async_connect_ssl_cancel)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect_ssl("1.1.1.1", port, capture(ec));
+  impl.async_connect_ssl("1.1.1.1", port, std::nullopt, capture(ec));
 
   EXPECT_EQ(1, ioctx.run_for(10ms)); // resolve
   ASSERT_FALSE(ec);
@@ -271,7 +272,7 @@ TEST(ConnectionImpl, async_connect_ssl_handshake_cancel)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect_ssl("127.0.0.1", port, capture(ec));
+  impl.async_connect_ssl("127.0.0.1", port, std::nullopt, capture(ec));
 
   EXPECT_LT(2, ioctx.run_for(10ms)); // resolve, connect, handshake
   ASSERT_FALSE(ec);
@@ -304,7 +305,7 @@ TEST(ConnectionImpl, async_connect_ssl_truncated)
   connection_impl impl{ioctx, ioctx.get_executor(), ssl};
 
   std::optional<boost::system::error_code> ec;
-  impl.async_connect_ssl("127.0.0.1", port, capture(ec));
+  impl.async_connect_ssl("127.0.0.1", port, std::nullopt, capture(ec));
 
   EXPECT_LT(2, ioctx.run()); // resolve, connect, handshake
   ASSERT_TRUE(ec);
