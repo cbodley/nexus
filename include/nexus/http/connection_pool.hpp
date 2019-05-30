@@ -1,12 +1,14 @@
 #pragma once
 
 #include <memory>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/asio/io_context_strand.hpp>
 #include <nexus/core/bind_handler.hpp>
 #include <nexus/core/forward_handler.hpp>
 #include <nexus/http/connection.hpp>
 #include <nexus/http/detail/connection_pool_impl.hpp>
 #include <nexus/http/detail/pool_connect_op.hpp>
+#include <nexus/http/uri_view.hpp>
 
 namespace nexus::http {
 
@@ -30,6 +32,17 @@ class connection_pool {
     : context(context), executor(context), ssl(ssl),
       host(host), service(service),
       secure(secure), max_connections(max_connections),
+      pool(std::make_unique<detail::connection_pool_impl>())
+  {}
+
+  connection_pool(boost::asio::io_context& context,
+                  boost::asio::ssl::context& ssl,
+                  const uri_view& uri,
+                  size_t max_connections)
+    : context(context), executor(context), ssl(ssl),
+      host(uri.host()), service(uri.port()),
+      secure(boost::iequals(uri.scheme(), "https")),
+      max_connections(max_connections),
       pool(std::make_unique<detail::connection_pool_impl>())
   {}
 
