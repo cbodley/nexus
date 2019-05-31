@@ -4,7 +4,6 @@
 #include <mutex>
 #include <boost/asio/io_context_strand.hpp>
 #include <nexus/http/detail/connection_impl.hpp>
-#include <nexus/http/detail/pool_connect_op.hpp>
 
 namespace nexus::http::detail {
 
@@ -24,6 +23,7 @@ class connection_pool_impl :
   boost::intrusive::list<connection_impl> outstanding;
   boost::intrusive::list<connection_impl> idle;
   bool closed = false;
+  std::mutex mutex;
 
   static constexpr auto release = [] (connection_impl* p) {
     intrusive_ptr_release(p);
@@ -36,11 +36,22 @@ class connection_pool_impl :
       boost::system::error_code ec;
       impl->available(ec);
       if (!ec) {
+        intrusive_ptr_add_ref(impl.get());
+        outstanding.push_back(*impl);
         return impl;
       }
       // let impl destruct
     }
     return {};
+  }
+  static void shutdown(boost::intrusive::list<connection_impl>& conns,
+                       boost::system::error_code& ec) {
+    while (!conns.empty()) {
+      boost::intrusive_ptr impl{&conns.back(), false}; // take ownership
+      conns.pop_back();
+      impl->shutdown(ec);
+      impl->close(ec);
+    }
   }
  public:
   connection_pool_impl(boost::asio::io_context& context,
@@ -64,49 +75,120 @@ class connection_pool_impl :
 
   connection get(boost::system::error_code& ec)
   {
-    auto impl = pop_idle();
+    std::unique_lock lock{mutex};
     if (closed) {
       ec = boost::asio::error::operation_aborted;
-    } else if (!impl) {
-      impl.reset(new connection_impl(context, executor, ssl));
-      intrusive_ptr_add_ref(impl.get());
-      connecting.push_back(*impl);
-      if (secure) {
-        impl->connect_ssl(host, service, ec);
-      } else {
-        impl->connect(host, service, ec);
-      }
-      connecting.erase(connecting.iterator_to(*impl));
-      intrusive_ptr_release(impl.get());
-      if (closed) {
-        impl->shutdown(ec);
-        ec = boost::asio::error::operation_aborted;
-      }
+      return {nullptr};
     }
+    auto impl = pop_idle();
+    if (impl) {
+      return {std::move(impl)};
+    }
+    impl.reset(new connection_impl(context, executor, ssl));
+    intrusive_ptr_add_ref(impl.get());
+    connecting.push_back(*impl);
+    lock.unlock();
+    if (secure) {
+      impl->connect_ssl(host, service, ec);
+    } else {
+      impl->connect(host, service, ec);
+    }
+    on_connect(impl.get(), ec);
     if (ec) {
       impl.reset();
-    } else {
-      intrusive_ptr_add_ref(impl.get());
-      outstanding.push_back(*impl);
     }
     return {std::move(impl)};
   }
 
   template <typename CompletionToken> // void(error_code, connection)
-  auto async_get(CompletionToken&& token)
-  {
-    using Signature = void(boost::system::error_code, connection);
-    boost::asio::async_completion<CompletionToken, Signature> init(token);
-    auto& handler = init.completion_handler;
-    auto ex2 = boost::asio::get_associated_executor(handler, executor);
-    auto alloc = boost::asio::get_associated_allocator(handler);
+  auto async_get(CompletionToken&& token);
 
-    auto impl = pop_idle();
+  void put(connection conn, boost::system::error_code ec)
+  {
+    std::scoped_lock lock{mutex};
+    auto impl = std::move(conn.impl);
+    if (closed) {
+      ec = boost::asio::error::operation_aborted;
+      impl->close(ec);
+      return;
+    }
+    outstanding.erase(outstanding.iterator_to(*impl));
+    if (!ec) {
+      impl->available(ec); // test socket
+    }
+    if (!ec) {
+      // transfer ownership from outstanding
+      idle.push_back(*impl);
+    } else {
+      // release ownership from outstanding
+      intrusive_ptr_release(impl.get());
+      impl->close(ec);
+    }
+  }
+
+  void shutdown()
+  {
+    boost::intrusive::list<connection_impl> c, o, i;
+    {
+      std::scoped_lock lock{mutex};
+      closed = true;
+      c = std::move(connecting);
+      o = std::move(outstanding);
+      i = std::move(idle);
+    }
+    boost::system::error_code ec;
+    shutdown(c, ec);
+    shutdown(o, ec);
+    shutdown(i, ec);
+  }
+
+  void on_connect(connection_impl* impl,
+                  boost::system::error_code& ec)
+  {
+    std::unique_lock lock{mutex};
+    if (closed) {
+      lock.unlock();
+      ec = boost::asio::error::operation_aborted;
+      boost::system::error_code ec_ignored;
+      impl->close(ec_ignored);
+      return;
+    }
+    connecting.erase(connecting.iterator_to(*impl));
+    if (ec) {
+      // release ownership from connecting
+      intrusive_ptr_release(impl);
+    } else {
+      // transfer ownership from connecting
+      outstanding.push_back(*impl);
+    }
+  }
+};
+
+} // namespace nexus::http::detail
+
+#include <nexus/http/detail/pool_connect_op.hpp>
+
+namespace nexus::http::detail {
+
+template <typename CompletionToken> // void(error_code, connection)
+auto connection_pool_impl::async_get(CompletionToken&& token)
+{
+  using Signature = void(boost::system::error_code, connection);
+  boost::asio::async_completion<CompletionToken, Signature> init(token);
+  auto& handler = init.completion_handler;
+  auto ex2 = boost::asio::get_associated_executor(handler, executor);
+  auto alloc = boost::asio::get_associated_allocator(handler);
+
+  {
+    std::scoped_lock lock{mutex};
     if (closed) {
       boost::system::error_code ec = boost::asio::error::operation_aborted;
       auto b = bind_handler(std::move(handler), ec, connection{nullptr});
       ex2.post(forward_handler(std::move(b)), alloc);
-    } else if (impl) {
+      return init.result.get();
+    }
+    auto impl = pop_idle();
+    if (impl) {
       boost::system::error_code ec;
       auto b = bind_handler(std::move(handler), ec, connection{std::move(impl)});
       ex2.post(forward_handler(std::move(b)), alloc);
@@ -114,8 +196,8 @@ class connection_pool_impl :
       // TODO: wait for outstanding to be returned, or connecting to fail
     } else {
       impl.reset(new connection_impl(context, executor, ssl));
-      connecting.push_back(*impl);
       intrusive_ptr_add_ref(impl.get());
+      connecting.push_back(*impl);
 
       if (secure) {
         impl->async_connect_ssl(host, service, std::nullopt,
@@ -127,62 +209,8 @@ class connection_pool_impl :
                                             std::move(handler)});
       }
     }
-    return init.result.get();
   }
-
-  void put(connection conn, boost::system::error_code ec)
-  {
-    auto impl = std::move(conn.impl);
-    outstanding.erase(outstanding.iterator_to(*impl));
-    if (closed) {
-      ec = boost::asio::error::operation_aborted;
-    } else if (!ec) {
-      impl->available(ec); // test socket
-    }
-    if (!ec) {
-      idle.push_back(*impl);
-    } else {
-      intrusive_ptr_release(impl.get());
-      impl->close(ec);
-    }
-  }
-
-  void shutdown()
-  {
-    closed = true;
-
-    boost::system::error_code ec;
-    for (auto& impl : connecting) {
-      impl.shutdown(ec);
-      impl.close(ec);
-    }
-    for (auto& impl : outstanding) {
-      impl.shutdown(ec);
-      impl.close(ec);
-    }
-    while (!idle.empty()) {
-      boost::intrusive_ptr impl{&idle.back(), false}; // take ownership
-      idle.pop_back();
-      impl->shutdown(ec);
-      impl->close(ec);
-    }
-  }
-
-  void on_connect(connection_impl* conn,
-                  boost::system::error_code& ec)
-  {
-    if (closed) {
-      ec = boost::asio::error::operation_aborted;
-    }
-    connecting.erase(connecting.iterator_to(*conn));
-    if (ec) {
-      // release ownership from connecting
-      intrusive_ptr_release(conn);
-    } else {
-      // transfer ownership from connecting
-      outstanding.push_back(*conn);
-    }
-  }
-};
+  return init.result.get();
+}
 
 } // namespace nexus::http::detail

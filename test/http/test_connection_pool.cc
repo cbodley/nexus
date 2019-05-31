@@ -1,7 +1,9 @@
 #include <nexus/http/connection_pool.hpp>
 #include <server_certificate.hpp>
+#include <algorithm>
 #include <optional>
 #include <thread>
+#include <vector>
 #include <gtest/gtest.h>
 
 namespace nexus::http {
@@ -84,6 +86,7 @@ TEST(ConnectionPool, get_idle)
   pool.put(std::move(conn), ec);
   conn = pool.get(ec);
   EXPECT_EQ(ok, ec);
+  pool.put(std::move(conn), ec);
 }
 
 TEST(ConnectionPool, shutdown_idle)
@@ -100,6 +103,60 @@ TEST(ConnectionPool, shutdown_idle)
   EXPECT_EQ(ok, ec);
   pool.put(std::move(conn), ec);
   pool.shutdown();
+}
+
+TEST(ConnectionPool, parallel_get_put)
+{
+  boost::asio::io_context ioctx;
+  auto acceptor = start_listener(ioctx);
+  const auto port = std::to_string(acceptor.local_endpoint().port());
+  const bool secure = false;
+
+  boost::asio::ssl::context ssl{boost::asio::ssl::context::tls};
+  connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 10};
+
+  const auto test = [&pool] {
+    boost::system::error_code ec;
+    auto conn = pool.get(ec);
+    EXPECT_EQ(ok, ec);
+    if (!ec) {
+      pool.put(std::move(conn), ec);
+    }
+  };
+  std::vector<std::thread> threads;
+  for (int i = 0; i < 100; ++i) {
+    threads.emplace_back(test);
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+}
+
+TEST(ConnectionPool, parallel_get_put_shutdown)
+{
+  boost::asio::io_context ioctx;
+  auto acceptor = start_listener(ioctx);
+  const auto port = std::to_string(acceptor.local_endpoint().port());
+  const bool secure = false;
+
+  boost::asio::ssl::context ssl{boost::asio::ssl::context::tls};
+  connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 10};
+
+  const auto test = [&pool] {
+    boost::system::error_code ec;
+    auto conn = pool.get(ec);
+    if (!ec) {
+      pool.put(std::move(conn), ec);
+    }
+  };
+  std::vector<std::thread> threads;
+  for (int i = 0; i < 100; ++i) {
+    threads.emplace_back(test);
+  }
+  pool.shutdown();
+  for (auto& t : threads) {
+    t.join();
+  }
 }
 
 TEST(ConnectionPool, ssl_get_put)
@@ -180,6 +237,7 @@ TEST(ConnectionPool, async_get_idle)
   EXPECT_EQ(1, ioctx.run()); // pop_idle()
   EXPECT_TRUE(ec);
   EXPECT_EQ(ok, *ec);
+  pool.put(std::move(*conn), *ec);
 }
 
 TEST(ConnectionPool, async_get_ssl_shutdown)
