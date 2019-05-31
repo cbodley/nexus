@@ -12,7 +12,7 @@ target_include_directories(nexus INTERFACE include)
 target_link_libraries(nexus INTERFACE Boost::system)
 install(DIRECTORY include/nexus DESTINATION include)
 
-option(NEXUS_TEST_ADDRESS_SANITIZER "build nexus tests with address sanitizer" ON)
+set(NEXUS_TEST_SANITIZERS "address,undefined" CACHE STRING "build nexus tests with sanitizers")
 
 option(NEXUS_BUILD_TESTS "build nexus tests" ON)
 if(NEXUS_BUILD_TESTS)

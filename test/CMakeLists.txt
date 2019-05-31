@@ -14,10 +14,9 @@ else(MSVC)
 	target_compile_options(test_base INTERFACE -Wall -Wextra -Werror)
 endif(MSVC)
 
-if(NEXUS_TEST_ADDRESS_SANITIZER)
-	# add address sanitizier
-	target_compile_options(test_base INTERFACE "-fsanitize=address")
-	target_link_libraries(test_base INTERFACE "-fsanitize=address")
+if(NEXUS_TEST_SANITIZERS)
+	target_compile_options(test_base INTERFACE "-fsanitize=${NEXUS_TEST_SANITIZERS}")
+	target_link_libraries(test_base INTERFACE "-fsanitize=${NEXUS_TEST_SANITIZERS}")
 endif()
 
 add_subdirectory(hpack)
