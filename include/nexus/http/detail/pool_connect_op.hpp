@@ -24,24 +24,20 @@ struct pool_connect_op {
   // ConnectHandler
   void operator()(boost::system::error_code ec)
   {
+    const bool connected = !ec;
     auto conn = connection{nullptr};
     auto p = pool.lock();
     if (!p) {
-      ec = boost::asio::error::operation_aborted;
-    } else if (p->closed) {
-      auto ex = boost::asio::get_associated_executor(handler, impl->get_executor());
-      impl->async_shutdown(shutdown_op{std::move(impl), ex});
+      // connection pool was destroyed
       ec = boost::asio::error::operation_aborted;
     } else {
-      p->connecting.erase(p->connecting.iterator_to(*impl));
-      if (ec) {
-        // release ownership from connecting
-        intrusive_ptr_release(impl.get());
-      } else {
-        // transfer ownership from connecting
-        p->outstanding.push_back(*impl);
-        conn = connection{std::move(impl)};
-      }
+      p->on_connect(impl.get(), ec);
+    }
+    if (!ec) {
+      conn = connection{std::move(impl)};
+    } else if (connected) {
+      auto ex = impl->get_executor();
+      impl->async_shutdown(shutdown_op{std::move(impl), ex});
     }
     handler(ec, std::move(conn));
   }

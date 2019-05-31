@@ -4,11 +4,12 @@
 #include <nexus/http/detail/connection_impl.hpp>
 
 namespace nexus::http {
+namespace detail { class connection_pool_impl; }
 
 // a move-only handle to an open connection that meets the requirements
 // of the AsyncStream and SyncStream concepts from boost::beast
 class connection {
-  friend class connection_pool;
+  friend class detail::connection_pool_impl;
   boost::intrusive_ptr<detail::connection_impl> impl;
  public:
   connection(boost::intrusive_ptr<detail::connection_impl>&& impl)

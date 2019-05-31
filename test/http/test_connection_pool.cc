@@ -203,7 +203,7 @@ TEST(ConnectionPool, async_get_ssl_shutdown)
 
   pool.shutdown();
 
-  EXPECT_EQ(4, ioctx.poll());
+  EXPECT_EQ(3, ioctx.poll());
 
   ASSERT_TRUE(ec);
   EXPECT_EQ(boost::asio::error::operation_aborted, *ec);
