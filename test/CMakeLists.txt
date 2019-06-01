@@ -19,6 +19,7 @@ if(NEXUS_TEST_SANITIZERS)
 	target_link_libraries(test_base INTERFACE "-fsanitize=${NEXUS_TEST_SANITIZERS}")
 endif()
 
+add_subdirectory(core)
 add_subdirectory(hpack)
 add_subdirectory(http)
 add_subdirectory(http2)

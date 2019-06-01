@@ -1,0 +1,3 @@
+add_executable(test_completion test_completion.cc)
+target_link_libraries(test_completion nexus test_base)
+add_test(test_completion test_completion)
