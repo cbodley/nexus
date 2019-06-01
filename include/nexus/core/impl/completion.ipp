@@ -7,22 +7,30 @@
 namespace nexus {
 namespace detail {
 
+// concrete completion that knows how to invoke the completion handler. this
+// observes all of the 'Requirements on asynchronous operations' specified by
+// the C++ Networking TS
 template <typename Executor1, typename Handler, typename T, typename ...Args>
 class completion_impl final : public completion<void(Args...), T> {
+  // use Handler's associated executor (or Executor1 by default) for callbacks
   using Executor2 = boost::asio::associated_executor_t<Handler, Executor1>;
+  // maintain work on both executors
   using Work1 = boost::asio::executor_work_guard<Executor1>;
   using Work2 = boost::asio::executor_work_guard<Executor2>;
   std::pair<Work1, Work2> work;
   Handler handler;
 
+  // use Handler's associated allocator
   using Alloc = boost::asio::associated_allocator_t<Handler>;
   using Traits = std::allocator_traits<Alloc>;
   using RebindAlloc = typename Traits::template rebind_alloc<completion_impl>;
   using RebindTraits = std::allocator_traits<RebindAlloc>;
 
+  // placement new for the handler allocator
   static void* operator new(size_t, RebindAlloc alloc) {
     return RebindTraits::allocate(alloc, 1);
   }
+  // placement delete for when the constructor throws during placement new
   static void operator delete(void *p, RebindAlloc alloc) {
     RebindTraits::deallocate(alloc, static_cast<completion_impl*>(p), 1);
   }
@@ -60,6 +68,8 @@ class completion_impl final : public completion<void(Args...), T> {
     RebindTraits::deallocate(alloc, this, 1);
   }
 
+  // constructor is private, use create(). extra constructor arguments are
+  // forwarded to user_data
   template <typename ...TArgs>
   completion_impl(const Executor1& ex1, Handler&& handler, TArgs&& ...args)
     : completion<void(Args...), T>(std::forward<TArgs>(args)...),
