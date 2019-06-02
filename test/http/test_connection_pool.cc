@@ -1,6 +1,5 @@
 #include <nexus/http/connection_pool.hpp>
 #include <server_certificate.hpp>
-#include <algorithm>
 #include <optional>
 #include <thread>
 #include <vector>
@@ -10,6 +9,7 @@ namespace nexus::http {
 
 static const boost::system::error_code ok;
 using tcp = boost::asio::ip::tcp;
+using namespace std::chrono_literals;
 
 tcp::acceptor start_listener(boost::asio::io_context& ioctx)
 {
@@ -210,8 +210,85 @@ TEST(ConnectionPool, async_get)
   std::optional<connection> conn;
   pool.async_get(capture(ec, conn));
 
-  EXPECT_EQ(2, ioctx.run()); // resolve, connect
+  EXPECT_EQ(3, ioctx.run()); // wait, resolve, connect
   EXPECT_TRUE(ec);
+  EXPECT_EQ(ok, *ec);
+}
+
+TEST(ConnectionPool, async_get_refused_wait)
+{
+  boost::asio::io_context ioctx;
+  tcp::acceptor acceptor(ioctx);
+  tcp::endpoint endpoint(tcp::v4(), 0);
+  acceptor.open(endpoint.protocol());
+  acceptor.bind(endpoint); // bind but don't listen
+  const auto port = std::to_string(acceptor.local_endpoint().port());
+  const bool secure = false;
+
+  boost::asio::ssl::context ssl{boost::asio::ssl::context::tls};
+  connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 1};
+
+  // test that failed connections don't count against the connection limit
+  std::optional<boost::system::error_code> ec1, ec2, ec3;
+  std::optional<connection> conn1, conn2, conn3;
+  pool.async_get(capture(ec1, conn1));
+  pool.async_get(capture(ec2, conn2));
+  pool.async_get(capture(ec3, conn3));
+
+  ioctx.run_for(10ms);
+  ASSERT_TRUE(ec1);
+  EXPECT_EQ(boost::asio::error::connection_refused, *ec1);
+  ASSERT_TRUE(ec2);
+  EXPECT_EQ(boost::asio::error::connection_refused, *ec2);
+  ASSERT_TRUE(ec3);
+  EXPECT_EQ(boost::asio::error::connection_refused, *ec3);
+}
+
+TEST(ConnectionPool, async_wait_shutdown)
+{
+  boost::asio::io_context ioctx;
+  auto acceptor = start_listener(ioctx);
+  const auto port = std::to_string(acceptor.local_endpoint().port());
+  const bool secure = false;
+
+  boost::asio::ssl::context ssl{boost::asio::ssl::context::tls};
+  connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 0};
+
+  std::optional<boost::system::error_code> ec;
+  std::optional<connection> conn;
+  pool.async_get(capture(ec, conn));
+
+  EXPECT_EQ(0, ioctx.poll());
+  pool.shutdown();
+
+  EXPECT_EQ(1, ioctx.run());
+  ASSERT_TRUE(ec);
+  EXPECT_EQ(boost::asio::error::operation_aborted, *ec);
+}
+
+TEST(ConnectionPool, async_wait_idle)
+{
+  boost::asio::io_context ioctx;
+  auto acceptor = start_listener(ioctx);
+  const auto port = std::to_string(acceptor.local_endpoint().port());
+  const bool secure = false;
+
+  boost::asio::ssl::context ssl{boost::asio::ssl::context::tls};
+  connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 1};
+
+  connection conn;
+  {
+    boost::system::error_code ec;
+    conn = pool.get(ec);
+    ASSERT_EQ(ok, ec);
+  }
+  std::optional<boost::system::error_code> ec;
+  std::optional<connection> conn2;
+  pool.async_get(capture(ec, conn2));
+
+  pool.put(std::move(conn), {});
+  EXPECT_EQ(1, ioctx.poll());
+  ASSERT_TRUE(ec);
   EXPECT_EQ(ok, *ec);
 }
 
@@ -254,6 +331,7 @@ TEST(ConnectionPool, async_get_ssl_shutdown)
   std::optional<connection> conn;
   pool.async_get(capture(ec, conn));
 
+  EXPECT_EQ(1, ioctx.run_one()); // wait
   EXPECT_EQ(1, ioctx.run_one()); // resolve
   EXPECT_EQ(1, ioctx.run_one()); // connect
   EXPECT_FALSE(ioctx.stopped());
@@ -282,6 +360,7 @@ TEST(ConnectionPool, async_get_ssl_destruct)
     connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 10};
     pool.async_get(capture(ec, conn));
 
+    EXPECT_EQ(1, ioctx.run_one()); // wait
     EXPECT_EQ(1, ioctx.run_one()); // resolve
     EXPECT_EQ(1, ioctx.run_one()); // connect
     EXPECT_FALSE(ioctx.stopped());
@@ -293,6 +372,26 @@ TEST(ConnectionPool, async_get_ssl_destruct)
 
   ASSERT_TRUE(ec);
   EXPECT_EQ(boost::asio::error::operation_aborted, *ec);
+}
+
+TEST(ConnectionPool, parallel_async_get_put)
+{
+  boost::asio::io_context ioctx;
+  auto acceptor = start_listener(ioctx);
+  const auto port = std::to_string(acceptor.local_endpoint().port());
+  const bool secure = false;
+
+  boost::asio::ssl::context ssl{boost::asio::ssl::context::tls};
+  connection_pool pool{ioctx, ssl, "127.0.0.1", port, secure, 10};
+
+  for (int i = 0; i < 100; ++i) {
+    pool.async_get([&pool] (boost::system::error_code ec, connection conn) {
+        if (!ec) {
+          pool.put(std::move(conn), ec);
+        }
+      });
+  }
+  ioctx.run();
 }
 
 } // namespace nexus::http

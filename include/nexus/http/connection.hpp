@@ -12,6 +12,7 @@ class connection {
   friend class detail::connection_pool_impl;
   boost::intrusive_ptr<detail::connection_impl> impl;
  public:
+  connection() = default;
   connection(boost::intrusive_ptr<detail::connection_impl>&& impl)
     : impl(std::move(impl)) {}
 
@@ -22,6 +23,8 @@ class connection {
 
   using executor_type = detail::connection_impl::executor_type;
   executor_type get_executor() { return impl->get_executor(); }
+
+  operator bool() const { return static_cast<bool>(impl); }
 
   size_t available(boost::system::error_code& ec)
   {

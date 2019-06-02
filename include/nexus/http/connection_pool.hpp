@@ -2,8 +2,6 @@
 
 #include <memory>
 #include <boost/algorithm/string/predicate.hpp>
-#include <nexus/core/bind_handler.hpp>
-#include <nexus/core/forward_handler.hpp>
 #include <nexus/http/connection.hpp>
 #include <nexus/http/detail/connection_pool_impl.hpp>
 #include <nexus/http/uri_view.hpp>

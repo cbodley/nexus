@@ -13,6 +13,8 @@
 #include <boost/intrusive/list.hpp>
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
 
+#include <nexus/core/bind_handler.hpp>
+#include <nexus/core/forward_handler.hpp>
 #include <nexus/http/detail/ssl_connect_op.hpp>
 #include <nexus/http/detail/ssl_shutdown_op.hpp>
 #include <nexus/http/detail/tcp_connect_op.hpp>
