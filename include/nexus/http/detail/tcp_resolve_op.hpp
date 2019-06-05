@@ -7,19 +7,19 @@
 namespace nexus::http::detail {
 
 template <typename Handler>
-struct tcp_connect_op {
-  connection_impl *conn;
+struct tcp_resolve_op {
+  connection_impl* conn;
   Handler handler;
 
-  explicit tcp_connect_op(connection_impl* conn, Handler&& handler)
+  explicit tcp_resolve_op(connection_impl* conn, Handler&& handler)
     : conn(conn), handler(std::move(handler))
   {}
 
-  // RangeConnectHandler
+  // ResolveHandler
   void operator()(boost::system::error_code ec,
-                  const boost::asio::ip::tcp::endpoint&)
+                  const boost::asio::ip::tcp::resolver::results_type& results)
   {
-    conn->on_connect(ec, std::move(handler));
+    conn->on_resolve(ec, results, std::move(handler));
   }
 
   using allocator_type = boost::asio::associated_allocator_t<Handler>;
@@ -32,12 +32,12 @@ struct tcp_connect_op {
 
 namespace boost::asio {
 
-// specialize boost::asio::associated_executor<> for tcp_connect_op
+// specialize boost::asio::associated_executor<> for tcp_resolve_op
 template <typename Handler, typename Executor>
-struct associated_executor<nexus::http::detail::tcp_connect_op<Handler>, Executor> {
+struct associated_executor<nexus::http::detail::tcp_resolve_op<Handler>, Executor> {
   using type = boost::asio::associated_executor_t<Handler, Executor>;
 
-  static type get(const nexus::http::detail::tcp_connect_op<Handler>& op,
+  static type get(const nexus::http::detail::tcp_resolve_op<Handler>& op,
                   const Executor& ex = Executor()) noexcept {
     return boost::asio::get_associated_executor(op.handler, ex);
   }
