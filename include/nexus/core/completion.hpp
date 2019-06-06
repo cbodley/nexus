@@ -81,6 +81,8 @@ struct user_data<void> {};
 template <typename T, typename ...Args>
 class completion<void(Args...), T> : public user_data<T> {
  public:
+  virtual ~completion() = default;
+
   /// completion factory function that uses the handler's associated allocator.
   /// any additional arguments are forwared to T's constructor
   template <typename Executor1, typename Handler, typename ...TArgs>
