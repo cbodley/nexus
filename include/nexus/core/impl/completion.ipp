@@ -62,9 +62,8 @@ class completion_impl final : public completion<void(Args...), T> {
     auto f = forward_handler(completion_handler(std::move(h), std::move(args)));
     w.second.get_executor().post(std::move(f), alloc);
   }
-  void destroy() override {
+  void deallocate() override {
     RebindAlloc alloc = boost::asio::get_associated_allocator(handler);
-    RebindTraits::destroy(alloc, this);
     RebindTraits::deallocate(alloc, this, 1);
   }
 
@@ -88,7 +87,7 @@ class completion_impl final : public completion<void(Args...), T> {
   }
 
   static void operator delete(void *p) {
-    static_cast<completion_impl*>(p)->destroy();
+    static_cast<completion_impl*>(p)->deallocate();
   }
 };
 

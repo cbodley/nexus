@@ -105,7 +105,7 @@ class completion<void(Args...), T> : public user_data<T> {
   // use the virtual destroy() interface on delete. this allows the completion
   // to be managed by std::unique_ptr<> without a custom Deleter
   static void operator delete(void *p) {
-    static_cast<completion*>(p)->destroy();
+    static_cast<completion*>(p)->deallocate();
   }
  protected:
   // constructor is protected, use create(). any constructor arguments are
@@ -119,7 +119,7 @@ class completion<void(Args...), T> : public user_data<T> {
   virtual void destroy_defer(std::tuple<Args...>&& args) = 0;
   virtual void destroy_dispatch(std::tuple<Args...>&& args) = 0;
   virtual void destroy_post(std::tuple<Args...>&& args) = 0;
-  virtual void destroy() = 0;
+  virtual void deallocate() = 0;
 };
 
 /// completion factory function that uses the handler's associated allocator.

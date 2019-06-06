@@ -27,6 +27,25 @@ TEST(Completion, no_user_data)
   }
 }
 
+TEST(Completion, user_data_destruct)
+{
+  boost::asio::io_context ioctx;
+  auto ex = ioctx.get_executor();
+  struct destruct_counter {
+    int& count;
+    destruct_counter(int& count) : count(count) {}
+    ~destruct_counter() { ++count; }
+  };
+  int count = 0;
+  using signature = void(error_code);
+  {
+    using completion_type = completion<signature, destruct_counter>;
+    auto c = completion_type::create(ex, null_handler, count);
+    ASSERT_EQ(count, 0);
+  }
+  ASSERT_EQ(count, 1);
+}
+
 TEST(Completion, user_data)
 {
   boost::asio::io_context ioctx;
