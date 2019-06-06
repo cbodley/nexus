@@ -158,7 +158,7 @@ TEST(ConnectionImpl, async_connect_timeout)
   std::optional<boost::system::error_code> ec;
   impl.async_connect("1.1.1.1", "0", 1ms, capture(ec));
 
-  EXPECT_EQ(3, ioctx.run_for(10ms)); // resolve, timer, connect
+  EXPECT_LE(2, ioctx.run_for(10ms)); // resolve, timer, connect
   ASSERT_TRUE(ec);
   EXPECT_EQ(boost::asio::error::timed_out, *ec);
 }
@@ -312,10 +312,9 @@ TEST(ConnectionImpl, async_connect_ssl_handshake_timeout)
 
   EXPECT_EQ(1, ioctx.run_one()); // resolve
   EXPECT_EQ(1, ioctx.run_one()); // connect
-  std::this_thread::sleep_for(10ms);
   ASSERT_FALSE(ec);
 
-  EXPECT_LT(1, ioctx.run()); // timer, handshake
+  EXPECT_LE(2, ioctx.run_for(10ms)); // timer, handshake
   ASSERT_TRUE(ec);
   EXPECT_EQ(boost::asio::error::timed_out, *ec);
 }
