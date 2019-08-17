@@ -21,5 +21,6 @@ if(NEXUS_TEST_ADDRESS_SANITIZER)
 endif()
 
 add_subdirectory(detail)
+add_subdirectory(quic)
 add_subdirectory(test)
 add_subdirectory(tls)
