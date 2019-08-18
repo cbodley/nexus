@@ -5,3 +5,7 @@ add_test(test_quic_encoding_varint test_quic_encoding_varint)
 add_executable(test_quic_encoding_packet test_quic_encoding_packet.cc)
 target_link_libraries(test_quic_encoding_packet nexus test_base)
 add_test(test_quic_encoding_packet test_quic_encoding_packet)
+
+add_executable(test_quic_encoding_frame test_quic_encoding_frame.cc)
+target_link_libraries(test_quic_encoding_frame nexus test_base)
+add_test(test_quic_encoding_frame test_quic_encoding_frame)
