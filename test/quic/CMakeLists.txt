@@ -1,5 +1,9 @@
 add_subdirectory(encoding)
 
+add_executable(test_quic_connection test_quic_connection.cc)
+target_link_libraries(test_quic_connection nexus test_base)
+add_test(test_quic_connection test_quic_connection)
+
 add_executable(test_quic_stream test_quic_stream.cc)
 target_link_libraries(test_quic_stream nexus test_base)
 add_test(test_quic_stream test_quic_stream)
