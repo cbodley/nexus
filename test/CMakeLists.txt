@@ -4,6 +4,9 @@ add_library(test_base INTERFACE)
 target_link_libraries(test_base INTERFACE gtest_main)
 target_include_directories(test_base INTERFACE include)
 
+# required for ssl tests
+find_package(OpenSSL 1.0.2 REQUIRED)
+
 # all warnings as errors
 if(MSVC)
        target_compile_options(test_base INTERFACE /W4 /WX)
