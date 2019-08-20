@@ -1,3 +1,7 @@
 add_executable(test_encoding_network_order test_encoding_network_order.cc)
 target_link_libraries(test_encoding_network_order nexus test_base)
 add_test(test_encoding_network_order test_encoding_network_order)
+
+add_executable(test_encoding_array test_encoding_array.cc)
+target_link_libraries(test_encoding_array nexus test_base)
+add_test(test_encoding_array test_encoding_array)
