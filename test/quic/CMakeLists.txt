@@ -1,5 +1,9 @@
 add_subdirectory(encoding)
 
+add_executable(test_quic_ack_range_set test_quic_ack_range_set.cc)
+target_link_libraries(test_quic_ack_range_set nexus test_base)
+add_test(test_quic_ack_range_set test_quic_ack_range_set)
+
 add_executable(test_quic_connection test_quic_connection.cc)
 target_link_libraries(test_quic_connection nexus test_base)
 add_test(test_quic_connection test_quic_connection)
