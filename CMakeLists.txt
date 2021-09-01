@@ -9,6 +9,7 @@ add_subdirectory(dependency)
 
 add_library(nexus INTERFACE)
 target_include_directories(nexus INTERFACE include)
+target_link_libraries(nexus INTERFACE lsquic)
 
 enable_testing()
 add_subdirectory(test EXCLUDE_FROM_ALL)

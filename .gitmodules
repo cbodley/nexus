@@ -4,3 +4,6 @@
 [submodule "dependency/boringssl"]
 	path = dependency/boringssl
 	url = https://boringssl.googlesource.com/boringssl
+[submodule "dependency/lsquic"]
+	path = dependency/lsquic
+	url = https://github.com/litespeedtech/lsquic
