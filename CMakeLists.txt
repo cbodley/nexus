@@ -11,5 +11,7 @@ add_library(nexus INTERFACE)
 target_include_directories(nexus INTERFACE include)
 target_link_libraries(nexus INTERFACE lsquic)
 
+add_subdirectory(examples)
+
 enable_testing()
 add_subdirectory(test EXCLUDE_FROM_ALL)
