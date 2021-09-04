@@ -1,5 +1,11 @@
 add_subdirectory(dependency)
 
-add_library(sanitizers INTERFACE)
-target_compile_options(sanitizers INTERFACE "-fsanitize=address")
-target_link_libraries(sanitizers INTERFACE "-fsanitize=address")
+add_library(test_base INTERFACE)
+target_link_libraries(test_base INTERFACE gtest gtest_main)
+
+function(add_unit_test target)
+	add_executable(${target} ${ARGN})
+	add_test(NAME ${target} COMMAND $<TARGET_FILE:${target}>)
+endfunction()
+
+add_subdirectory(http3)
