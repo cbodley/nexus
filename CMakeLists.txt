@@ -20,6 +20,7 @@ target_include_directories(nexus INTERFACE include)
 target_link_libraries(nexus INTERFACE lsquic)
 
 add_subdirectory(examples)
+add_subdirectory(src)
 
 enable_testing()
 add_subdirectory(test)
