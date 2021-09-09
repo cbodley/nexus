@@ -7,3 +7,4 @@ set(nexus-quic-srcs
 
 add_library(nexus-quic ${nexus-quic-srcs})
 target_link_libraries(nexus-quic PUBLIC nexus lsquic)
+install(TARGETS nexus-quic LIBRARY DESTINATION lib)
