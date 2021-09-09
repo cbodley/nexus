@@ -17,7 +17,7 @@ target_link_libraries(thread-sanitizer INTERFACE "-fsanitize=thread")
 
 add_library(nexus INTERFACE)
 target_include_directories(nexus INTERFACE include)
-target_link_libraries(nexus INTERFACE lsquic)
+target_link_libraries(nexus INTERFACE uring)
 
 add_subdirectory(examples)
 add_subdirectory(src)

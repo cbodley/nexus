@@ -1,9 +1,9 @@
-[submodule "googletest"]
-	path = test/dependency/googletest
-	url = https://github.com/google/googletest.git
 [submodule "dependency/boringssl"]
 	path = dependency/boringssl
 	url = https://boringssl.googlesource.com/boringssl
 [submodule "dependency/lsquic"]
 	path = dependency/lsquic
 	url = https://github.com/litespeedtech/lsquic
+[submodule "test/dependency/googletest"]
+	path = test/dependency/googletest
+	url = https://github.com/google/googletest.git

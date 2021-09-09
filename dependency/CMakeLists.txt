@@ -12,3 +12,6 @@ add_subdirectory(lsquic)
 cmake_policy(SET CMP0079 NEW)
 target_include_directories(lsquic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lsquic/include)
 target_link_libraries(lsquic PUBLIC ssl crypto decrepit ZLIB::ZLIB)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(URING REQUIRED liburing)

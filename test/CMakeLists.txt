@@ -8,4 +8,4 @@ function(add_unit_test target)
 	add_test(NAME ${target} COMMAND $<TARGET_FILE:${target}>)
 endfunction()
 
-add_subdirectory(http3)
+add_subdirectory(quic)

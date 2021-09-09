@@ -7,8 +7,9 @@
 #include <boost/intrusive/set.hpp>
 #include <boost/intrusive/list.hpp>
 
-namespace nexus::http3 {
+namespace nexus::quic::http3 {
 
+// controls how each header is cached by header compression
 enum class should_index : uint8_t {
   yes = 0,   // LSHPACK_ADD_INDEX
   no = 1,    // LSHPACK_NO_INDEX
@@ -16,6 +17,7 @@ enum class should_index : uint8_t {
   value = 3, // LSHPACK_VAL_INDEX
 };
 
+// a key/value pair to represent a single header
 class field : public boost::intrusive::list_base_hook<>,
               public boost::intrusive::set_base_hook<>
 {
@@ -81,6 +83,7 @@ class field : public boost::intrusive::list_base_hook<>,
 
 namespace detail {
 
+// case-insensitive field comparison for sorting in multiset
 struct field_compare {
   bool operator()(char lhs, char rhs) const {
     return std::tolower(lhs) < std::tolower(rhs);
@@ -116,17 +119,12 @@ using field_list = boost::intrusive::list<field,
 
 } // namespace detail
 
+// an ordered list of headers for an http request or response
 class fields {
   using list_type = detail::field_list;
   list_type list;
   using multiset_type = detail::field_multiset;
   multiset_type set;
-
-  auto to_list_upper(multiset_type::const_iterator lower,
-                     multiset_type::const_iterator upper) const {
-    return lower == set.end() ? list.end() :
-        std::next(list.iterator_to(*std::prev(upper)));
-  }
  public:
   ~fields() { clear(); }
 
@@ -163,7 +161,8 @@ class fields {
       return {list.end(), list.end()};
     }
     auto upper = set.upper_bound(name);
-    return {list.iterator_to(*lower), to_list_upper(lower, upper)};
+    auto list_upper = std::next(list.iterator_to(*std::prev(upper)));
+    return {list.iterator_to(*lower), list_upper};
   }
 
   iterator insert(std::string_view name, std::string_view value,
@@ -219,4 +218,4 @@ class fields {
   }
 };
 
-} // namespace nexus::http3
+} // namespace nexus::quic::http3
