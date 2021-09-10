@@ -3,13 +3,18 @@
 #include <nexus/quic/stream.hpp>
 #include <nexus/quic/http3/client.hpp>
 #include <nexus/quic/http3/fields.hpp>
+#include <nexus/quic/http3/server.hpp>
 
 namespace nexus {
 namespace quic::http3 {
 
 class stream : public quic::stream {
+  friend class client_connection;
+  friend class server_connection;
  public:
+  explicit stream(server_connection& c) : quic::stream(c.state) {}
   explicit stream(client_connection& c) : quic::stream(c.state) {}
+
   void read_headers(fields& f, error_code& ec) {
     state.read_headers(f, ec);
   }

@@ -2,12 +2,14 @@
 
 #include <memory>
 #include <mutex>
+#include <queue>
 
 #include <liburing.h>
 #include <netinet/ip.h>
 
 #include <nexus/error_code.hpp>
 #include <nexus/quic/detail/request.hpp>
+#include <nexus/quic/detail/socket.hpp>
 
 struct lsquic_engine;
 struct lsquic_conn;
@@ -22,13 +24,6 @@ struct stream_state;
 
 struct engine_deleter { void operator()(lsquic_engine* e) const; };
 using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
-
-union sockaddr_union {
-  sockaddr_storage storage;
-  sockaddr addr;
-  sockaddr_in addr4;
-  sockaddr_in6 addr6;
-};
 
 constexpr size_t ecn_size = sizeof(int);
 #ifdef IP_RECVORIGDSTADDR
@@ -56,8 +51,8 @@ class engine_state {
 
   std::mutex mutex;
   io_uring ring;
-  int sockfd = -1;
-  int timerfd = -1;
+  file_descriptor sockfd;
+  file_descriptor timerfd;
   timer_request timer;
   recv_request recv;
 
@@ -73,25 +68,42 @@ class engine_state {
  protected:
   lsquic_engine_ptr handle;
   sockaddr_union local_addr; // socket's bound address
+  bool is_server;
+
+  boost::intrusive::list<connection_state> accepting_connections;
+  std::queue<lsquic_conn*> incoming_connections;
 
   void start_recv();
   void process();
   void reschedule();
+
  public:
-  explicit engine_state(unsigned flags);
+  explicit engine_state(const char* node, const char* service, unsigned flags);
   ~engine_state();
+
+  // return the bound address
+  void local_endpoint(sockaddr_union& remote);
+  // return the connection's remote address
+  void remote_endpoint(connection_state& cstate, sockaddr_union& remote);
 
   void close();
 
-  void connection_open(connection_state& cstate, conn_open_request& req);
-  void on_connection_open(connection_state& cstate, lsquic_conn* conn);
+  void connect(connection_state& cstate, connect_request& req);
+  void on_connect(connection_state& cstate, lsquic_conn* conn);
 
-  void connection_close(connection_state& cstate, conn_close_request& req);
-  void on_connection_close(connection_state& cstate, lsquic_conn* conn);
+  void accept(connection_state& cstate, accept_request& req);
+  connection_state* on_accept(lsquic_conn* conn);
 
-  void stream_open(stream_state& sstate, stream_open_request& req);
-  stream_state& on_stream_open(connection_state& cstate,
-                               lsquic_stream* stream);
+  void close(connection_state& cstate, close_request& req);
+  void on_close(connection_state& cstate, lsquic_conn* conn);
+
+  void stream_connect(stream_state& sstate, stream_connect_request& req);
+  stream_state& on_stream_connect(connection_state& cstate,
+                                  lsquic_stream* stream);
+
+  void stream_accept(connection_state& cstate, stream_accept_request& req);
+  stream_state& on_stream_accept(connection_state& cstate,
+                                 lsquic_stream* stream);
 
   void stream_read(stream_state& sstate, stream_data_request& req);
   void stream_read_headers(stream_state& sstate, stream_header_read_request& req);

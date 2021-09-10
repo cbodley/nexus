@@ -2,24 +2,40 @@
 
 #include <nexus/error_code.hpp>
 #include <nexus/quic/client.hpp>
+#include <nexus/quic/server.hpp>
 
 namespace nexus::quic {
 
 class stream {
  protected:
+  friend class client_connection;
+  friend class server_connection;
   detail::stream_state state;
-  explicit stream(detail::connection_state& cstate) : state(cstate) {
+  explicit stream(detail::connection_state& cstate) : state(cstate) {}
+ public:
+  explicit stream(server_connection& c) : stream(c.state) {}
+  explicit stream(client_connection& c) : stream(c.state) {}
+
+  void connect(error_code& ec) {
+    state.connect(ec);
+  }
+  void connect() {
     error_code ec;
-    cstate.open_stream(state, ec);
+    state.connect(ec);
     if (ec) {
       throw system_error(ec);
     }
   }
- public:
-  explicit stream(client_connection& c) : stream(c.state) {}
-  ~stream() {
-    error_code ec_ignored;
-    close(ec_ignored);
+
+  void accept(error_code& ec) {
+    state.accept(ec);
+  }
+  void accept() {
+    error_code ec;
+    state.accept(ec);
+    if (ec) {
+      throw system_error(ec);
+    }
   }
 
   template <typename MutableBufferSequence>

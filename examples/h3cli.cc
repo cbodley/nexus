@@ -26,9 +26,10 @@ int main(int argc, char** argv) {
 
   auto global = nexus::quic::global::init_client();
   auto client = nexus::quic::http3::client{};
-  auto conn = nexus::quic::http3::client_connection{
-    client, remote_endpoint.data(), hostname};
+  auto conn = nexus::quic::http3::client_connection{client};
+  conn.connect(remote_endpoint.data(), hostname);
   auto stream = nexus::quic::http3::stream{conn};
+  stream.connect();
   // send headers
   auto request = nexus::quic::http3::fields{};
   request.insert(":method", "GET");

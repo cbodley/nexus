@@ -3,6 +3,8 @@ set(nexus-quic-srcs
 	engine.cc
 	error.cc
 	global.cc
+	server.cc
+	socket.cc
 	stream.cc)
 
 add_library(nexus-quic ${nexus-quic-srcs})

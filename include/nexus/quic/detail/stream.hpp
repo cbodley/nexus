@@ -1,16 +1,8 @@
 #pragma once
 
-#include <array>
-#include <condition_variable>
-#include <iostream>
-#include <mutex>
-#include <optional>
-
+#include <sys/uio.h> // iovec
 #include <boost/asio/buffers_iterator.hpp>
-#include <boost/smart_ptr/intrusive_ptr.hpp>
-#include <boost/smart_ptr/intrusive_ref_counter.hpp>
 
-#include <nexus/quic/detail/engine.hpp>
 #include <nexus/quic/detail/request.hpp>
 #include <nexus/quic/error.hpp>
 #include <nexus/quic/http3/fields.hpp>
@@ -19,6 +11,8 @@ struct lsquic_stream;
 
 namespace nexus {
 namespace quic::detail {
+
+struct connection_state;
 
 struct stream_read_state {
   stream_data_request* data = nullptr;
@@ -35,10 +29,19 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   stream_read_state in;
   stream_write_state out;
 
-  stream_open_request* open = nullptr;
+  stream_connect_request* connect_ = nullptr;
+  stream_accept_request* accept_ = nullptr;
   stream_close_request* close_ = nullptr;
 
   explicit stream_state(connection_state& conn) : conn(conn) {}
+  ~stream_state() {
+    error_code ec_ignored;
+    close(ec_ignored);
+  }
+
+  void connect(error_code& ec);
+
+  void accept(error_code& ec);
 
   void read_headers(http3::fields& fields, error_code& ec);
 

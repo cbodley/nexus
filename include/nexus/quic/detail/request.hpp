@@ -7,6 +7,7 @@
 
 struct iovec;
 struct lsxpack_header;
+struct sockaddr;
 
 namespace nexus::quic::detail {
 
@@ -22,14 +23,18 @@ struct engine_request {
   }
 };
 
-struct conn_open_request : engine_request {
-  const sockaddr* remote_endpoint = nullptr;
-  const char* remote_hostname = nullptr;
+struct connect_request : engine_request {
+  const sockaddr* endpoint = nullptr;
+  const char* hostname = nullptr;
 };
-struct conn_close_request : engine_request {
+struct accept_request : engine_request {
+};
+struct close_request : engine_request {
 };
 
-struct stream_open_request : engine_request {
+struct stream_connect_request : engine_request {
+};
+struct stream_accept_request : engine_request {
 };
 struct stream_data_request : engine_request {
   iovec* iovs = nullptr;
