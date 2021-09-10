@@ -126,6 +126,14 @@ class fields {
   using multiset_type = detail::field_multiset;
   multiset_type set;
  public:
+  fields() = default;
+  fields(fields&& o) = default;
+  fields& operator=(fields&& o) {
+    clear();
+    list = std::move(o.list);
+    set = std::move(o.set);
+    return *this;
+  }
   ~fields() { clear(); }
 
   using size_type = list_type::size_type;

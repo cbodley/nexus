@@ -31,17 +31,24 @@ int main(int argc, char** argv) {
   auto stream = nexus::quic::http3::stream{conn};
   // send headers
   auto request = nexus::quic::http3::fields{};
-  request.insert(":method", "HEAD");
+  request.insert(":method", "GET");
   request.insert(":scheme", "https");
   request.insert(":path", path);
   request.insert(":authority", hostname);
   request.insert("user-agent", "h3cli/lsquic");
-  nexus::error_code ec;
-  stream.write_headers(request, ec);
-  stream.shutdown(1, ec);
-  // read response as data
-  auto response = std::array<char, 4096>{};
+  stream.write_headers(request);
+  stream.shutdown(1);
+  // read response headers
+  auto response = nexus::quic::http3::fields{};
+  stream.read_headers(response);
+  for (const auto& f : response) {
+    std::cout << f.c_str() << "\r\n";
+  }
+  std::cout << "\r\n";
+  // read response body until eof
+  std::error_code ec;
   do {
+    auto response = std::array<char, 4096>{};
     const auto bytes = stream.read_some(boost::asio::buffer(response), ec);
     std::cout.write(response.data(), bytes);
   } while (!ec);

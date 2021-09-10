@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <optional>
 #include <nexus/error_code.hpp>
+#include <nexus/quic/http3/fields.hpp>
 
 struct iovec;
 struct lsxpack_header;
@@ -35,9 +36,11 @@ struct stream_data_request : engine_request {
   uint16_t num_iovs = 0;
   size_t bytes = 0;
 };
-struct stream_header_request : engine_request {
-  lsxpack_header* headers = nullptr;
-  uint16_t num_headers = 0;
+struct stream_header_read_request : engine_request {
+  http3::fields* fields = nullptr;
+};
+struct stream_header_write_request : engine_request {
+  const http3::fields* fields = nullptr;
 };
 struct stream_flush_request : engine_request {
 };

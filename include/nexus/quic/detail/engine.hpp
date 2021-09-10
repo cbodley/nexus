@@ -94,11 +94,11 @@ class engine_state {
                                lsquic_stream* stream);
 
   void stream_read(stream_state& sstate, stream_data_request& req);
-  void stream_read_headers(stream_state& sstate, stream_header_request& req);
+  void stream_read_headers(stream_state& sstate, stream_header_read_request& req);
   void on_stream_read(stream_state& sstate);
 
   void stream_write(stream_state& sstate, stream_data_request& req);
-  void stream_write_headers(stream_state& sstate, stream_header_request& req);
+  void stream_write_headers(stream_state& sstate, stream_header_write_request& req);
   void on_stream_write(stream_state& sstate);
 
   void stream_flush(stream_state& sstate, stream_flush_request& req);
