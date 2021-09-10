@@ -39,11 +39,11 @@ int main(int argc, char** argv) {
   nexus::error_code ec;
   stream.write_headers(request, ec);
   stream.shutdown(1, ec);
-  // read response as data
-  auto response = std::array<char, 4096>{};
-  do {
-    const auto bytes = stream.read_some(boost::asio::buffer(response), ec);
-    std::cout.write(response.data(), bytes);
-  } while (!ec);
+  // read response headers
+  auto response = nexus::quic::http3::fields{};
+  stream.read_headers(response, ec);
+  for (const auto& f : response) {
+    std::cout << f.c_str() << "\r\n";
+  }
   return 0;
 }

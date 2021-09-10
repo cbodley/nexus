@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cstring>
+#include <vector>
 
 #include <netdb.h>
 #include <poll.h>
@@ -9,6 +10,7 @@
 #include <unistd.h>
 
 #include <lsquic.h>
+#include <lsxpack_header.h>
 
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
@@ -203,7 +205,7 @@ void engine_state::stream_read(stream_state& sstate, stream_data_request& req)
 }
 
 void engine_state::stream_read_headers(stream_state& sstate,
-                                       stream_header_request& req)
+                                       stream_header_read_request& req)
 {
   auto lock = std::unique_lock{mutex};
   assert(!sstate.in.data);
@@ -216,15 +218,28 @@ void engine_state::stream_read_headers(stream_state& sstate,
   wait(lock, req);
 }
 
+struct recv_header_set {
+  http3::fields fields;
+  int is_push_promise;
+  lsxpack_header header;
+  std::vector<char> buffer;
+
+  recv_header_set(int is_push_promise) : is_push_promise(is_push_promise) {}
+};
+
 void engine_state::on_stream_read(stream_state& sstate)
 {
-  if (sstate.in.header) { // TODO
+  error_code ec;
+  if (sstate.in.header) {
     auto& req = *std::exchange(sstate.in.header, nullptr);
-    req.notify(make_error_code(errc::operation_not_supported));
+    auto headers = std::unique_ptr<recv_header_set>(
+        reinterpret_cast<recv_header_set*>(
+            ::lsquic_stream_get_hset(sstate.handle)));
+    (*req.fields) = std::move(headers->fields);
+    req.notify(ec); // success
   } else if (sstate.in.data) {
     auto& req = *std::exchange(sstate.in.data, nullptr);
     auto bytes = ::lsquic_stream_readv(sstate.handle, req.iovs, req.num_iovs);
-    error_code ec;
     if (bytes == -1) {
       bytes = 0;
       ec.assign(errno, system_category());
@@ -251,7 +266,7 @@ void engine_state::stream_write(stream_state& sstate, stream_data_request& req)
 }
 
 void engine_state::stream_write_headers(stream_state& sstate,
-                                        stream_header_request& req)
+                                        stream_header_write_request& req)
 {
   auto lock = std::unique_lock{mutex};
   assert(!sstate.out.data);
@@ -264,20 +279,40 @@ void engine_state::stream_write_headers(stream_state& sstate,
   wait(lock, req);
 }
 
+static void do_write_headers(lsquic_stream_t* stream,
+                             const http3::fields& fields, error_code& ec)
+{
+  // stack-allocate a lsxpack_header array
+  auto array = reinterpret_cast<lsxpack_header*>(
+      ::alloca(fields.size() * sizeof(lsxpack_header)));
+  int num_headers = 0;
+  for (auto f = fields.begin(); f != fields.end(); ++f, ++num_headers) {
+    auto& header = array[num_headers];
+    const char* buf = f->data();
+    const size_t name_offset = std::distance(buf, f->name().data());
+    const size_t name_len = f->name().size();
+    const size_t val_offset = std::distance(buf, f->value().data());
+    const size_t val_len = f->value().size();
+    lsxpack_header_set_offset2(&header, buf, name_offset, name_len,
+                               val_offset, val_len);
+    header.indexed_type = static_cast<uint8_t>(f->index());
+  }
+  auto headers = lsquic_http_headers{num_headers, array};
+  if (::lsquic_stream_send_headers(stream, &headers, 0) == -1) {
+    ec.assign(errno, system_category());
+  }
+}
+
 void engine_state::on_stream_write(stream_state& sstate)
 {
+  error_code ec;
   if (sstate.out.header) {
     auto& req = *std::exchange(sstate.out.header, nullptr);
-    auto headers = lsquic_http_headers{req.num_headers, req.headers};
-    error_code ec;
-    if (::lsquic_stream_send_headers(sstate.handle, &headers, 0) == -1) {
-      ec.assign(errno, system_category());
-    }
+    do_write_headers(sstate.handle, *req.fields, ec);
     req.notify(ec);
   } else if (sstate.out.data) {
     auto& req = *std::exchange(sstate.out.data, nullptr);
     auto bytes = ::lsquic_stream_writev(sstate.handle, req.iovs, req.num_iovs);
-    error_code ec;
     if (bytes == -1) {
       bytes = 0;
       ec.assign(errno, system_category());
@@ -683,6 +718,58 @@ constexpr lsquic_stream_if make_client_stream_api()
   return api;
 }
 
+
+// header set api
+void* header_set_create(void* ctx, lsquic_stream_t* stream, int is_push_promise)
+{
+  // TODO: store this in stream_state to avoid allocation?
+  return new recv_header_set(is_push_promise);
+}
+
+lsxpack_header* header_set_prepare(void* hset, lsxpack_header* hdr,
+                                   size_t space)
+{
+  auto headers = reinterpret_cast<recv_header_set*>(hset);
+  auto& header = headers->header;
+  auto& buf = headers->buffer;
+  buf.resize(space);
+  if (hdr) { // existing header, just update the pointer and capacity
+    header.buf = buf.data();
+    header.val_len = space;
+  } else { // initialize the entire header
+    lsxpack_header_prepare_decode(&header, buf.data(), 0, space);
+  }
+  return &header;
+}
+
+int header_set_process(void* hset, lsxpack_header* hdr)
+{
+  if (hdr) {
+    auto headers = reinterpret_cast<recv_header_set*>(hset);
+    auto name = std::string_view{hdr->buf + hdr->name_offset, hdr->name_len};
+    auto value = std::string_view{hdr->buf + hdr->val_offset, hdr->val_len};
+    auto index = static_cast<http3::should_index>(hdr->indexed_type);
+    auto f = headers->fields.insert(name, value, index);
+  }
+  return 0;
+}
+
+void header_set_discard(void* hset)
+{
+  delete reinterpret_cast<recv_header_set*>(hset);
+}
+
+constexpr lsquic_hset_if make_client_header_api()
+{
+  lsquic_hset_if api = {};
+  api.hsi_create_header_set  = header_set_create;
+  api.hsi_prepare_decode     = header_set_prepare;
+  api.hsi_process_header     = header_set_process;
+  api.hsi_discard_header_set = header_set_discard;
+  return api;
+}
+
+
 static int client_send_packets(void* ectx, const lsquic_out_spec *specs,
                         unsigned n_specs)
 {
@@ -723,6 +810,9 @@ engine_state::engine_state(unsigned flags)
   static const lsquic_stream_if stream_api = make_client_stream_api();
   api.ea_stream_if = &stream_api;
   api.ea_stream_if_ctx = this;
+  static const lsquic_hset_if header_api = make_client_header_api();
+  api.ea_hsi_if = &header_api;
+  api.ea_hsi_ctx = this;
   api.ea_settings = &settings;
   handle.reset(::lsquic_engine_new(flags, &api));
 

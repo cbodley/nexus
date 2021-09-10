@@ -95,16 +95,20 @@ struct data_transfer_state {
   }
 };
 #endif
-struct stream_transfer_state {
+struct stream_read_state {
   stream_data_request* data = nullptr;
-  stream_header_request* header = nullptr;
+  stream_header_read_request* header = nullptr;
+};
+struct stream_write_state {
+  stream_data_request* data = nullptr;
+  stream_header_write_request* header = nullptr;
 };
 
 struct stream_state : public boost::intrusive::list_base_hook<> {
   connection_state& conn;
   lsquic_stream* handle = nullptr;
-  stream_transfer_state in;
-  stream_transfer_state out;
+  stream_read_state in;
+  stream_write_state out;
 
   stream_open_request* open = nullptr;
   stream_close_request* close_ = nullptr;
