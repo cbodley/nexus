@@ -32,6 +32,7 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   }
 
   asio::ip::udp::endpoint remote_endpoint();
+
   void connect(const asio::ip::udp::endpoint& endpoint,
                const char* hostname, error_code& ec);
   void accept(error_code& ec);

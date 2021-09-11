@@ -13,11 +13,12 @@ void prepare_socket(udp::socket& sock, bool is_server, error_code& ec)
   if (sock.non_blocking(true, ec); ec) {
     return;
   }
-  if (ec = udp::detail::set_option(sock, udp::receive_ecn{true}); ec) {
+  if (sock.set_option(udp::receive_ecn{true}, ec); ec) {
     return;
   }
   if (is_server) {
-    ec = udp::detail::set_option(sock, udp::receive_dstaddr{true});
+    ec = udp::detail::set_options(sock, udp::receive_dstaddr{true},
+                                  udp::socket::reuse_address{true});
   }
 }
 
