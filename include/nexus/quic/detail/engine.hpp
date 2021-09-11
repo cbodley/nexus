@@ -58,7 +58,8 @@ class engine_state {
   timer_request timer;
   recv_request recv;
 
-  bool waiting = false; // true if waiting on io_uring_wait_cqe()
+  boost::intrusive::list<engine_request> requests;
+  engine_request* waiting = nullptr;
 
   void wait(std::unique_lock<std::mutex>& lock);
   void wait(std::unique_lock<std::mutex>& lock, engine_request& req);

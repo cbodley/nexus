@@ -428,20 +428,31 @@ void engine_state::wait(std::unique_lock<std::mutex>& lock)
 void engine_state::wait(std::unique_lock<std::mutex>& lock,
                         engine_request& req)
 {
-  if (waiting) {
-    std::condition_variable cond;
-    req.cond = &cond;
-    cond.wait(lock, [&req] { return req.ec; });
-  } else {
-    waiting = true;
-    ::lsquic_engine_process_conns(handle.get());
-    while (!req.ec) {
+  // make sure any ready callbacks go out before we start waiting
+  process();
+
+  requests.push_back(req);
+  while (!req.ec) {
+    if (waiting == nullptr) {
+      // we can take ownership of uring and poll ourselves
+      waiting = &req;
       wait(lock);
+      waiting = nullptr;
+    } else {
+      // someone is already polling. they'll eventually notify us to wake up
+      std::condition_variable cond;
+      req.cond = &cond;
+      cond.wait(lock);
+      req.cond = nullptr;
     }
-    // XXX: there may be other waiters; one of them needs to wake up and call
-    // back into uring
-    reschedule();
-    waiting = false;
+  }
+  requests.erase(requests.iterator_to(req));
+
+  // if there are other waiters, wake one to take over polling
+  if (!waiting && !requests.empty()) {
+    auto& wake = requests.back();
+    assert(wake.cond);
+    wake.cond->notify_one();
   }
 }
 

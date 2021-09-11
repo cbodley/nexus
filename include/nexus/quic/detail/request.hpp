@@ -2,6 +2,7 @@
 
 #include <condition_variable>
 #include <optional>
+#include <boost/intrusive/list.hpp>
 #include <nexus/error_code.hpp>
 #include <nexus/quic/http3/fields.hpp>
 
@@ -11,7 +12,7 @@ struct sockaddr;
 
 namespace nexus::quic::detail {
 
-struct engine_request {
+struct engine_request : boost::intrusive::list_base_hook<> {
   std::condition_variable* cond = nullptr;
   std::optional<error_code> ec;
 
