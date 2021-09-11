@@ -7,3 +7,6 @@
 [submodule "test/dependency/googletest"]
 	path = test/dependency/googletest
 	url = https://github.com/google/googletest.git
+[submodule "dependency/asio"]
+	path = dependency/asio
+	url = https://github.com/chriskohlhoff/asio.git
