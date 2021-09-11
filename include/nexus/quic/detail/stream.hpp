@@ -1,7 +1,7 @@
 #pragma once
 
 #include <sys/uio.h> // iovec
-#include <boost/asio/buffers_iterator.hpp>
+#include <asio/buffers_iterator.hpp>
 
 #include <nexus/quic/detail/request.hpp>
 #include <nexus/quic/error.hpp>
@@ -48,13 +48,13 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   size_t read(stream_data_request& req, error_code& ec);
 
   template <typename MutableBufferSequence>
-  std::enable_if_t<boost::asio::is_mutable_buffer_sequence<
+  std::enable_if_t<asio::is_mutable_buffer_sequence<
       MutableBufferSequence>::value, size_t>
   read(const MutableBufferSequence& buffers, error_code& ec)
   {
     // count the buffer segments
-    const auto begin = boost::asio::buffer_sequence_begin(buffers);
-    const auto end = boost::asio::buffer_sequence_end(buffers);
+    const auto begin = asio::buffer_sequence_begin(buffers);
+    const auto end = asio::buffer_sequence_end(buffers);
     const auto count = std::distance(begin, end);
     // stack-allocate enough iovs for the request
     auto p = ::alloca(count * sizeof(iovec));
@@ -73,13 +73,13 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   size_t write(stream_data_request& req, error_code& ec);
 
   template <typename ConstBufferSequence>
-  std::enable_if_t<boost::asio::is_const_buffer_sequence<
+  std::enable_if_t<asio::is_const_buffer_sequence<
       ConstBufferSequence>::value, size_t>
   write(const ConstBufferSequence& buffers, error_code& ec)
   {
     // count the buffer segments
-    const auto begin = boost::asio::buffer_sequence_begin(buffers);
-    const auto end = boost::asio::buffer_sequence_end(buffers);
+    const auto begin = asio::buffer_sequence_begin(buffers);
+    const auto end = asio::buffer_sequence_end(buffers);
     const auto count = std::distance(begin, end);
     // stack-allocate enough iovs for the request
     auto p = ::alloca(count * sizeof(iovec));

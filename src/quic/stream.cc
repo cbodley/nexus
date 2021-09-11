@@ -10,12 +10,16 @@ namespace nexus::quic::detail {
 
 void stream_state::connect(error_code& ec)
 {
-  void stream_accept(connection_state& cstate, stream_accept_request& req);
+  stream_connect_request req;
+  conn.engine.stream_connect(*this, req);
+  ec = *req.ec;
 }
 
 void stream_state::accept(error_code& ec)
 {
-  void stream_accept(connection_state& cstate, stream_accept_request& req);
+  stream_accept_request req;
+  conn.engine.stream_accept(*this, req);
+  ec = *req.ec;
 }
 
 void stream_state::read_headers(http3::fields& fields, error_code& ec)

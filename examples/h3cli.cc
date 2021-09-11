@@ -1,11 +1,11 @@
 #include <iostream>
-#include <boost/asio.hpp> // resolver
+#include <asio.hpp> // resolver
 
 #include <nexus/quic/global_context.hpp>
 #include <nexus/quic/http3/client.hpp>
 #include <nexus/quic/http3/stream.hpp>
 
-using boost::asio::ip::udp;
+using asio::ip::udp;
 
 int main(int argc, char** argv) {
   // parse argv for <hostname> <port> <path>
@@ -17,17 +17,18 @@ int main(int argc, char** argv) {
   const std::string_view portstr = argv[2];
   const std::string_view path = argv[3];
 
+  auto ioc = asio::io_context{};
+  auto ex = ioc.get_executor();
   // resolve hostname
   const auto remote_endpoint = [&] {
-      auto ioc = boost::asio::io_context{};
-      auto resolver = udp::resolver{ioc.get_executor()};
+      auto resolver = udp::resolver{ex};
       return resolver.resolve(hostname, portstr)->endpoint();
     }();
 
   auto global = nexus::quic::global::init_client();
-  auto client = nexus::quic::http3::client{};
+  auto client = nexus::quic::http3::client{ex, udp::endpoint{}};
   auto conn = nexus::quic::http3::client_connection{client};
-  conn.connect(remote_endpoint.data(), hostname);
+  conn.connect(remote_endpoint, hostname);
   auto stream = nexus::quic::http3::stream{conn};
   stream.connect();
   // send headers
@@ -50,7 +51,7 @@ int main(int argc, char** argv) {
   std::error_code ec;
   do {
     auto response = std::array<char, 4096>{};
-    const auto bytes = stream.read_some(boost::asio::buffer(response), ec);
+    const auto bytes = stream.read_some(asio::buffer(response), ec);
     std::cout.write(response.data(), bytes);
   } while (!ec);
   return 0;

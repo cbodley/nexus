@@ -3,24 +3,33 @@
 
 namespace nexus::quic {
 
+client::client(const asio::any_io_executor& ex,
+               const udp::endpoint& endpoint)
+    : state(ex, endpoint, 0)
+{}
 
-void client::local_endpoint(sockaddr_union& local)
+client::client(udp::socket&& socket)
+    : state(std::move(socket), 0)
+{}
+
+udp::endpoint client::local_endpoint() const
 {
-  state.local_endpoint(local);
+  return state.local_endpoint();
 }
 
-void client_connection::remote_endpoint(sockaddr_union& remote)
+udp::endpoint client_connection::remote_endpoint()
 {
-  state.remote_endpoint(remote);
+  return state.remote_endpoint();
 }
 
-void client_connection::connect(const sockaddr* endpoint,
+void client_connection::connect(const udp::endpoint& endpoint,
                                 const char* hostname, error_code& ec)
 {
   state.connect(endpoint, hostname, ec);
 }
 
-void client_connection::connect(const sockaddr* endpoint, const char* hostname)
+void client_connection::connect(const udp::endpoint& endpoint,
+                                const char* hostname)
 {
   error_code ec;
   state.connect(endpoint, hostname, ec);
@@ -31,28 +40,33 @@ void client_connection::connect(const sockaddr* endpoint, const char* hostname)
 
 namespace http3 {
 
-// this is here just to hide LSENG_HTTP from the header
-client::client(const char* node, const char* service)
-    : state(nullptr, service, LSENG_HTTP)
+client::client(const asio::any_io_executor& ex,
+               const udp::endpoint& endpoint)
+    : state(ex, endpoint, LSENG_HTTP)
 {}
 
-void client::local_endpoint(sockaddr_union& local)
+client::client(udp::socket&& socket)
+    : state(std::move(socket), LSENG_HTTP)
+{}
+
+udp::endpoint client::local_endpoint() const
 {
-  state.local_endpoint(local);
+  return state.local_endpoint();
 }
 
-void client_connection::remote_endpoint(sockaddr_union& remote)
+udp::endpoint client_connection::remote_endpoint()
 {
-  state.remote_endpoint(remote);
+  return state.remote_endpoint();
 }
 
-void client_connection::connect(const sockaddr* endpoint,
+void client_connection::connect(const udp::endpoint& endpoint,
                                 const char* hostname, error_code& ec)
 {
   state.connect(endpoint, hostname, ec);
 }
 
-void client_connection::connect(const sockaddr* endpoint, const char* hostname)
+void client_connection::connect(const udp::endpoint& endpoint,
+                                const char* hostname)
 {
   error_code ec;
   state.connect(endpoint, hostname, ec);

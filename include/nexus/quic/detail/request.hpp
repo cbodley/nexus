@@ -24,7 +24,7 @@ struct engine_request {
 };
 
 struct connect_request : engine_request {
-  const sockaddr* endpoint = nullptr;
+  const asio::ip::udp::endpoint* endpoint = nullptr;
   const char* hostname = nullptr;
 };
 struct accept_request : engine_request {

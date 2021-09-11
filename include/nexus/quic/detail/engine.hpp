@@ -8,6 +8,8 @@
 #include <netinet/ip.h>
 
 #include <nexus/error_code.hpp>
+#include <nexus/udp.hpp>
+#include <nexus/quic/detail/file_descriptor.hpp>
 #include <nexus/quic/detail/request.hpp>
 #include <nexus/quic/detail/socket.hpp>
 
@@ -44,14 +46,14 @@ class engine_state {
   struct recv_request {
     std::array<unsigned char, 4096> buffer;
     std::array<unsigned char, max_control_size> control;
-    sockaddr_union addr; // address of incoming recvmsg()
+    asio::ip::udp::endpoint addr; // address of incoming recvmsg()
     msghdr msg;
     iovec iov;
   };
 
   std::mutex mutex;
   io_uring ring;
-  file_descriptor sockfd;
+  udp::socket socket;
   file_descriptor timerfd;
   timer_request timer;
   recv_request recv;
@@ -67,7 +69,7 @@ class engine_state {
 
  protected:
   lsquic_engine_ptr handle;
-  sockaddr_union local_addr; // socket's bound address
+  asio::ip::udp::endpoint local_addr; // socket's bound address
   bool is_server;
 
   boost::intrusive::list<connection_state> accepting_connections;
@@ -78,13 +80,16 @@ class engine_state {
   void reschedule();
 
  public:
-  explicit engine_state(const char* node, const char* service, unsigned flags);
+  engine_state(const asio::any_io_executor& ex,
+               const udp::endpoint& endpoint,
+               unsigned flags);
+  engine_state(udp::socket&& socket, unsigned flags);
   ~engine_state();
 
   // return the bound address
-  void local_endpoint(sockaddr_union& remote);
+  asio::ip::udp::endpoint local_endpoint() const;
   // return the connection's remote address
-  void remote_endpoint(connection_state& cstate, sockaddr_union& remote);
+  asio::ip::udp::endpoint remote_endpoint(connection_state& cstate);
 
   void close();
 
@@ -101,7 +106,7 @@ class engine_state {
   stream_state& on_stream_connect(connection_state& cstate,
                                   lsquic_stream* stream);
 
-  void stream_accept(connection_state& cstate, stream_accept_request& req);
+  void stream_accept(stream_state& cstate, stream_accept_request& req);
   stream_state& on_stream_accept(connection_state& cstate,
                                  lsquic_stream* stream);
 

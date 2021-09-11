@@ -12,6 +12,7 @@
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
 #include <nexus/quic/detail/stream.hpp>
+#include <nexus/quic/socket.hpp>
 
 namespace nexus {
 namespace quic::detail {
@@ -27,30 +28,26 @@ engine_state::~engine_state()
   close();
 }
 
-void engine_state::local_endpoint(sockaddr_union& local)
+asio::ip::udp::endpoint engine_state::local_endpoint() const
 {
-  auto lock = std::scoped_lock{mutex};
-  if (local_addr.addr.sa_family == AF_INET6) {
-    local.addr6 = local_addr.addr6;
-  } else {
-    local.addr4 = local_addr.addr4;
-  }
+  return local_addr;
 }
 
-void engine_state::remote_endpoint(connection_state& cstate,
-                                   sockaddr_union& remote)
+asio::ip::udp::endpoint engine_state::remote_endpoint(connection_state& cstate)
 {
+  auto remote = asio::ip::udp::endpoint{};
   auto lock = std::scoped_lock{mutex};
   if (cstate.handle) {
     const sockaddr* l = nullptr;
     const sockaddr* r = nullptr;
     lsquic_conn_get_sockaddr(cstate.handle, &l, &r);
     if (r->sa_family == AF_INET6) {
-      remote.addr6 = *reinterpret_cast<const sockaddr_in6*>(r);
+      ::memcpy(remote.data(), r, sizeof(sockaddr_in6));
     } else {
-      remote.addr4 = *reinterpret_cast<const sockaddr_in*>(r);
+      ::memcpy(remote.data(), r, sizeof(sockaddr_in));
     }
   }
+  return remote;
 }
 
 void engine_state::connect(connection_state& cstate, connect_request& req)
@@ -60,7 +57,7 @@ void engine_state::connect(connection_state& cstate, connect_request& req)
   assert(!cstate.connect_);
   cstate.connect_ = &req;
   ::lsquic_engine_connect(handle.get(), N_LSQVER,
-      &local_addr.addr, req.endpoint, this, cctx,
+      local_addr.data(), req.endpoint->data(), this, cctx,
       req.hostname, 0, nullptr, 0, nullptr, 0);
 }
 
@@ -133,7 +130,7 @@ void engine_state::stream_connect(stream_state& sstate,
   assert(!sstate.connect_);
   sstate.connect_ = &req;
   auto& cstate = sstate.conn;
-  cstate.opening_streams.push_back(sstate);
+  cstate.connecting_streams.push_back(sstate);
   ::lsquic_conn_make_stream(cstate.handle);
   wait(lock, req);
 }
@@ -141,15 +138,31 @@ void engine_state::stream_connect(stream_state& sstate,
 stream_state& engine_state::on_stream_connect(connection_state& cstate,
                                               lsquic_stream_t* stream)
 {
-  assert(!cstate.opening_streams.empty());
-  auto& sstate = cstate.opening_streams.front();
-  cstate.opening_streams.pop_front();
+  assert(!cstate.connecting_streams.empty());
+  auto& sstate = cstate.connecting_streams.front();
+  cstate.connecting_streams.pop_front();
   assert(!sstate.handle);
   sstate.handle = stream;
   assert(sstate.connect_);
   sstate.connect_->notify(error_code{}); // success
   sstate.connect_ = nullptr;
   return sstate;
+}
+
+void engine_state::stream_accept(stream_state& sstate,
+                                 stream_accept_request& req)
+{
+  auto lock = std::unique_lock{mutex};
+  auto& cstate = sstate.conn;
+  if (!cstate.incoming_streams.empty()) {
+    sstate.handle = cstate.incoming_streams.front();
+    cstate.incoming_streams.pop();
+    return;
+  }
+  assert(!sstate.accept_);
+  sstate.accept_ = &req;
+  cstate.accepting_streams.push_back(sstate);
+  wait(lock, req);
 }
 
 void engine_state::stream_read(stream_state& sstate, stream_data_request& req)
@@ -437,7 +450,7 @@ void engine_state::close()
   ::lsquic_engine_cooldown(handle.get());
   ::io_uring_queue_exit(&ring);
   timerfd.close();
-  sockfd.close();
+  socket.close();
 }
 
 void engine_state::process()
@@ -492,8 +505,8 @@ void engine_state::start_recv()
 {
   ::memset(&recv.msg, 0, sizeof(recv.msg));
 
-  recv.msg.msg_name = &recv.addr.storage;
-  recv.msg.msg_namelen = sizeof(recv.addr.storage);
+  recv.msg.msg_name = recv.addr.data();
+  recv.msg.msg_namelen = recv.addr.size();
 
   recv.iov.iov_base = recv.buffer.data();
   recv.iov.iov_len = recv.buffer.size();
@@ -504,7 +517,7 @@ void engine_state::start_recv()
   recv.msg.msg_controllen = recv.control.size();
 
   auto sqe = ::io_uring_get_sqe(&ring); assert(sqe);
-  ::io_uring_prep_recvmsg(sqe, *sockfd, &recv.msg, 0);
+  ::io_uring_prep_recvmsg(sqe, socket.native_handle(), &recv.msg, 0);
   const auto type = static_cast<intptr_t>(request_type::recv);
   ::io_uring_sqe_set_data(sqe, reinterpret_cast<void*>(type));
   ::io_uring_submit(&ring);
@@ -512,10 +525,21 @@ void engine_state::start_recv()
 
 void engine_state::on_recv(int bytes)
 {
-  int ecn = 0;
+  union sockaddr_union {
+    sockaddr_storage storage;
+    sockaddr addr;
+    sockaddr_in addr4;
+    sockaddr_in6 addr6;
+  };
   sockaddr_union local;
-  ::memcpy(&local.storage, &local_addr.storage, sizeof(local_addr.storage));
 
+  if (local_addr.data()->sa_family == AF_INET6) {
+    ::memcpy(&local.addr6, local_addr.data(), sizeof(sockaddr_in6));
+  } else {
+    ::memcpy(&local.addr4, local_addr.data(), sizeof(sockaddr_in));
+  }
+
+  int ecn = 0;
   for (auto cmsg = CMSG_FIRSTHDR(&recv.msg); cmsg;
        cmsg = CMSG_NXTHDR(&recv.msg, cmsg)) {
     if (cmsg->cmsg_level == IPPROTO_IP) {
@@ -543,7 +567,7 @@ void engine_state::on_recv(int bytes)
   }
 
   ::lsquic_engine_packet_in(handle.get(), recv.buffer.data(), bytes,
-                            &local.addr, &recv.addr.addr, this, ecn);
+                            &local.addr, recv.addr.data(), this, ecn);
   start_recv();
   process();
 }
@@ -555,7 +579,7 @@ void engine_state::on_writeable()
 
 int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
 {
-  const int count = send_udp_packets(*sockfd, specs, n_specs);
+  const int count = send_udp_packets(socket.native_handle(), specs, n_specs);
   if (count < n_specs) {
     const int error = errno;
     if (error == EAGAIN || error == EWOULDBLOCK) {
@@ -563,7 +587,7 @@ int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
       // lsquic_engine_send_unsent_packets()
       // poll for the socket to become writeable again, so we can call that
       auto sqe = ::io_uring_get_sqe(&ring); assert(sqe);
-      ::io_uring_prep_poll_add(sqe, *sockfd, POLLOUT);
+      ::io_uring_prep_poll_add(sqe, socket.native_handle(), POLLOUT);
       const auto type = static_cast<intptr_t>(request_type::poll);
       ::io_uring_sqe_set_data(sqe, reinterpret_cast<void*>(type));
       ::io_uring_submit(&ring);
@@ -594,10 +618,6 @@ static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
   auto estate = static_cast<engine_state*>(ectx);
   if (stream == nullptr) {
     return nullptr; // connection went away?
-  }
-  if (::lsquic_stream_is_pushed(stream)) {
-    ::lsquic_stream_refuse_push(stream);
-    return nullptr;
   }
   auto conn = ::lsquic_stream_conn(stream);
   auto cctx = ::lsquic_conn_get_ctx(conn);
@@ -704,31 +724,28 @@ static int client_send_packets(void* ectx, const lsquic_out_spec *specs,
   return estate->send_packets(specs, n_specs);
 }
 
-engine_state::engine_state(const char* node, const char* service,
-                           unsigned flags)
-  : is_server(flags & LSENG_SERVER)
+static udp::socket bind_socket(const asio::any_io_executor& ex,
+                               const udp::endpoint& endpoint, unsigned flags)
 {
+  auto socket = udp::socket{ex, endpoint};
   error_code ec;
-
-  addrinfo hints = {};
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_DGRAM;
-  hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
-
-  addrinfo* res = nullptr;
-  int r = ::getaddrinfo(node, service, &hints, &res);
-  if (r != 0) {
-    // getaddrinfo() worth its own error category? nah
-    ec = make_error_code(errc::invalid_argument);
-    throw system_error(ec);
-  }
-  using addrinfo_ptr = std::unique_ptr<addrinfo, decltype(&::freeaddrinfo)>;
-  auto res_cleanup = addrinfo_ptr{res, &::freeaddrinfo};
-
-  sockfd = bind_udp_socket(res, is_server, local_addr, ec);
+  prepare_socket(socket, flags & LSENG_SERVER, ec);
   if (ec) {
     throw system_error(ec);
   }
+  return socket;
+}
+
+engine_state::engine_state(const asio::any_io_executor& ex,
+                           const udp::endpoint& endpoint, unsigned flags)
+  : engine_state(bind_socket(ex, endpoint, flags), flags)
+{
+}
+
+engine_state::engine_state(udp::socket&& socket, unsigned flags)
+  : socket(std::move(socket)), is_server(flags & LSENG_SERVER)
+{
+  error_code ec;
 
   timerfd = ::timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
   if (!timerfd.is_open()) {
@@ -763,16 +780,16 @@ engine_state::engine_state(const char* node, const char* service,
   start_recv();
 }
 
-void connection_state::remote_endpoint(sockaddr_union& remote)
+asio::ip::udp::endpoint connection_state::remote_endpoint()
 {
-  engine.remote_endpoint(*this, remote);
+  return engine.remote_endpoint(*this);
 }
 
-void connection_state::connect(const sockaddr* endpoint, const char* hostname,
-                               error_code& ec)
+void connection_state::connect(const asio::ip::udp::endpoint& endpoint,
+                               const char* hostname, error_code& ec)
 {
   connect_request req;
-  req.endpoint = endpoint;
+  req.endpoint = &endpoint;
   req.hostname = hostname;
   engine.connect(*this, req);
   ec = *req.ec;

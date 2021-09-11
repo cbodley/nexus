@@ -1,21 +1,27 @@
 #include <nexus/quic/http3/server.hpp>
 #include <nexus/quic/http3/stream.hpp>
+#include <nexus/udp.hpp>
 #include <lsquic.h>
 
 namespace nexus::quic {
 
-server::server(const char* node, const char* service)
-    : state(node, service, LSENG_SERVER)
+server::server(const asio::any_io_executor& ex,
+               const udp::endpoint& endpoint)
+    : state(ex, endpoint, LSENG_SERVER | LSENG_HTTP)
 {}
 
-void server::local_endpoint(sockaddr_union& local)
+server::server(udp::socket&& socket)
+    : state(std::move(socket), LSENG_SERVER | LSENG_HTTP)
+{}
+
+udp::endpoint server::local_endpoint() const
 {
-  state.local_endpoint(local);
+  return state.local_endpoint();
 }
 
-void server_connection::remote_endpoint(sockaddr_union& remote)
+udp::endpoint server_connection::remote_endpoint()
 {
-  state.remote_endpoint(remote);
+  return state.remote_endpoint();
 }
 
 void server_connection::accept(error_code& ec)
@@ -34,18 +40,23 @@ void server_connection::accept()
 
 namespace http3 {
 
-server::server(const char* node, const char* service)
-    : state(node, service, LSENG_SERVER | LSENG_HTTP)
+server::server(const asio::any_io_executor& ex,
+               const udp::endpoint& endpoint)
+    : state(ex, endpoint, LSENG_SERVER | LSENG_HTTP)
 {}
 
-void server::local_endpoint(sockaddr_union& local)
+server::server(udp::socket&& socket)
+    : state(std::move(socket), LSENG_SERVER | LSENG_HTTP)
+{}
+
+udp::endpoint server::local_endpoint() const
 {
-  state.local_endpoint(local);
+  return state.local_endpoint();
 }
 
-void server_connection::remote_endpoint(sockaddr_union& remote)
+udp::endpoint server_connection::remote_endpoint()
 {
-  state.remote_endpoint(remote);
+  return state.remote_endpoint();
 }
 
 void server_connection::accept(error_code& ec)

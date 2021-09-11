@@ -1,88 +1,27 @@
+#include <nexus/quic/socket.hpp>
 #include <nexus/quic/detail/socket.hpp>
 #include <array>
 #include <cstring>
 
-#include <netdb.h>
+//#include <netdb.h>
 #include <lsquic.h>
 
-namespace nexus::quic::detail {
+namespace nexus::quic {
 
-file_descriptor bind_udp_socket(const addrinfo* info, bool server,
-                                sockaddr_union& addr, error_code& ec)
+void prepare_socket(udp::socket& sock, bool is_server, error_code& ec)
 {
-  // open the socket in non-blocking mode
-  const int socket_flags = SOCK_NONBLOCK | SOCK_CLOEXEC;
-  const int fd = ::socket(info->ai_family,
-                          info->ai_socktype + socket_flags,
-                          info->ai_protocol);
-  if (fd == -1) {
-    ec.assign(errno, system_category());
-    ::perror("socket");
-    return -1;
+  if (sock.non_blocking(true, ec); ec) {
+    return;
   }
-
-  // enable SO_REUSEADDR
-  const int on = 1;
-  int r = ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (r == -1) {
-    ec.assign(errno, system_category());
-    ::perror("setsockopt SO_REUSEADDR");
-    ::close(fd);
-    return -1;
+  if (ec = udp::detail::set_option(sock, udp::receive_ecn{true}); ec) {
+    return;
   }
-  // enable ECN
-  if (info->ai_family == AF_INET) {
-    r = ::setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &on, sizeof(on));
-  } else {
-    r = ::setsockopt(fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &on, sizeof(on));
+  if (is_server) {
+    ec = udp::detail::set_option(sock, udp::receive_dstaddr{true});
   }
-  if (r == -1) {
-    ec.assign(errno, system_category());
-    ::perror("setsockopt ECN");
-    ::close(fd);
-    return -1;
-  }
-  // enable DSTADDR for server sockets
-  if (server) {
-    if (info->ai_family == AF_INET) {
-#ifdef IP_RECVORIGDSTADDR
-      const int option = IP_RECVORIGDSTADDR;
-#else
-      const int option = IP_PKTINFO;
-#endif
-      r = ::setsockopt(fd, IPPROTO_IP, option, &on, sizeof(on));
-    } else {
-      r = ::setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof(on));
-    }
-    if (r == -1) {
-      ec.assign(errno, system_category());
-      ::perror("setsockopt DSTADDR");
-      ::close(fd);
-      return -1;
-    }
-  }
-
-  // bind the socket
-  r = ::bind(fd, info->ai_addr, info->ai_addrlen);
-  if (r == -1) {
-    ec.assign(errno, system_category());
-    ::perror("bind");
-    ::close(fd);
-    return -1;
-  }
-
-  // read the bound address
-  socklen_t addrlen = sizeof(addr);
-  r = ::getsockname(fd, &addr.addr, &addrlen);
-  if (r == -1) {
-    ec.assign(errno, system_category());
-    ::perror("getsockname");
-    ::close(fd);
-    return -1;
-  }
-
-  return fd;
 }
+
+namespace detail {
 
 int send_udp_packets(int fd, const lsquic_out_spec* specs, unsigned n_specs)
 {
@@ -133,4 +72,5 @@ int send_udp_packets(int fd, const lsquic_out_spec* specs, unsigned n_specs)
   return num_sent > 0 ? num_sent : -1;
 }
 
-} // namespace nexus::quic::detail
+} // namespace detail
+} // namespace nexus::quic

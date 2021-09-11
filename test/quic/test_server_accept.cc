@@ -1,24 +1,26 @@
 #include <nexus/quic/server.hpp>
 #include <gtest/gtest.h>
+#include <nexus/quic/socket.hpp>
 #include <nexus/quic/stream.hpp>
 #include <nexus/quic/global_context.hpp>
 
+#include <thread>
+
 #include <lsquic.h>
 
-
 namespace {
-#if 0
+
 // client stream api
 struct test_client_engine {
   nexus::quic::detail::lsquic_engine_ptr handle;
-  nexus::quic::sockaddr_union local_addr;
-  nexus::quic::detail::file_descriptor fd;
+  nexus::udp::socket socket;
 
-  test_client_engine();
+  test_client_engine(const asio::any_io_executor& ex);
 
-  void connect(const sockaddr* endpoint, const char* hostname) {
+  void connect(const nexus::udp::endpoint& remote, const char* hostname) {
+    const auto local = socket.local_endpoint();
     ::lsquic_engine_connect(handle.get(), N_LSQVER,
-        &local_addr.addr, endpoint, this, nullptr,
+        local.data(), remote.data(), this, nullptr,
         hostname, 0, nullptr, 0, nullptr, 0);
   }
 };
@@ -79,10 +81,12 @@ static constexpr lsquic_stream_if make_test_stream_api()
 int test_send_packets(void* ectx, const lsquic_out_spec* specs, unsigned n_specs)
 {
   auto engine = reinterpret_cast<test_client_engine*>(ectx);
-  return nexus::quic::detail::send_udp_packets(*engine->fd, specs, n_specs);
+  const int fd = engine->socket.native_handle();
+  return nexus::quic::detail::send_udp_packets(fd, specs, n_specs);
 }
 
-test_client_engine::test_client_engine()
+test_client_engine::test_client_engine(const asio::any_io_executor& ex)
+  : socket(ex, nexus::udp::endpoint{})
 {
   lsquic_engine_api api = {};
   api.ea_packets_out = test_send_packets;
@@ -90,33 +94,22 @@ test_client_engine::test_client_engine()
   api.ea_stream_if = &stream_api;
   handle.reset(::lsquic_engine_new(0, &api));
 
-  addrinfo hints = {};
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_DGRAM;
-  hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
-
-  addrinfo* res = nullptr;
-  int r = ::getaddrinfo(nullptr, "0", &hints, &res);
-  if (r != 0) {
-    // getaddrinfo() worth its own error category? nah
-    ec = make_error_code(errc::invalid_argument);
-    throw system_error(ec);
-  }
-  using addrinfo_ptr = std::unique_ptr<addrinfo, decltype(&::freeaddrinfo)>;
-  auto res_cleanup = addrinfo_ptr{res, &::freeaddrinfo};
-
-  fd = nexus::quic::detail::bind_udp_socket(res, false, local_addr, ec);
+  nexus::error_code ec;
+  nexus::quic::prepare_socket(socket, false, ec);
   if (ec) {
-    throw system_error(ec);
+    throw nexus::system_error(ec);
   }
 }
-#endif
+
 } // anonymous namespace
 
 TEST(server, accept_wait) // accept() before a connection is received
 {
+  auto context = asio::io_context{};
+  auto ex = context.get_executor();
   auto global = nexus::quic::global::init_client_server();
-  auto server = nexus::quic::server{nullptr, "0"};
+  auto server = nexus::quic::server{ex, nexus::udp::endpoint{}};
+  auto endpoint = server.local_endpoint();
   auto conn = nexus::quic::server_connection{server};
   conn.accept();
   auto stream = nexus::quic::stream{conn};

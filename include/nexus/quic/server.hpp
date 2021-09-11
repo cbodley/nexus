@@ -1,8 +1,8 @@
 #pragma once
 
+#include <nexus/udp.hpp>
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
-#include <nexus/quic/sockaddr.hpp>
 
 namespace nexus::quic {
 
@@ -15,10 +15,10 @@ class server {
   friend class server_connection;
   detail::engine_state state;
  public:
-  // arguments for getaddrinfo() to bind a specific address or port
-  server(const char* node, const char* service);
+  explicit server(udp::socket&& socket);
+  server(const asio::any_io_executor& ex, const udp::endpoint& endpoint);
 
-  void local_endpoint(sockaddr_union& local);
+  udp::endpoint local_endpoint() const;
 
   void close() { state.close(); }
 };
@@ -30,7 +30,7 @@ class server_connection {
  public:
   server_connection(server& s) : state(s.state) {}
 
-  void remote_endpoint(sockaddr_union& remote);
+  udp::endpoint remote_endpoint();
 
   void accept(error_code& ec);
   void accept();
