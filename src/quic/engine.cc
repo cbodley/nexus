@@ -127,6 +127,10 @@ connection_state* engine_state::on_accept(lsquic_conn_t* conn)
 void engine_state::close(connection_state& cstate, close_request& req)
 {
   auto lock = std::unique_lock{mutex};
+  if (!cstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   assert(!cstate.close_);
   cstate.close_ = &req;
   ::lsquic_conn_close(cstate.handle);
@@ -151,9 +155,13 @@ void engine_state::stream_connect(stream_state& sstate,
                                   stream_connect_request& req)
 {
   auto lock = std::unique_lock{mutex};
+  auto& cstate = sstate.conn;
+  if (!cstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   assert(!sstate.connect_);
   sstate.connect_ = &req;
-  auto& cstate = sstate.conn;
   cstate.connecting_streams.push_back(sstate);
   ::lsquic_conn_make_stream(cstate.handle);
   wait(lock, req);
@@ -192,6 +200,10 @@ void engine_state::stream_accept(stream_state& sstate,
 void engine_state::stream_read(stream_state& sstate, stream_data_request& req)
 {
   auto lock = std::unique_lock{mutex};
+  if (!sstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   assert(!sstate.in.header);
   assert(!sstate.in.data);
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
@@ -253,6 +265,10 @@ void engine_state::on_stream_read(stream_state& sstate)
 void engine_state::stream_write(stream_state& sstate, stream_data_request& req)
 {
   auto lock = std::unique_lock{mutex};
+  if (!sstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   assert(!sstate.out.header);
   assert(!sstate.out.data);
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
@@ -325,6 +341,10 @@ void engine_state::stream_flush(stream_state& sstate,
                                 stream_flush_request& req)
 {
   auto lock = std::unique_lock{mutex};
+  if (!sstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   if (::lsquic_stream_flush(sstate.handle) == -1) {
     req.ec.emplace(errno, system_category());
     return;
@@ -339,6 +359,10 @@ void engine_state::stream_shutdown(stream_state& sstate,
   const bool shutdown_read = (req.how == 0 || req.how == 2);
   const bool shutdown_write = (req.how == 1 || req.how == 2);
   auto lock = std::unique_lock{mutex};
+  if (!sstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   if (::lsquic_stream_shutdown(sstate.handle, req.how) == -1) {
     req.ec.emplace(errno, system_category());
     return;
@@ -372,6 +396,10 @@ void engine_state::stream_close(stream_state& sstate,
                                 stream_close_request& req)
 {
   auto lock = std::unique_lock{mutex};
+  if (!sstate.handle) {
+    req.ec = make_error_code(errc::not_connected);
+    return;
+  }
   assert(!sstate.close_);
   sstate.close_ = &req;
   ::lsquic_stream_close(sstate.handle);
