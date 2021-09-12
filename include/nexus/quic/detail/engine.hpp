@@ -9,7 +9,6 @@
 
 #include <nexus/error_code.hpp>
 #include <nexus/udp.hpp>
-#include <nexus/quic/detail/file_descriptor.hpp>
 #include <nexus/quic/detail/request.hpp>
 #include <nexus/quic/detail/socket.hpp>
 
