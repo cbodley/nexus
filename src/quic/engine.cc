@@ -20,21 +20,19 @@ void engine_deleter::operator()(lsquic_engine* e) const {
   ::lsquic_engine_destroy(e);
 }
 
-constexpr unsigned ring_queue_depth = 3; // timerfd + recvmsg + POLLOUT
-
 engine_state::~engine_state()
 {
   close();
 }
 
-asio::ip::udp::endpoint engine_state::local_endpoint() const
+udp::endpoint engine_state::local_endpoint() const
 {
   return local_addr;
 }
 
-asio::ip::udp::endpoint engine_state::remote_endpoint(connection_state& cstate)
+udp::endpoint engine_state::remote_endpoint(connection_state& cstate)
 {
-  auto remote = asio::ip::udp::endpoint{};
+  auto remote = udp::endpoint{};
   auto lock = std::scoped_lock{mutex};
   if (cstate.handle) {
     const sockaddr* l = nullptr;
@@ -49,49 +47,23 @@ asio::ip::udp::endpoint engine_state::remote_endpoint(connection_state& cstate)
   return remote;
 }
 
-void engine_state::connect(connection_state& cstate, connect_request& req)
+void engine_state::connect(connection_state& cstate,
+                           const udp::endpoint& endpoint,
+                           const char* hostname)
 {
   auto lock = std::unique_lock{mutex};
   auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&cstate);
-  assert(!cstate.connect_);
-  assert(!cstate.async_connect_);
   assert(!cstate.handle);
-  cstate.connect_ = &req;
-  ::lsquic_engine_connect(handle.get(), N_LSQVER,
-      local_addr.data(), req.endpoint->data(), this, cctx,
-      req.hostname, 0, nullptr, 0, nullptr, 0);
-  assert(cstate.handle);
-}
-
-void engine_state::async_connect(connection_state& cstate,
-                                 const udp::endpoint& endpoint,
-                                 const char* hostname,
-                                 std::unique_ptr<nexus::detail::completion<void(error_code)>>&& c)
-{
-  auto lock = std::unique_lock{mutex};
-  auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&cstate);
-  assert(!cstate.connect_);
-  assert(!cstate.async_connect_);
-  assert(!cstate.handle);
-  cstate.async_connect_ = std::move(c);
   ::lsquic_engine_connect(handle.get(), N_LSQVER,
       local_addr.data(), endpoint.data(), this, cctx,
       hostname, 0, nullptr, 0, nullptr, 0);
-  assert(cstate.handle);
+  assert(cstate.handle); // lsquic_engine_connect() calls on_connect()
 }
 
 void engine_state::on_connect(connection_state& cstate, lsquic_conn_t* conn)
 {
-  auto ec = error_code{}; // success
   assert(!cstate.handle);
   cstate.handle = conn;
-  if (cstate.connect_) {
-    cstate.connect_->notify(ec);
-    cstate.connect_ = nullptr;
-  } else {
-    assert(cstate.async_connect_);
-    nexus::detail::dispatch(std::move(cstate.async_connect_), ec);
-  }
 }
 
 void engine_state::accept(connection_state& cstate, accept_request& req)
@@ -124,31 +96,20 @@ connection_state* engine_state::on_accept(lsquic_conn_t* conn)
   return &cstate;
 }
 
-void engine_state::close(connection_state& cstate, close_request& req)
+void engine_state::close(connection_state& cstate, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
   if (!cstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    ec = make_error_code(errc::not_connected);
     return;
   }
-  assert(!cstate.close_);
-  cstate.close_ = &req;
   ::lsquic_conn_close(cstate.handle);
-  wait(lock, req);
+  process(lock);
 }
 
 void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
 {
-  assert(cstate.handle == conn);
-  if (cstate.close_) {
-    cstate.close_->notify(error_code{}); // success
-    cstate.close_ = nullptr;
-  } else if (cstate.connect_) {
-    cstate.connect_->notify(make_error_code(errc::connection_refused));
-    cstate.connect_ = nullptr;
-  } else {
-    // remote closed? cancel other requests on this connection
-  }
+  // cancel other requests on this connection?
 }
 
 void engine_state::stream_connect(stream_state& sstate,
@@ -337,100 +298,91 @@ void engine_state::on_stream_write(stream_state& sstate)
   ::lsquic_stream_wantwrite(sstate.handle, 0);
 }
 
-void engine_state::stream_flush(stream_state& sstate,
-                                stream_flush_request& req)
+void engine_state::stream_flush(stream_state& sstate, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
   if (!sstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    ec = make_error_code(errc::not_connected);
     return;
   }
   if (::lsquic_stream_flush(sstate.handle) == -1) {
-    req.ec.emplace(errno, system_category());
+    ec.assign(errno, system_category());
     return;
   }
   process(lock);
-  req.ec.emplace(); // success
 }
 
 void engine_state::stream_shutdown(stream_state& sstate,
-                                   stream_shutdown_request& req)
+                                   int how, error_code& ec)
 {
-  const bool shutdown_read = (req.how == 0 || req.how == 2);
-  const bool shutdown_write = (req.how == 1 || req.how == 2);
+  const bool shutdown_read = (how == 0 || how == 2);
+  const bool shutdown_write = (how == 1 || how == 2);
   auto lock = std::unique_lock{mutex};
   if (!sstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    ec = make_error_code(errc::not_connected);
     return;
   }
-  if (::lsquic_stream_shutdown(sstate.handle, req.how) == -1) {
-    req.ec.emplace(errno, system_category());
+  if (::lsquic_stream_shutdown(sstate.handle, how) == -1) {
+    ec.assign(errno, system_category());
     return;
   }
-  auto ec = make_error_code(errc::operation_canceled);
+  auto ecanceled = make_error_code(errc::operation_canceled);
   if (shutdown_read) {
     if (sstate.in.header) {
-      sstate.in.header->notify(ec);
+      sstate.in.header->notify(ecanceled);
       sstate.in.header = nullptr;
     }
     if (sstate.in.data) {
-      sstate.in.data->notify(ec);
+      sstate.in.data->notify(ecanceled);
       sstate.in.data = nullptr;
     }
   }
   if (shutdown_write) {
     if (sstate.out.header) {
-      sstate.out.header->notify(ec);
+      sstate.out.header->notify(ecanceled);
       sstate.out.header = nullptr;
     }
     if (sstate.out.data) {
-      sstate.out.data->notify(ec);
+      sstate.out.data->notify(ecanceled);
       sstate.out.data = nullptr;
     }
   }
   process(lock);
-  req.ec.emplace(); // success
 }
 
-void engine_state::stream_close(stream_state& sstate,
-                                stream_close_request& req)
+void engine_state::stream_close(stream_state& sstate, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
   if (!sstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    ec = make_error_code(errc::not_connected);
     return;
   }
-  assert(!sstate.close_);
-  sstate.close_ = &req;
   ::lsquic_stream_close(sstate.handle);
   // cancel other stream requests now. otherwise on_stream_close() would
   // fail them with connection_reset
-  auto ec = make_error_code(errc::operation_canceled);
+  auto ecanceled = make_error_code(errc::operation_canceled);
   if (sstate.in.header) {
-    sstate.in.header->notify(ec);
+    sstate.in.header->notify(ecanceled);
     sstate.in.header = nullptr;
   }
   if (sstate.in.data) {
-    sstate.in.data->notify(ec);
+    sstate.in.data->notify(ecanceled);
     sstate.in.data = nullptr;
   }
   if (sstate.out.header) {
-    sstate.out.header->notify(ec);
+    sstate.out.header->notify(ecanceled);
     sstate.out.header = nullptr;
   }
   if (sstate.out.data) {
-    sstate.out.data->notify(ec);
+    sstate.out.data->notify(ecanceled);
     sstate.out.data = nullptr;
   }
-  wait(lock, req);
+  process(lock);
 }
 
 void engine_state::on_stream_close(stream_state& sstate)
 {
-  if (sstate.close_) {
-    sstate.close_->notify(error_code{}); // success
-    sstate.close_ = nullptr;
-  } else if (sstate.connect_) {
+  if (sstate.connect_) {
     // peer refused or handshake failed?
     sstate.connect_->notify(make_error_code(errc::connection_refused));
     sstate.connect_ = nullptr;
@@ -513,6 +465,15 @@ void engine_state::start_recv()
         } // else fatal?
       });
 }
+
+constexpr size_t ecn_size = sizeof(int);
+#ifdef IP_RECVORIGDSTADDR
+constexpr size_t dstaddr4_size = sizeof(sockaddr_in);
+#else
+constexpr size_t dstaddr4_size = sizeof(in_pktinfo)
+#endif
+constexpr size_t dstaddr_size = std::max(dstaddr4_size, sizeof(in6_pktinfo));
+constexpr size_t max_control_size = CMSG_SPACE(ecn_size) + CMSG_SPACE(dstaddr_size);
 
 void engine_state::on_readable()
 {
@@ -786,19 +747,15 @@ engine_state::engine_state(udp::socket&& socket, unsigned flags)
   start_recv();
 }
 
-asio::ip::udp::endpoint connection_state::remote_endpoint()
+udp::endpoint connection_state::remote_endpoint()
 {
   return engine.remote_endpoint(*this);
 }
 
-void connection_state::connect(const asio::ip::udp::endpoint& endpoint,
-                               const char* hostname, error_code& ec)
+void connection_state::connect(const udp::endpoint& endpoint,
+                               const char* hostname)
 {
-  connect_request req;
-  req.endpoint = &endpoint;
-  req.hostname = hostname;
-  engine.connect(*this, req);
-  ec = *req.ec;
+  engine.connect(*this, endpoint, hostname);
 }
 
 void connection_state::accept(error_code& ec)
@@ -810,9 +767,7 @@ void connection_state::accept(error_code& ec)
 
 void connection_state::close(error_code& ec)
 {
-  close_request req;
-  engine.close(*this, req);
-  ec = *req.ec;
+  engine.close(*this, ec);
 }
 
 } // namespace quic::detail

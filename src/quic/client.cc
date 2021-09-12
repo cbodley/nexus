@@ -23,19 +23,9 @@ udp::endpoint client_connection::remote_endpoint()
 }
 
 void client_connection::connect(const udp::endpoint& endpoint,
-                                const char* hostname, error_code& ec)
-{
-  state.connect(endpoint, hostname, ec);
-}
-
-void client_connection::connect(const udp::endpoint& endpoint,
                                 const char* hostname)
 {
-  error_code ec;
-  state.connect(endpoint, hostname, ec);
-  if (ec) {
-    throw system_error(ec);
-  }
+  state.connect(endpoint, hostname);
 }
 
 namespace http3 {
@@ -60,19 +50,9 @@ udp::endpoint client_connection::remote_endpoint()
 }
 
 void client_connection::connect(const udp::endpoint& endpoint,
-                                const char* hostname, error_code& ec)
-{
-  state.connect(endpoint, hostname, ec);
-}
-
-void client_connection::connect(const udp::endpoint& endpoint,
                                 const char* hostname)
 {
-  error_code ec;
-  state.connect(endpoint, hostname, ec);
-  if (ec) {
-    throw system_error(ec);
-  }
+  state.connect(endpoint, hostname);
 }
 
 } // namespace http3

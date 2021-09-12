@@ -2,18 +2,20 @@
 
 #include <condition_variable>
 #include <optional>
-#include <boost/intrusive/list.hpp>
 #include <nexus/error_code.hpp>
-#include <nexus/quic/http3/fields.hpp>
 #include <nexus/udp.hpp>
 
 struct iovec;
-struct lsxpack_header;
-struct sockaddr;
 
-namespace nexus::quic::detail {
+namespace nexus::quic {
 
-struct engine_request : boost::intrusive::list_base_hook<> {
+namespace http3 {
+class fields;
+} // namespace http3
+
+namespace detail {
+
+struct engine_request {
   std::condition_variable* cond = nullptr;
   std::optional<error_code> ec;
 
@@ -25,13 +27,7 @@ struct engine_request : boost::intrusive::list_base_hook<> {
   }
 };
 
-struct connect_request : engine_request {
-  const udp::endpoint* endpoint = nullptr;
-  const char* hostname = nullptr;
-};
 struct accept_request : engine_request {
-};
-struct close_request : engine_request {
 };
 
 struct stream_connect_request : engine_request {
@@ -49,12 +45,6 @@ struct stream_header_read_request : engine_request {
 struct stream_header_write_request : engine_request {
   const http3::fields* fields = nullptr;
 };
-struct stream_flush_request : engine_request {
-};
-struct stream_shutdown_request : engine_request {
-  int how = 0;
-};
-struct stream_close_request : engine_request {
-};
 
-} // namespace nexus::quic::detail
+} // namespace detail
+} // namespace nexus::quic

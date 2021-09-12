@@ -27,15 +27,6 @@ struct stream_state;
 struct engine_deleter { void operator()(lsquic_engine* e) const; };
 using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 
-constexpr size_t ecn_size = sizeof(int);
-#ifdef IP_RECVORIGDSTADDR
-constexpr size_t dstaddr4_size = sizeof(sockaddr_in);
-#else
-constexpr size_t dstaddr4_size = sizeof(in_pktinfo)
-#endif
-constexpr size_t dstaddr_size = std::max(dstaddr4_size, sizeof(in6_pktinfo));
-constexpr size_t max_control_size = CMSG_SPACE(ecn_size) + CMSG_SPACE(dstaddr_size);
-
 class engine_state {
   std::mutex mutex;
   udp::socket socket;
@@ -56,6 +47,7 @@ class engine_state {
 
   void wait(std::unique_lock<std::mutex>& lock, engine_request& req);
 
+  using Completion = nexus::detail::completion<void(error_code)>;
  public:
   engine_state(const asio::any_io_executor& ex,
                const udp::endpoint& endpoint,
@@ -64,23 +56,21 @@ class engine_state {
   ~engine_state();
 
   // return the bound address
-  asio::ip::udp::endpoint local_endpoint() const;
+  udp::endpoint local_endpoint() const;
   // return the connection's remote address
-  asio::ip::udp::endpoint remote_endpoint(connection_state& cstate);
+  udp::endpoint remote_endpoint(connection_state& cstate);
 
   void close();
 
-  void async_connect(connection_state& cstate,
-                     const udp::endpoint& endpoint,
-                     const char* hostname,
-                     std::unique_ptr<nexus::detail::completion<void(error_code)>>&& c);
-  void connect(connection_state& cstate, connect_request& req);
+  void connect(connection_state& cstate,
+               const udp::endpoint& endpoint,
+               const char* hostname);
   void on_connect(connection_state& cstate, lsquic_conn* conn);
 
   void accept(connection_state& cstate, accept_request& req);
   connection_state* on_accept(lsquic_conn* conn);
 
-  void close(connection_state& cstate, close_request& req);
+  void close(connection_state& cstate, error_code& ec);
   void on_close(connection_state& cstate, lsquic_conn* conn);
 
   void stream_connect(stream_state& sstate, stream_connect_request& req);
@@ -99,11 +89,10 @@ class engine_state {
   void stream_write_headers(stream_state& sstate, stream_header_write_request& req);
   void on_stream_write(stream_state& sstate);
 
-  void stream_flush(stream_state& sstate, stream_flush_request& req);
+  void stream_flush(stream_state& sstate, error_code& ec);
+  void stream_shutdown(stream_state& sstate, int how, error_code& ec);
 
-  void stream_shutdown(stream_state& sstate, stream_shutdown_request& req);
-
-  void stream_close(stream_state& sstate, stream_close_request& req);
+  void stream_close(stream_state& sstate, error_code& ec);
   void on_stream_close(stream_state& sstate);
 
   int send_packets(const lsquic_out_spec *specs, unsigned n_specs);

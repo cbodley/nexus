@@ -31,7 +31,6 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
 
   stream_connect_request* connect_ = nullptr;
   stream_accept_request* accept_ = nullptr;
-  stream_close_request* close_ = nullptr;
 
   explicit stream_state(connection_state& conn) : conn(conn) {}
   ~stream_state() {

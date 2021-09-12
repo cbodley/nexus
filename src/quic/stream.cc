@@ -54,24 +54,17 @@ void stream_state::write_headers(const http3::fields& fields, error_code& ec)
 
 void stream_state::flush(error_code& ec)
 {
-  stream_flush_request req;
-  conn.engine.stream_flush(*this, req);
-  ec = *req.ec;
+  conn.engine.stream_flush(*this, ec);
 }
 
 void stream_state::shutdown(int how, error_code& ec)
 {
-  stream_shutdown_request req;
-  req.how = how;
-  conn.engine.stream_shutdown(*this, req);
-  ec = *req.ec;
+  conn.engine.stream_shutdown(*this, how, ec);
 }
 
 void stream_state::close(error_code& ec)
 {
-  stream_close_request req;
-  conn.engine.stream_close(*this, req);
-  ec = *req.ec;
+  conn.engine.stream_close(*this, ec);
 }
 
 } // namespace nexus::quic::detail

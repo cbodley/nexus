@@ -27,10 +27,7 @@ class client_connection {
 
   udp::endpoint remote_endpoint();
 
-  void connect(const udp::endpoint& endpoint,
-               const char* hostname, error_code& ec);
-  void connect(const udp::endpoint& endpoint,
-               const char* hostname);
+  void connect(const udp::endpoint& endpoint, const char* hostname);
 
   void close(error_code& ec) { state.close(ec); }
   void close();
