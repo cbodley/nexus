@@ -5,12 +5,10 @@
 #include <queue>
 
 #include <asio/basic_waitable_timer.hpp>
-#include <netinet/ip.h>
 
 #include <nexus/error_code.hpp>
 #include <nexus/udp.hpp>
 #include <nexus/quic/detail/request.hpp>
-#include <nexus/quic/detail/socket.hpp>
 
 struct lsquic_engine;
 struct lsquic_conn;

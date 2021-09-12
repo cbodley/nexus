@@ -1,15 +1,12 @@
 #include <vector>
 
-#include <netdb.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/timerfd.h>
-
+#include <netinet/ip.h>
 #include <lsquic.h>
 #include <lsxpack_header.h>
 
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
+#include <nexus/quic/detail/socket.hpp>
 #include <nexus/quic/detail/stream.hpp>
 #include <nexus/quic/socket.hpp>
 

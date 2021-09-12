@@ -1,6 +1,7 @@
 #include <nexus/quic/server.hpp>
 #include <gtest/gtest.h>
 #include <nexus/quic/socket.hpp>
+#include <nexus/quic/detail/socket.hpp>
 #include <nexus/quic/stream.hpp>
 #include <nexus/quic/global_context.hpp>
 
