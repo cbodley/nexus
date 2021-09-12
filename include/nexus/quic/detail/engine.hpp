@@ -4,7 +4,7 @@
 #include <mutex>
 #include <queue>
 
-#include <liburing.h>
+#include <asio/basic_waitable_timer.hpp>
 #include <netinet/ip.h>
 
 #include <nexus/error_code.hpp>
@@ -37,48 +37,24 @@ constexpr size_t dstaddr_size = std::max(dstaddr4_size, sizeof(in6_pktinfo));
 constexpr size_t max_control_size = CMSG_SPACE(ecn_size) + CMSG_SPACE(dstaddr_size);
 
 class engine_state {
-  enum class request_type { timer, recv, poll };
-  struct timer_request {
-    static constexpr size_t buffer_size = sizeof(uint64_t);
-    std::array<unsigned char, buffer_size> buffer;
-    bool armed = false;
-  };
-  struct recv_request {
-    std::array<unsigned char, 4096> buffer;
-    std::array<unsigned char, max_control_size> control;
-    asio::ip::udp::endpoint addr; // address of incoming recvmsg()
-    msghdr msg;
-    iovec iov;
-  };
-
   std::mutex mutex;
-  io_uring ring;
   udp::socket socket;
-  file_descriptor timerfd;
-  timer_request timer;
-  recv_request recv;
-
-  boost::intrusive::list<engine_request> requests;
-  engine_request* waiting = nullptr;
-
-  void wait(std::unique_lock<std::mutex>& lock);
-  void wait(std::unique_lock<std::mutex>& lock, engine_request& req);
-
-  void on_timer();
-  void on_recv(int bytes);
-  void on_writeable();
-
- protected:
+  asio::basic_waitable_timer<std::chrono::steady_clock> timer;
   lsquic_engine_ptr handle;
-  asio::ip::udp::endpoint local_addr; // socket's bound address
+  udp::endpoint local_addr; // socket's bound address
   bool is_server;
-
   boost::intrusive::list<connection_state> accepting_connections;
   std::queue<lsquic_conn*> incoming_connections;
 
   void start_recv();
-  void process();
-  void reschedule();
+  void process(std::unique_lock<std::mutex>& lock);
+  void reschedule(std::unique_lock<std::mutex>& lock);
+
+  void on_readable();
+  void on_writeable();
+  void on_timer();
+
+  void wait(std::unique_lock<std::mutex>& lock, engine_request& req);
 
  public:
   engine_state(const asio::any_io_executor& ex,
@@ -94,6 +70,10 @@ class engine_state {
 
   void close();
 
+  void async_connect(connection_state& cstate,
+                     const udp::endpoint& endpoint,
+                     const char* hostname,
+                     std::unique_ptr<nexus::detail::completion<void(error_code)>>&& c);
   void connect(connection_state& cstate, connect_request& req);
   void on_connect(connection_state& cstate, lsquic_conn* conn);
 

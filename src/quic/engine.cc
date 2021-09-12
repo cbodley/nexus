@@ -1,4 +1,3 @@
-#include <chrono>
 #include <vector>
 
 #include <netdb.h>
@@ -55,19 +54,44 @@ void engine_state::connect(connection_state& cstate, connect_request& req)
   auto lock = std::unique_lock{mutex};
   auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&cstate);
   assert(!cstate.connect_);
+  assert(!cstate.async_connect_);
+  assert(!cstate.handle);
   cstate.connect_ = &req;
   ::lsquic_engine_connect(handle.get(), N_LSQVER,
       local_addr.data(), req.endpoint->data(), this, cctx,
       req.hostname, 0, nullptr, 0, nullptr, 0);
+  assert(cstate.handle);
+}
+
+void engine_state::async_connect(connection_state& cstate,
+                                 const udp::endpoint& endpoint,
+                                 const char* hostname,
+                                 std::unique_ptr<nexus::detail::completion<void(error_code)>>&& c)
+{
+  auto lock = std::unique_lock{mutex};
+  auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&cstate);
+  assert(!cstate.connect_);
+  assert(!cstate.async_connect_);
+  assert(!cstate.handle);
+  cstate.async_connect_ = std::move(c);
+  ::lsquic_engine_connect(handle.get(), N_LSQVER,
+      local_addr.data(), endpoint.data(), this, cctx,
+      hostname, 0, nullptr, 0, nullptr, 0);
+  assert(cstate.handle);
 }
 
 void engine_state::on_connect(connection_state& cstate, lsquic_conn_t* conn)
 {
-  assert(cstate.connect_);
+  auto ec = error_code{}; // success
   assert(!cstate.handle);
   cstate.handle = conn;
-  cstate.connect_->notify(error_code{}); // success
-  cstate.connect_ = nullptr;
+  if (cstate.connect_) {
+    cstate.connect_->notify(ec);
+    cstate.connect_ = nullptr;
+  } else {
+    assert(cstate.async_connect_);
+    nexus::detail::dispatch(std::move(cstate.async_connect_), ec);
+  }
 }
 
 void engine_state::accept(connection_state& cstate, accept_request& req)
@@ -305,7 +329,7 @@ void engine_state::stream_flush(stream_state& sstate,
     req.ec.emplace(errno, system_category());
     return;
   }
-  process();
+  process(lock);
   req.ec.emplace(); // success
 }
 
@@ -340,7 +364,7 @@ void engine_state::stream_shutdown(stream_state& sstate,
       sstate.out.data = nullptr;
     }
   }
-  process();
+  process(lock);
   req.ec.emplace(); // success
 }
 
@@ -404,138 +428,94 @@ void engine_state::on_stream_close(stream_state& sstate)
   }
 }
 
-void engine_state::wait(std::unique_lock<std::mutex>& lock)
-{
-  lock.unlock(); // unlock during io_uring_wait_cqe()
-
-  io_uring_cqe* cqe = nullptr;
-  if (int r = ::io_uring_wait_cqe(&ring, &cqe); r == -1) {
-    ::perror("io_uring_wait_cqe");
-    abort(); // fatal error
-    return;
-  }
-  const auto type = reinterpret_cast<intptr_t>(::io_uring_cqe_get_data(cqe));
-
-  lock.lock(); // reacquire lock after io_uring_wait_cqe()
-  switch (static_cast<request_type>(type)) {
-    case request_type::timer: on_timer(); break;
-    case request_type::recv: on_recv(cqe->res); break;
-    case request_type::poll: on_writeable(); break;
-  }
-  ::io_uring_cqe_seen(&ring, cqe);
-}
-
 void engine_state::wait(std::unique_lock<std::mutex>& lock,
                         engine_request& req)
 {
   // make sure any ready callbacks go out before we start waiting
-  process();
+  process(lock);
 
-  requests.push_back(req);
-  while (!req.ec) {
-    if (waiting == nullptr) {
-      // we can take ownership of uring and poll ourselves
-      waiting = &req;
-      wait(lock);
-      waiting = nullptr;
-    } else {
-      // someone is already polling. they'll eventually notify us to wake up
-      std::condition_variable cond;
-      req.cond = &cond;
-      cond.wait(lock);
-      req.cond = nullptr;
-    }
-  }
-  requests.erase(requests.iterator_to(req));
-
-  // if there are other waiters, wake one to take over polling
-  if (!waiting && !requests.empty()) {
-    auto& wake = requests.back();
-    assert(wake.cond);
-    wake.cond->notify_one();
-  }
+  std::condition_variable cond;
+  req.cond = &cond;
+  cond.wait(lock, [&req] { return req.ec; });
 }
 
 void engine_state::close()
 {
   ::lsquic_engine_cooldown(handle.get());
-  ::io_uring_queue_exit(&ring);
-  timerfd.close();
   socket.close();
+  timer.cancel();
 }
 
-void engine_state::process()
+void engine_state::process(std::unique_lock<std::mutex>& lock)
 {
   ::lsquic_engine_process_conns(handle.get());
-  reschedule();
+  reschedule(lock);
 }
 
-void engine_state::reschedule()
+void engine_state::reschedule(std::unique_lock<std::mutex>& lock)
 {
   int micros = 0;
   if (!::lsquic_engine_earliest_adv_tick(handle.get(), &micros)) {
     return;
   }
   if (micros <= 0) {
-    process();
+    process(lock);
     return;
   }
-  using namespace std::chrono;
-  const auto dur = microseconds{micros};
-  const auto sec = duration_cast<seconds>(dur);
-  const auto nsec = duration_cast<nanoseconds>(dur - sec);
-  auto expires_in = itimerspec{};
-  expires_in.it_value.tv_sec = sec.count();
-  expires_in.it_value.tv_nsec = nsec.count();
-
-  auto prev = itimerspec{};
-  if (::timerfd_settime(*timerfd, 0, &expires_in, &prev) == -1) {
-    ::perror("timerfd_settime");
-    abort(); // fatal?
-  }
-
-  if (timer.armed) {
-    return;
-  }
-  timer.armed = true;
-  auto sqe = ::io_uring_get_sqe(&ring); assert(sqe);
-  ::io_uring_prep_read(sqe, *timerfd, timer.buffer.data(),
-                       timer.buffer.size(), 0);
-  const auto type = static_cast<intptr_t>(request_type::timer);
-  ::io_uring_sqe_set_data(sqe, reinterpret_cast<void*>(type));
-  ::io_uring_submit(&ring);
+  const auto  dur = std::chrono::microseconds{micros};
+  timer.expires_after(dur);
+  timer.async_wait([this] (error_code ec) {
+        if (!ec) {
+          on_timer();
+        }
+      });
 }
 
 void engine_state::on_timer()
 {
-  timer.armed = false;
-  process();
+  auto lock = std::unique_lock{mutex};
+  process(lock);
 }
 
 void engine_state::start_recv()
 {
-  ::memset(&recv.msg, 0, sizeof(recv.msg));
-
-  recv.msg.msg_name = recv.addr.data();
-  recv.msg.msg_namelen = recv.addr.size();
-
-  recv.iov.iov_base = recv.buffer.data();
-  recv.iov.iov_len = recv.buffer.size();
-  recv.msg.msg_iov = &recv.iov;
-  recv.msg.msg_iovlen = 1;
-
-  recv.msg.msg_control = recv.control.data();
-  recv.msg.msg_controllen = recv.control.size();
-
-  auto sqe = ::io_uring_get_sqe(&ring); assert(sqe);
-  ::io_uring_prep_recvmsg(sqe, socket.native_handle(), &recv.msg, 0);
-  const auto type = static_cast<intptr_t>(request_type::recv);
-  ::io_uring_sqe_set_data(sqe, reinterpret_cast<void*>(type));
-  ::io_uring_submit(&ring);
+  socket.async_wait(udp::socket::wait_read, [this] (error_code ec) {
+        if (!ec) {
+          on_readable();
+        } // else fatal?
+      });
 }
 
-void engine_state::on_recv(int bytes)
+void engine_state::on_readable()
 {
+  auto msg = msghdr{};
+
+  udp::endpoint addr;
+  msg.msg_name = addr.data();
+  msg.msg_namelen = addr.size();
+
+  std::array<unsigned char, 4096> buffer;
+  iovec iov;
+  iov.iov_base = buffer.data();
+  iov.iov_len = buffer.size();
+
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+
+  std::array<unsigned char, max_control_size> control;
+  msg.msg_control = control.data();
+  msg.msg_controllen = control.size();
+
+  const auto bytes = ::recvmsg(socket.native_handle(), &msg, 0);
+  if (bytes == -1) {
+    perror("recvmsg");
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      start_recv();
+    } // else fatal?
+    return;
+  }
+  start_recv();
+
   union sockaddr_union {
     sockaddr_storage storage;
     sockaddr addr;
@@ -551,8 +531,7 @@ void engine_state::on_recv(int bytes)
   }
 
   int ecn = 0;
-  for (auto cmsg = CMSG_FIRSTHDR(&recv.msg); cmsg;
-       cmsg = CMSG_NXTHDR(&recv.msg, cmsg)) {
+  for (auto cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
     if (cmsg->cmsg_level == IPPROTO_IP) {
       if (cmsg->cmsg_type == IP_TOS) {
         auto value = reinterpret_cast<const int*>(CMSG_DATA(cmsg));
@@ -577,14 +556,15 @@ void engine_state::on_recv(int bytes)
     }
   }
 
-  ::lsquic_engine_packet_in(handle.get(), recv.buffer.data(), bytes,
-                            &local.addr, recv.addr.data(), this, ecn);
-  start_recv();
-  process();
+  auto lock = std::unique_lock{mutex};
+  ::lsquic_engine_packet_in(handle.get(), buffer.data(), bytes,
+                            &local.addr, addr.data(), this, ecn);
+  process(lock);
 }
 
 void engine_state::on_writeable()
 {
+  auto lock = std::scoped_lock{mutex};
   ::lsquic_engine_send_unsent_packets(handle.get());
 }
 
@@ -596,13 +576,13 @@ int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
     if (error == EAGAIN || error == EWOULDBLOCK) {
       // lsquic won't call our send_packets() callback again until we call
       // lsquic_engine_send_unsent_packets()
-      // poll for the socket to become writeable again, so we can call that
-      auto sqe = ::io_uring_get_sqe(&ring); assert(sqe);
-      ::io_uring_prep_poll_add(sqe, socket.native_handle(), POLLOUT);
-      const auto type = static_cast<intptr_t>(request_type::poll);
-      ::io_uring_sqe_set_data(sqe, reinterpret_cast<void*>(type));
-      ::io_uring_submit(&ring);
-      assert(errno == error); // make sure io_uring didn't change errno
+      // wait for the socket to become writeable again, so we can call that
+      socket.async_wait(udp::socket::wait_write, [this] (error_code ec) {
+            if (!ec) {
+              on_writeable();
+            } // else fatal?
+          });
+      assert(errno == error); // lsquic needs to see this errno
     }
   }
   return count;
@@ -754,23 +734,10 @@ engine_state::engine_state(const asio::any_io_executor& ex,
 }
 
 engine_state::engine_state(udp::socket&& socket, unsigned flags)
-  : socket(std::move(socket)), is_server(flags & LSENG_SERVER)
+  : socket(std::move(socket)),
+    timer(this->socket.get_executor()),
+    is_server(flags & LSENG_SERVER)
 {
-  error_code ec;
-
-  timerfd = ::timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
-  if (!timerfd.is_open()) {
-    ec.assign(errno, system_category());
-    ::perror("timerfd_create");
-    throw system_error(ec);
-  }
-
-  if (int r = ::io_uring_queue_init(ring_queue_depth, &ring, 0); r < 0) {
-    ec.assign(-r, system_category());
-    throw system_error(ec);
-  }
-  // TODO: register buffers with io_uring_register_buffers?
-
   lsquic_engine_settings settings;
   ::lsquic_engine_init_settings(&settings, flags);
 

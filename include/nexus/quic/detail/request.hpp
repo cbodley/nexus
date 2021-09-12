@@ -5,6 +5,7 @@
 #include <boost/intrusive/list.hpp>
 #include <nexus/error_code.hpp>
 #include <nexus/quic/http3/fields.hpp>
+#include <nexus/udp.hpp>
 
 struct iovec;
 struct lsxpack_header;
@@ -25,7 +26,7 @@ struct engine_request : boost::intrusive::list_base_hook<> {
 };
 
 struct connect_request : engine_request {
-  const asio::ip::udp::endpoint* endpoint = nullptr;
+  const udp::endpoint* endpoint = nullptr;
   const char* hostname = nullptr;
 };
 struct accept_request : engine_request {

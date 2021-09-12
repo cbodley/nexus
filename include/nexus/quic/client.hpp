@@ -33,6 +33,11 @@ class client_connection {
   void connect(const udp::endpoint& endpoint,
                const char* hostname);
 
+  template <typename CompletionToken>
+  auto async_connect(const udp::endpoint& endpoint,
+                     const char* hostname,
+                     CompletionToken&& token);
+
   void close(error_code& ec) { state.close(ec); }
   void close();
 };

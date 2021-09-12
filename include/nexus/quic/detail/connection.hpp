@@ -3,6 +3,7 @@
 #include <queue>
 #include <asio/ip/udp.hpp>
 #include <boost/intrusive/list.hpp>
+#include <nexus/detail/completion.hpp>
 #include <nexus/quic/detail/socket.hpp>
 #include <nexus/quic/detail/stream.hpp>
 #include <nexus/quic/detail/request.hpp>
@@ -20,6 +21,10 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   connect_request* connect_ = nullptr;
   accept_request* accept_ = nullptr;
   close_request* close_ = nullptr;
+
+  using completion = nexus::detail::completion<void(error_code)>;
+  std::unique_ptr<completion> async_connect_;
+  std::unique_ptr<completion> async_accept_;
 
   boost::intrusive::list<stream_state> connecting_streams;
   boost::intrusive::list<stream_state> accepting_streams;
