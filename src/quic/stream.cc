@@ -8,6 +8,11 @@
 
 namespace nexus::quic::detail {
 
+stream_state::executor_type stream_state::get_executor()
+{
+  return conn.get_executor();
+}
+
 void stream_state::connect(error_code& ec)
 {
   stream_connect_request req;
@@ -34,14 +39,14 @@ size_t stream_state::read(stream_data_request& req, error_code& ec)
 {
   conn.engine.stream_read(*this, req);
   ec = *req.ec;
-  return req.bytes;
+  return req.bytes_transferred;
 }
 
 size_t stream_state::write(stream_data_request& req, error_code& ec)
 {
   conn.engine.stream_write(*this, req);
   ec = *req.ec;
-  return req.bytes;
+  return req.bytes_transferred;
 }
 
 void stream_state::write_headers(const http3::fields& fields, error_code& ec)

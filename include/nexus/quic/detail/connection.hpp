@@ -19,8 +19,7 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   lsquic_conn* handle = nullptr;
   accept_request* accept_ = nullptr;
 
-  using completion = nexus::detail::completion<void(error_code)>;
-  std::unique_ptr<completion> async_accept_;
+  std::unique_ptr<accept_completion> async_accept_;
 
   boost::intrusive::list<stream_state> connecting_streams;
   boost::intrusive::list<stream_state> accepting_streams;
@@ -31,6 +30,9 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
     error_code ec_ignored;
     close(ec_ignored);
   }
+
+  using executor_type = asio::any_io_executor;
+  executor_type get_executor();
 
   udp::endpoint remote_endpoint();
 
