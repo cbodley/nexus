@@ -17,7 +17,7 @@ target_link_libraries(thread-sanitizer INTERFACE "-fsanitize=thread")
 
 add_library(nexus INTERFACE)
 target_include_directories(nexus INTERFACE include)
-target_link_libraries(nexus INTERFACE asio uring)
+target_link_libraries(nexus INTERFACE asio)
 install(DIRECTORY include/nexus DESTINATION include)
 
 add_subdirectory(examples)

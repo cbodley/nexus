@@ -6,17 +6,17 @@ Nexus is a C++ library for the QUIC and HTTP/3 protocols.
 
 * LiteSpeed QUIC (lsquic)
 * BoringSSL
-* liburing
+* asio
 * zlib
 * googletest for tests
 
-BoringSSL, lsquic, and googletest are included as git submodules, which must be initialized before building:
+BoringSSL, lsquic, asio and googletest are included as git submodules, which must be initialized before building:
 
 	~/nexus $ git submodule update --init --recursive
 
-The liburing and zlib dependencies must be installed manually. For example, on Fedora:
+The zlib dependency must be installed manually. For example, on Fedora:
 
-	~/nexus $ sudo dnf install liburing-devel zlib-devel
+	~/nexus $ sudo dnf install zlib-devel
 
 ## Building
 
