@@ -102,7 +102,29 @@ void engine_state::close(connection_state& cstate, error_code& ec)
     return;
   }
   ::lsquic_conn_close(cstate.handle);
+  // close incoming streams that we haven't accepted yet
+  while (cstate.incoming_streams.empty()) {
+    auto stream = cstate.incoming_streams.front();
+    cstate.incoming_streams.pop();
+    ::lsquic_stream_close(stream);
+  }
   process(lock);
+  // cancel pending stream connect/accept
+  auto ecanceled = make_error_code(errc::operation_canceled);
+  while (cstate.connecting_streams.empty()) {
+    auto& sstate = cstate.connecting_streams.front();
+    cstate.connecting_streams.pop_front();
+    assert(sstate.connect_);
+    sstate.connect_->defer(ecanceled);
+    sstate.connect_ = nullptr;
+  }
+  while (cstate.accepting_streams.empty()) {
+    auto& sstate = cstate.accepting_streams.front();
+    cstate.accepting_streams.pop_front();
+    assert(sstate.accept_);
+    sstate.accept_->defer(ecanceled);
+    sstate.accept_ = nullptr;
+  }
 }
 
 void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
@@ -379,6 +401,10 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   // cancel other stream requests now. otherwise on_stream_close() would
   // fail them with connection_reset
   auto ecanceled = make_error_code(errc::operation_canceled);
+  if (sstate.accept_) {
+    sstate.accept_->defer(ecanceled);
+    sstate.accept_ = nullptr;
+  }
   if (sstate.in.header) {
     sstate.in.header->defer(ecanceled);
     sstate.in.header = nullptr;
@@ -428,9 +454,26 @@ void engine_state::on_stream_close(stream_state& sstate)
 
 void engine_state::close()
 {
+  auto lock = std::unique_lock{mutex};
   ::lsquic_engine_cooldown(handle.get());
   socket.close();
   timer.cancel();
+  // close incoming streams that we haven't accepted yet
+  while (incoming_connections.empty()) {
+    auto conn = incoming_connections.front();
+    incoming_connections.pop();
+    ::lsquic_conn_close(conn);
+  }
+  process(lock);
+  // cancel connections pending accept
+  auto ecanceled = make_error_code(errc::operation_canceled);
+  while (accepting_connections.empty()) {
+    auto& cstate = accepting_connections.front();
+    accepting_connections.pop_front();
+    assert(cstate.accept_);
+    cstate.accept_->defer(ecanceled);
+    cstate.accept_ = nullptr;
+  }
 }
 
 void engine_state::process(std::unique_lock<std::mutex>& lock)

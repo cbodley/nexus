@@ -27,7 +27,7 @@ using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 class engine_state {
   std::mutex mutex;
   udp::socket socket;
-  asio::basic_waitable_timer<std::chrono::steady_clock> timer;
+  asio::steady_timer timer;
   lsquic_engine_ptr handle;
   udp::endpoint local_addr; // socket's bound address
   bool is_server;

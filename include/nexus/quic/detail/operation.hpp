@@ -113,17 +113,20 @@ struct async_operation : Operation {
     switch (type) {
       case completion_type::post:
         asio::execution::execute(
-            asio::prefer(ex.first,
-                         asio::execution::blocking.never,
-                         asio::execution::allocator(alloc)),
+            asio::require(
+                asio::prefer(ex.first,
+                             asio::execution::relationship.fork,
+                             asio::execution::allocator(alloc)),
+                asio::execution::blocking.never),
             std::move(f));
         break;
       case completion_type::defer:
         asio::execution::execute(
-            asio::prefer(ex.first,
-                         asio::execution::blocking.never,
-                         asio::execution::relationship.continuation,
-                         asio::execution::allocator(alloc)),
+            asio::require(
+                asio::prefer(ex.first,
+                             asio::execution::relationship.continuation,
+                             asio::execution::allocator(alloc)),
+                asio::execution::blocking.never),
             std::move(f));
         break;
       case completion_type::dispatch:
