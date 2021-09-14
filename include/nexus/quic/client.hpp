@@ -25,6 +25,10 @@ class client_connection {
   detail::connection_state state;
  public:
   explicit client_connection(client& c) : state(c.state) {}
+  client_connection(client& c, const udp::endpoint& endpoint,
+                    const char* hostname) : state(c.state) {
+    connect(endpoint, hostname);
+  }
 
   udp::endpoint remote_endpoint();
 

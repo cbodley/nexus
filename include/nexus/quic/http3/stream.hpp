@@ -15,28 +15,21 @@ class stream : public quic::stream {
   explicit stream(server_connection& c) : quic::stream(c.state) {}
   explicit stream(client_connection& c) : quic::stream(c.state) {}
 
-  void read_headers(fields& f, error_code& ec) {
-    state.read_headers(f, ec);
-  }
-  template <typename Fields>
-  void read_headers(Fields& fields) {
-    error_code ec;
-    state.read_headers(fields, ec);
-    if (ec) {
-      throw system_error(ec);
-    }
+  template <typename CompletionToken> // void(error_code)
+  decltype(auto) async_read_headers(fields& f, CompletionToken&& token) {
+    return state.async_read_headers(f, std::forward<CompletionToken>(token));
   }
 
-  void write_headers(const fields& f, error_code& ec) {
-    state.write_headers(f, ec);
+  void read_headers(fields& f, error_code& ec);
+  void read_headers(fields& f);
+
+  template <typename CompletionToken> // void(error_code)
+  decltype(auto) async_write_headers(const fields& f, CompletionToken&& token) {
+    return state.async_write_headers(f, std::forward<CompletionToken>(token));
   }
-  void write_headers(const fields& f) {
-    error_code ec;
-    state.write_headers(f, ec);
-    if (ec) {
-      throw system_error(ec);
-    }
-  }
+
+  void write_headers(const fields& f, error_code& ec);
+  void write_headers(const fields& f);
 };
 
 } // namespace http3

@@ -1,8 +1,9 @@
 #pragma once
 
+#include <asio/any_io_executor.hpp>
 #include <asio/buffers_iterator.hpp>
 
-#include <nexus/quic/detail/request.hpp>
+#include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/error.hpp>
 #include <nexus/quic/http3/fields.hpp>
 
@@ -14,17 +15,13 @@ namespace quic::detail {
 struct connection_state;
 
 struct stream_read_state {
-  stream_data_request* data = nullptr;
-  std::unique_ptr<stream_data_completion> async_data;
-  stream_header_read_request* header = nullptr;
-  std::unique_ptr<stream_header_read_completion> async_header;
+  stream_data_operation* data = nullptr;
+  stream_header_read_operation* header = nullptr;
 };
 
 struct stream_write_state {
-  stream_data_request* data = nullptr;
-  std::unique_ptr<stream_data_completion> async_data;
-  stream_header_write_request* header = nullptr;
-  std::unique_ptr<stream_header_write_completion> async_header;
+  stream_data_operation* data = nullptr;
+  stream_header_write_operation* header = nullptr;
 };
 
 struct stream_state : public boost::intrusive::list_base_hook<> {
@@ -33,21 +30,17 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   stream_read_state in;
   stream_write_state out;
 
-  stream_connect_request* connect_ = nullptr;
-  std::unique_ptr<stream_connect_completion> async_connect_;
-
-  stream_accept_request* accept_ = nullptr;
-  std::unique_ptr<stream_accept_completion> async_accept_;
+  stream_connect_operation* connect_ = nullptr;
+  stream_accept_operation* accept_ = nullptr;
 
   template <typename BufferSequence>
-  void init_request(const BufferSequence& buffers,
-                    stream_data_request& req) {
+  void init_op(const BufferSequence& buffers, stream_data_operation& op) {
     const auto end = asio::buffer_sequence_end(buffers);
     for (auto i = asio::buffer_sequence_begin(buffers);
-         i != end && req.num_iovs < req.max_iovs;
-         ++i, ++req.num_iovs) {
-      req.iovs[req.num_iovs].iov_base = i->data();
-      req.iovs[req.num_iovs].iov_len = i->size();
+         i != end && op.num_iovs < op.max_iovs;
+         ++i, ++op.num_iovs) {
+      op.iovs[op.num_iovs].iov_base = i->data();
+      op.iovs[op.num_iovs].iov_len = i->size();
     }
   }
 
@@ -60,52 +53,124 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   using executor_type = asio::any_io_executor;
   executor_type get_executor();
 
-  void connect(error_code& ec);
-  void async_connect(std::unique_ptr<stream_connect_completion>&& c);
+  void connect(stream_connect_operation& op);
 
-  void accept(error_code& ec);
-  void async_accept(std::unique_ptr<stream_accept_completion>&& c);
+  template <typename CompletionToken>
+  decltype(auto) async_connect(CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_connect_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          connect(*op);
+          op.release(); // release ownership
+        }, token);
+  }
 
-  void read_headers(http3::fields& fields, error_code& ec);
+  void accept(stream_accept_operation& op);
 
-  void async_read(std::unique_ptr<stream_data_completion>&& c);
-  size_t read(stream_data_request& req, error_code& ec);
+  template <typename CompletionToken>
+  decltype(auto) async_accept(CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_accept_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          connect(*op);
+          op.release(); // release ownership
+        }, token);
+  }
 
-  template <typename MutableBufferSequence, typename Handler>
-  void async_read(const MutableBufferSequence& buffers, Handler&& h) {
-    auto c = stream_data_completion::create(get_executor(), std::move(h));
-    init_request(buffers, c->user);
-    async_read(std::move(c));
+  void read_headers(stream_header_read_operation& op);
+
+  template <typename CompletionToken>
+  decltype(auto) async_read_headers(http3::fields& fields,
+                                    CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this, &fields] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_header_read_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h),
+                                             get_executor(), fields);
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          read_headers(*op);
+          op.release(); // release ownership
+        }, token);
+  }
+
+  void read_some(stream_data_operation& op);
+
+  template <typename MutableBufferSequence, typename CompletionToken>
+  decltype(auto) async_read_some(const MutableBufferSequence& buffers,
+                                 CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this, &buffers] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_data_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          init_op(buffers, *op);
+          read_some(*op);
+          op.release(); // release ownership
+        }, token);
   }
 
   template <typename MutableBufferSequence>
   std::enable_if_t<asio::is_mutable_buffer_sequence<
       MutableBufferSequence>::value, size_t>
-  read(const MutableBufferSequence& buffers, error_code& ec) {
-    stream_data_request req;
-    init_request(buffers, req);
-    return read(req, ec);
+  read_some(const MutableBufferSequence& buffers, error_code& ec) {
+    stream_data_sync op;
+    init_op(buffers, op);
+    read_some(op);
+    ec = *op.ec;
+    return op.bytes_transferred;
   }
 
-  void write_headers(const http3::fields& fields, error_code& ec);
+  void write_headers(stream_header_write_operation& op);
 
-  void async_write(std::unique_ptr<stream_data_completion>&& c);
-  size_t write(stream_data_request& req, error_code& ec);
+  template <typename CompletionToken>
+  decltype(auto) async_write_headers(const http3::fields& fields,
+                                     CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this, &fields] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_header_write_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h),
+                                             get_executor(), fields);
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          write_headers(*op);
+          op.release(); // release ownership
+        }, token);
+  }
 
-  template <typename ConstBufferSequence, typename Handler>
-  void async_write(const ConstBufferSequence& buffers, Handler&& h) {
-    auto c = stream_data_completion::create(get_executor(), std::move(h));
-    init_request(buffers, c->user);
-    async_write(std::move(c));
+  void write_some(stream_data_operation& op);
+
+  template <typename ConstBufferSequence, typename CompletionToken>
+  decltype(auto) async_write_some(const ConstBufferSequence& buffers,
+                                 CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this, &buffers] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_data_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          init_op(buffers, *op);
+          write_some(*op);
+          op.release(); // release ownership
+        }, token);
   }
 
   template <typename ConstBufferSequence>
   std::enable_if_t<asio::is_const_buffer_sequence<
       ConstBufferSequence>::value, size_t>
-  write(const ConstBufferSequence& buffers, error_code& ec) {
-    stream_data_request req;
-    init_request(buffers, req);
-    return write(req, ec);
+  write_some(const ConstBufferSequence& buffers, error_code& ec) {
+    stream_data_sync op;
+    init_op(buffers, op);
+    write_some(op);
+    ec = *op.ec;
+    return op.bytes_transferred;
   }
 
   void flush(error_code& ec);

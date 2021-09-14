@@ -2,7 +2,7 @@
 
 #include <queue>
 #include <boost/intrusive/list.hpp>
-#include <nexus/detail/completion.hpp>
+#include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/stream.hpp>
 #include <nexus/udp.hpp>
 
@@ -17,9 +17,7 @@ struct engine_state;
 struct connection_state : public boost::intrusive::list_base_hook<> {
   engine_state& engine;
   lsquic_conn* handle = nullptr;
-  accept_request* accept_ = nullptr;
-
-  std::unique_ptr<accept_completion> async_accept_;
+  accept_operation* accept_ = nullptr;
 
   boost::intrusive::list<stream_state> connecting_streams;
   boost::intrusive::list<stream_state> accepting_streams;

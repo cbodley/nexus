@@ -63,18 +63,19 @@ void engine_state::on_connect(connection_state& cstate, lsquic_conn_t* conn)
   cstate.handle = conn;
 }
 
-void engine_state::accept(connection_state& cstate, accept_request& req)
+void engine_state::accept(connection_state& cstate, accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   if (!incoming_connections.empty()) {
     cstate.handle = incoming_connections.front();
     incoming_connections.pop();
-    req.ec.emplace(); // success
+    op.post(error_code{}); // success
     return;
   }
   assert(!cstate.accept_);
-  cstate.accept_ = &req;
-  wait(lock, req);
+  cstate.accept_ = &op;
+  process(lock);
+  op.wait(lock);
 }
 
 connection_state* engine_state::on_accept(lsquic_conn_t* conn)
@@ -88,7 +89,7 @@ connection_state* engine_state::on_accept(lsquic_conn_t* conn)
   assert(cstate.accept_);
   assert(!cstate.handle);
   cstate.handle = conn;
-  cstate.accept_->notify(error_code{}); // success
+  cstate.accept_->defer(error_code{}); // success
   cstate.accept_ = nullptr;
   return &cstate;
 }
@@ -110,42 +111,20 @@ void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
 }
 
 void engine_state::stream_connect(stream_state& sstate,
-                                  stream_connect_request& req)
+                                  stream_connect_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  stream_connect_init(lock, sstate, req);
-  if (!req.ec) {
-    sstate.connect_ = &req;
-    wait(lock, req);
-  }
-}
-
-void engine_state::stream_connect_async(stream_state& sstate,
-                                        std::unique_ptr<stream_connect_completion>&& c)
-{
-  auto lock = std::unique_lock{mutex};
-  auto& req = c->user;
-  stream_connect_init(lock, sstate, req);
-  if (req.ec) {
-    nexus::detail::post(std::move(c), *req.ec);
-  } else {
-    sstate.async_connect_ = std::move(c);
-  }
-}
-
-void engine_state::stream_connect_init(std::unique_lock<std::mutex>& lock,
-                                       stream_state& sstate,
-                                       stream_connect_request& req)
-{
   auto& cstate = sstate.conn;
   if (!cstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    op.post(make_error_code(errc::not_connected));
     return;
   }
   assert(!sstate.connect_);
-  assert(!sstate.async_connect_);
+  sstate.connect_ = &op;
   cstate.connecting_streams.push_back(sstate);
   ::lsquic_conn_make_stream(cstate.handle);
+  process(lock);
+  op.wait(lock);
 }
 
 stream_state& engine_state::on_stream_connect(connection_state& cstate,
@@ -157,56 +136,27 @@ stream_state& engine_state::on_stream_connect(connection_state& cstate,
   assert(!sstate.handle);
   sstate.handle = stream;
   auto ec = error_code{}; // success
-  if (sstate.connect_) {
-    sstate.connect_->notify(ec);
-    sstate.connect_ = nullptr;
-  } else {
-    assert(sstate.async_connect_);
-    nexus::detail::defer(std::move(sstate.async_connect_), ec);
-  }
+  assert(sstate.connect_);
+  sstate.connect_->defer(ec);
+  sstate.connect_ = nullptr;
   return sstate;
 }
 
 void engine_state::stream_accept(stream_state& sstate,
-                                 stream_accept_request& req)
+                                 stream_accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  stream_accept_init(lock, sstate, req);
-  if (req.ec) {
-    return;
-  }
-  sstate.accept_ = &req;
-  wait(lock, req);
-}
-
-void engine_state::stream_accept_async(stream_state& sstate,
-                                       std::unique_ptr<stream_accept_completion>&& c)
-{
-  auto lock = std::unique_lock{mutex};
-  auto& req = c->user;
-  stream_accept_init(lock, sstate, req);
-  if (req.ec) {
-    nexus::detail::post(std::move(c), *req.ec); 
-  } else {
-    sstate.async_accept_ = std::move(c);
-  }
-}
-
-void engine_state::stream_accept_init(std::unique_lock<std::mutex>& lock,
-                                      stream_state& sstate,
-                                      stream_accept_request& req)
-{
   assert(!sstate.handle);
   auto& cstate = sstate.conn;
   if (!cstate.incoming_streams.empty()) {
     sstate.handle = cstate.incoming_streams.front();
     cstate.incoming_streams.pop();
-    req.ec.emplace(); // success
+    op.post(error_code{}); // success
     return;
   }
   assert(!sstate.accept_);
-  assert(!sstate.async_accept_);
   cstate.accepting_streams.push_back(sstate);
+  op.wait(lock);
 }
 
 stream_state& engine_state::on_stream_accept(connection_state& cstate,
@@ -218,67 +168,43 @@ stream_state& engine_state::on_stream_accept(connection_state& cstate,
   assert(!sstate.handle);
   sstate.handle = stream;
   auto ec = error_code{}; // success
-  if (sstate.accept_) {
-    sstate.accept_->notify(ec);
-    sstate.accept_ = nullptr;
-  } else {
-    assert(sstate.async_accept_);
-    nexus::detail::defer(std::move(sstate.async_accept_), ec);
-  }
+  assert(sstate.accept_);
+  sstate.accept_->defer(ec);
+  sstate.accept_ = nullptr;
   return sstate;
 }
 
-void engine_state::stream_read(stream_state& sstate, stream_data_request& req)
+void engine_state::stream_read(stream_state& sstate, stream_data_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  stream_read_init(lock, sstate, req);
-  if (req.ec) {
-    return;
-  }
-  wait(lock, req);
-}
-
-void engine_state::stream_read_async(stream_state& sstate,
-                                     std::unique_ptr<stream_data_completion>&& c)
-{
-  auto lock = std::unique_lock{mutex};
-  auto& req = c->user;
-  stream_read_init(lock, sstate, req);
-  if (req.ec) {
-    nexus::detail::post(std::move(c), *req.ec, 0);
-  } else {
-    sstate.in.async_data = std::move(c);
-  }
-}
-
-void engine_state::stream_read_init(std::unique_lock<std::mutex>& lock,
-                                    stream_state& sstate, stream_data_request& req)
-{
   if (!sstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    op.post(make_error_code(errc::not_connected));
     return;
   }
   assert(!sstate.in.header);
   assert(!sstate.in.data);
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
-    req.ec.emplace(errno, system_category());
+    op.post(error_code{errno, system_category()}, 0);
     return;
   }
-  sstate.in.data = &req;
+  sstate.in.data = &op;
+  process(lock);
+  op.wait(lock);
 }
 
 void engine_state::stream_read_headers(stream_state& sstate,
-                                       stream_header_read_request& req)
+                                       stream_header_read_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   assert(!sstate.in.data);
   assert(!sstate.in.header);
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
-    req.ec.emplace(errno, system_category());
+    op.post(error_code{errno, system_category()}, 0);
     return;
   }
-  sstate.in.header = &req;
-  wait(lock, req);
+  sstate.in.header = &op;
+  process(lock);
+  op.wait(lock);
 }
 
 struct recv_header_set {
@@ -294,110 +220,57 @@ void engine_state::on_stream_read(stream_state& sstate)
 {
   error_code ec;
   if (sstate.in.header) {
-    auto& req = *std::exchange(sstate.in.header, nullptr);
+    auto& op = *std::exchange(sstate.in.header, nullptr);
     auto headers = std::unique_ptr<recv_header_set>(
         reinterpret_cast<recv_header_set*>(
             ::lsquic_stream_get_hset(sstate.handle)));
-    (*req.fields) = std::move(headers->fields);
-    if (sstate.in.async_header) {
-      nexus::detail::defer(std::move(sstate.in.async_header), ec);
-    } else {
-      req.notify(ec); // success
-    }
+    op.fields = std::move(headers->fields);
+    op.defer(ec); // success
   } else if (sstate.in.data) {
-    auto& req = *std::exchange(sstate.in.data, nullptr);
-    auto bytes = ::lsquic_stream_readv(sstate.handle, req.iovs, req.num_iovs);
+    auto& op = *std::exchange(sstate.in.data, nullptr);
+    auto bytes = ::lsquic_stream_readv(sstate.handle, op.iovs, op.num_iovs);
     if (bytes == -1) {
       bytes = 0;
       ec.assign(errno, system_category());
     } else if (bytes == 0) {
       ec = make_error_code(error::end_of_stream);
     }
-    if (sstate.in.async_data) {
-      nexus::detail::defer(std::move(sstate.in.async_data), ec, bytes);
-    } else {
-      req.bytes_transferred = bytes;
-      req.notify(ec);
-    }
+    op.defer(ec, bytes);
   }
   ::lsquic_stream_wantread(sstate.handle, 0);
 }
 
-void engine_state::stream_write(stream_state& sstate, stream_data_request& req)
+void engine_state::stream_write(stream_state& sstate, stream_data_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  stream_write_init(lock, sstate, req);
-  if (req.ec) {
-    return;
-  }
-  wait(lock, req);
-}
-
-void engine_state::stream_write_async(stream_state& sstate,
-                                      std::unique_ptr<stream_data_completion>&& c)
-{
-  auto lock = std::unique_lock{mutex};
-  auto& req = c->user;
-  stream_write_init(lock, sstate, req);
-  if (req.ec) {
-    nexus::detail::defer(std::move(c), *req.ec, 0);
-  } else {
-    sstate.out.async_data = std::move(c);
-  }
-}
-
-void engine_state::stream_write_init(std::unique_lock<std::mutex>& lock,
-                                     stream_state& sstate,
-                                     stream_data_request& req)
-{
   if (!sstate.handle) {
-    req.ec = make_error_code(errc::not_connected);
+    op.post(make_error_code(errc::not_connected), 0);
     return;
   }
   assert(!sstate.out.header);
   assert(!sstate.out.data);
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
-    req.ec.emplace(errno, system_category());
+    op.post(error_code{errno, system_category()}, 0);
     return;
   }
-  sstate.out.data = &req;
+  sstate.out.data = &op;
+  process(lock);
+  op.wait(lock);
 }
 
 void engine_state::stream_write_headers(stream_state& sstate,
-                                        stream_header_write_request& req)
+                                        stream_header_write_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  stream_write_headers_init(lock, sstate, req);
-  if (req.ec) {
-    return;
-  }
-  wait(lock, req);
-}
-
-void engine_state::stream_write_headers_async(stream_state& sstate,
-    std::unique_ptr<stream_header_write_completion>&& c)
-{
-  auto lock = std::unique_lock{mutex};
-  auto& req = c->user;
-  stream_write_headers_init(lock, sstate, req);
-  if (req.ec) {
-    nexus::detail::defer(std::move(c), *req.ec);
-  } else {
-    sstate.out.async_header = std::move(c);
-  }
-}
-
-void engine_state::stream_write_headers_init(std::unique_lock<std::mutex>& lock,
-                                             stream_state& sstate,
-                                             stream_header_write_request& req)
-{
   assert(!sstate.out.data);
   assert(!sstate.out.header);
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
-    req.ec.emplace(errno, system_category());
+    op.post(error_code{errno, system_category()});
     return;
   }
-  sstate.out.header = &req;
+  sstate.out.header = &op;
+  process(lock);
+  op.wait(lock);
 }
 
 static void do_write_headers(lsquic_stream_t* stream,
@@ -428,26 +301,17 @@ void engine_state::on_stream_write(stream_state& sstate)
 {
   error_code ec;
   if (sstate.out.header) {
-    auto& req = *std::exchange(sstate.out.header, nullptr);
-    do_write_headers(sstate.handle, *req.fields, ec);
-    if (sstate.out.async_header) {
-      nexus::detail::defer(std::move(sstate.out.async_header), ec);
-    } else {
-      req.notify(ec);
-    }
+    auto& op = *std::exchange(sstate.out.header, nullptr);
+    do_write_headers(sstate.handle, op.fields, ec);
+    op.defer(ec);
   } else if (sstate.out.data) {
-    auto& req = *std::exchange(sstate.out.data, nullptr);
-    auto bytes = ::lsquic_stream_writev(sstate.handle, req.iovs, req.num_iovs);
+    auto& op = *std::exchange(sstate.out.data, nullptr);
+    auto bytes = ::lsquic_stream_writev(sstate.handle, op.iovs, op.num_iovs);
     if (bytes == -1) {
       bytes = 0;
       ec.assign(errno, system_category());
     }
-    if (sstate.out.async_data) {
-      nexus::detail::defer(std::move(sstate.out.async_data), ec, bytes);
-    } else {
-      req.bytes_transferred = bytes;
-      req.notify(ec);
-    }
+    op.defer(ec, bytes);
   }
   ::lsquic_stream_wantwrite(sstate.handle, 0);
 }
@@ -483,21 +347,21 @@ void engine_state::stream_shutdown(stream_state& sstate,
   auto ecanceled = make_error_code(errc::operation_canceled);
   if (shutdown_read) {
     if (sstate.in.header) {
-      sstate.in.header->notify(ecanceled);
+      sstate.in.header->defer(ecanceled);
       sstate.in.header = nullptr;
     }
     if (sstate.in.data) {
-      sstate.in.data->notify(ecanceled);
+      sstate.in.data->defer(ecanceled, 0);
       sstate.in.data = nullptr;
     }
   }
   if (shutdown_write) {
     if (sstate.out.header) {
-      sstate.out.header->notify(ecanceled);
+      sstate.out.header->defer(ecanceled);
       sstate.out.header = nullptr;
     }
     if (sstate.out.data) {
-      sstate.out.data->notify(ecanceled);
+      sstate.out.data->defer(ecanceled, 0);
       sstate.out.data = nullptr;
     }
   }
@@ -516,19 +380,19 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   // fail them with connection_reset
   auto ecanceled = make_error_code(errc::operation_canceled);
   if (sstate.in.header) {
-    sstate.in.header->notify(ecanceled);
+    sstate.in.header->defer(ecanceled);
     sstate.in.header = nullptr;
   }
   if (sstate.in.data) {
-    sstate.in.data->notify(ecanceled);
+    sstate.in.data->defer(ecanceled, 0);
     sstate.in.data = nullptr;
   }
   if (sstate.out.header) {
-    sstate.out.header->notify(ecanceled);
+    sstate.out.header->defer(ecanceled);
     sstate.out.header = nullptr;
   }
   if (sstate.out.data) {
-    sstate.out.data->notify(ecanceled);
+    sstate.out.data->defer(ecanceled, 0);
     sstate.out.data = nullptr;
   }
   process(lock);
@@ -538,39 +402,28 @@ void engine_state::on_stream_close(stream_state& sstate)
 {
   if (sstate.connect_) {
     // peer refused or handshake failed?
-    sstate.connect_->notify(make_error_code(errc::connection_refused));
+    sstate.connect_->defer(make_error_code(errc::connection_refused));
     sstate.connect_ = nullptr;
   } else {
     // remote closed? cancel other requests on this stream
     auto ec = make_error_code(errc::connection_reset);
     if (sstate.in.header) {
-      sstate.in.header->notify(ec);
+      sstate.in.header->defer(ec);
       sstate.in.header = nullptr;
     }
     if (sstate.in.data) {
-      sstate.in.data->notify(ec);
+      sstate.in.data->defer(ec, 0);
       sstate.in.data = nullptr;
     }
     if (sstate.out.header) {
-      sstate.out.header->notify(ec);
+      sstate.out.header->defer(ec);
       sstate.out.header = nullptr;
     }
     if (sstate.out.data) {
-      sstate.out.data->notify(ec);
+      sstate.out.data->defer(ec, 0);
       sstate.out.data = nullptr;
     }
   }
-}
-
-void engine_state::wait(std::unique_lock<std::mutex>& lock,
-                        engine_request& req)
-{
-  // make sure any ready callbacks go out before we start waiting
-  process(lock);
-
-  std::condition_variable cond;
-  req.cond = &cond;
-  cond.wait(lock, [&req] { return req.ec; });
 }
 
 void engine_state::close()
@@ -919,9 +772,9 @@ void connection_state::connect(const udp::endpoint& endpoint,
 
 void connection_state::accept(error_code& ec)
 {
-  accept_request req;
-  engine.accept(*this, req);
-  ec = *req.ec;
+  accept_sync op;
+  engine.accept(*this, op);
+  ec = *op.ec;
 }
 
 void connection_state::close(error_code& ec)
