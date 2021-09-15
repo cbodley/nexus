@@ -757,12 +757,15 @@ static int client_send_packets(void* ectx, const lsquic_out_spec *specs,
 static udp::socket bind_socket(const asio::any_io_executor& ex,
                                const udp::endpoint& endpoint, unsigned flags)
 {
-  auto socket = udp::socket{ex, endpoint};
+  // open the socket
+  auto socket = udp::socket{ex, endpoint.protocol()};
+  // set socket options before bind(), because the server enables REUSEADDR
   error_code ec;
   prepare_socket(socket, flags & LSENG_SERVER, ec);
   if (ec) {
     throw system_error(ec);
   }
+  socket.bind(endpoint); // may throw
   return socket;
 }
 
