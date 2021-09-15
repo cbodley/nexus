@@ -1,2 +1,2 @@
 add_unit_test(test_http3_fields test_fields.cc)
-target_link_libraries(test_http3_fields test_base nexus)
+target_link_libraries(test_http3_fields test_base nexus-headers)

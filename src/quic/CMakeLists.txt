@@ -8,5 +8,5 @@ set(nexus-quic-srcs
 	stream.cc)
 
 add_library(nexus-quic ${nexus-quic-srcs})
-target_link_libraries(nexus-quic PUBLIC nexus lsquic)
+target_link_libraries(nexus-quic PUBLIC nexus-headers lsquic)
 install(TARGETS nexus-quic LIBRARY DESTINATION lib)
