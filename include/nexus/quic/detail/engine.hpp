@@ -70,6 +70,8 @@ class engine_state {
   void close(connection_state& cstate, error_code& ec);
   void on_close(connection_state& cstate, lsquic_conn* conn);
 
+  void do_close(connection_state& cstate, error_code ec);
+
   void stream_connect(stream_state& sstate,
                       stream_connect_operation& op);
   stream_state& on_stream_connect(connection_state& cstate,
