@@ -3,38 +3,55 @@
 #include <nexus/udp.hpp>
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
+#include <nexus/quic/detail/socket.hpp>
 
 namespace nexus::quic {
 
 class client_connection;
+class stream;
 
 class client {
   friend class client_connection;
   detail::engine_state state;
+  detail::socket_state socket;
  public:
-  explicit client(udp::socket&& socket);
-  client(const asio::any_io_executor& ex, const udp::endpoint& endpoint);
+  client(udp::socket&& socket, const char* alpn);
+  client(const asio::any_io_executor& ex, const udp::endpoint& endpoint,
+         const char* alpn);
 
   udp::endpoint local_endpoint() const;
 
-  void close() { state.close(); }
+  void connect(client_connection& conn,
+               const udp::endpoint& endpoint,
+               const char* hostname);
+
+  void close(error_code& ec);
+  void close();
 };
 
 class client_connection {
+  friend class client;
   friend class stream;
   detail::connection_state state;
  public:
-  explicit client_connection(client& c) : state(c.state) {}
+  explicit client_connection(client& c) : state(c.socket) {}
   client_connection(client& c, const udp::endpoint& endpoint,
-                    const char* hostname) : state(c.state) {
-    connect(endpoint, hostname);
+                    const char* hostname)
+      : state(c.socket) {
+    c.connect(*this, endpoint, hostname);
   }
 
   udp::endpoint remote_endpoint();
 
-  void connect(const udp::endpoint& endpoint, const char* hostname);
+  template <typename CompletionToken> // void(error_code)
+  decltype(auto) async_connect(stream& s, CompletionToken&& token) {
+    return state.async_connect(s, std::forward<CompletionToken>(token));
+  }
 
-  void close(error_code& ec) { state.close(ec); }
+  void connect(stream& s, error_code& ec);
+  void connect(stream& s);
+
+  void close(error_code& ec);
   void close();
 };
 

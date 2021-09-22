@@ -10,7 +10,7 @@ set(BORINGSSL_LIB_decrepit decrepit)
 add_subdirectory(lsquic)
 
 cmake_policy(SET CMP0079 NEW)
-target_include_directories(lsquic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lsquic/include)
+target_include_directories(lsquic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lsquic/include ${BORINGSSL_INCLUDE})
 target_link_libraries(lsquic PUBLIC ssl crypto decrepit ZLIB::ZLIB)
 
 add_library(asio INTERFACE)

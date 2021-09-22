@@ -5,10 +5,12 @@
 #include <queue>
 
 #include <asio/basic_waitable_timer.hpp>
+#include <boost/intrusive/list.hpp>
 
 #include <nexus/error_code.hpp>
 #include <nexus/udp.hpp>
 #include <nexus/quic/detail/operation.hpp>
+#include <nexus/quic/detail/socket.hpp>
 
 struct lsquic_engine;
 struct lsquic_conn;
@@ -26,38 +28,38 @@ using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 
 class engine_state {
   std::mutex mutex;
-  udp::socket socket;
+  asio::any_io_executor ex;
+  ssl::cert_lookup* certs;
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
-  udp::endpoint local_addr; // socket's bound address
   bool is_server;
-  boost::intrusive::list<connection_state> accepting_connections;
-  std::queue<lsquic_conn*> incoming_connections;
 
-  void start_recv();
   void process(std::unique_lock<std::mutex>& lock);
   void reschedule(std::unique_lock<std::mutex>& lock);
-
-  void on_readable();
-  void on_writeable();
   void on_timer();
 
+  void start_recv(socket_state& socket);
+  void on_readable(socket_state& socket);
+  void on_writeable(socket_state& socket);
+
  public:
-  engine_state(const asio::any_io_executor& ex,
-               const udp::endpoint& endpoint,
-               unsigned flags);
-  engine_state(udp::socket&& socket, unsigned flags);
+  engine_state(const asio::any_io_executor& ex, unsigned flags,
+               ssl::cert_lookup* server_certs,
+               const char* client_alpn);
   ~engine_state();
 
   using executor_type = asio::any_io_executor;
-  executor_type get_executor() { return socket.get_executor(); }
+  executor_type get_executor() { return ex; }
 
   // return the bound address
-  udp::endpoint local_endpoint() const;
+  udp::endpoint local_endpoint(socket_state& socket) const;
   // return the connection's remote address
   udp::endpoint remote_endpoint(connection_state& cstate);
 
   void close();
+
+  void listen(socket_state& socket, int backlog);
+  void close(socket_state& socket, error_code& ec);
 
   void connect(connection_state& cstate,
                const udp::endpoint& endpoint,

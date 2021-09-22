@@ -5,18 +5,43 @@
 
 namespace nexus::quic {
 
-server::server(const asio::any_io_executor& ex,
-               const udp::endpoint& endpoint)
-    : state(ex, endpoint, LSENG_SERVER | LSENG_HTTP)
+server::server(const executor_type& ex, ssl::cert_lookup* certs)
+    : state(ex, LSENG_SERVER, certs, nullptr)
 {}
 
-server::server(udp::socket&& socket)
-    : state(std::move(socket), LSENG_SERVER | LSENG_HTTP)
+acceptor::acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx)
+    : state(s.state, std::move(socket), std::move(ctx))
 {}
 
-udp::endpoint server::local_endpoint() const
+acceptor::acceptor(server& s, const udp::endpoint& endpoint,
+                   ssl::context_ptr ctx)
+    : state(s.state, endpoint, true, std::move(ctx))
+{}
+
+udp::endpoint acceptor::local_endpoint() const
 {
   return state.local_endpoint();
+}
+
+void acceptor::listen(int backlog)
+{
+  return state.listen(backlog);
+}
+
+void acceptor::accept(server_connection& conn, error_code& ec)
+{
+  detail::accept_sync op;
+  state.accept(conn.state, op);
+  ec = *op.ec;
+}
+
+void acceptor::accept(server_connection& conn)
+{
+  error_code ec;
+  accept(conn, ec);
+  if (ec) {
+    throw system_error(ec);
+  }
 }
 
 udp::endpoint server_connection::remote_endpoint()
@@ -24,15 +49,17 @@ udp::endpoint server_connection::remote_endpoint()
   return state.remote_endpoint();
 }
 
-void server_connection::accept(error_code& ec)
+void server_connection::accept(stream& s, error_code& ec)
 {
-  state.accept(ec);
+  detail::stream_accept_sync op;
+  state.accept(s.state, op);
+  ec = *op.ec;
 }
 
-void server_connection::accept()
+void server_connection::accept(stream& s)
 {
   error_code ec;
-  state.accept(ec);
+  accept(s, ec);
   if (ec) {
     throw system_error(ec);
   }
@@ -40,18 +67,27 @@ void server_connection::accept()
 
 namespace http3 {
 
-server::server(const asio::any_io_executor& ex,
-               const udp::endpoint& endpoint)
-    : state(ex, endpoint, LSENG_SERVER | LSENG_HTTP)
+server::server(const executor_type& ex, ssl::cert_lookup* certs)
+    : state(ex, LSENG_SERVER | LSENG_HTTP, certs, nullptr)
 {}
 
-server::server(udp::socket&& socket)
-    : state(std::move(socket), LSENG_SERVER | LSENG_HTTP)
+acceptor::acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx)
+    : state(s.state, std::move(socket), std::move(ctx))
 {}
 
-udp::endpoint server::local_endpoint() const
+acceptor::acceptor(server& s, const udp::endpoint& endpoint,
+                   ssl::context_ptr ctx)
+    : state(s.state, endpoint, true, std::move(ctx))
+{}
+
+udp::endpoint acceptor::local_endpoint() const
 {
   return state.local_endpoint();
+}
+
+void acceptor::listen(int backlog)
+{
+  return state.listen(backlog);
 }
 
 udp::endpoint server_connection::remote_endpoint()
@@ -59,15 +95,17 @@ udp::endpoint server_connection::remote_endpoint()
   return state.remote_endpoint();
 }
 
-void server_connection::accept(error_code& ec)
+void server_connection::accept(stream& s, error_code& ec)
 {
-  state.accept(ec);
+  quic::detail::stream_accept_sync op;
+  state.accept(s.state, op);
+  ec = *op.ec;
 }
 
-void server_connection::accept()
+void server_connection::accept(stream& s)
 {
   error_code ec;
-  state.accept(ec);
+  accept(s, ec);
   if (ec) {
     throw system_error(ec);
   }

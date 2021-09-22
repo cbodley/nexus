@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
   auto global = nexus::quic::global::init_client();
   auto client = nexus::quic::http3::client{ex, udp::endpoint{}};
   auto conn = nexus::quic::http3::client_connection{client};
-  conn.connect(remote_endpoint, hostname);
+  client.connect(conn, remote_endpoint, hostname);
   auto stream = nexus::quic::http3::stream{conn};
 
   auto request = nexus::quic::http3::fields{};
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   auto response = nexus::quic::http3::fields{};
   auto buffer = body_buffer{};
 
-  stream.async_connect([&] (error_code ec) {
+  conn.async_connect(stream, [&] (error_code ec) {
     if (ec) {
       std::cerr << "async_connect failed with " << ec << std::endl;
       return;

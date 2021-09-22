@@ -3,8 +3,9 @@
 #include <nexus/error_code.hpp>
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/server.hpp>
-#include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/handler_ptr.hpp>
+#include <nexus/quic/detail/operation.hpp>
+#include <nexus/quic/detail/stream.hpp>
 
 namespace nexus::quic {
 
@@ -12,6 +13,7 @@ class stream {
  protected:
   friend class client_connection;
   friend class server_connection;
+  friend class detail::connection_state;
   detail::stream_state state;
   explicit stream(detail::connection_state& cstate) : state(cstate) {}
  public:
@@ -20,22 +22,6 @@ class stream {
 
   using executor_type = detail::stream_state::executor_type;
   executor_type get_executor() { return state.get_executor(); }
-
-  template <typename CompletionToken> // void(error_code)
-  decltype(auto) async_connect(CompletionToken&& token) {
-    return state.async_connect(std::forward<CompletionToken>(token));
-  }
-
-  void connect(error_code& ec);
-  void connect();
-
-  template <typename CompletionToken> // void(error_code)
-  decltype(auto) async_accept(CompletionToken&& token) {
-    return state.async_accept(std::forward<CompletionToken>(token));
-  }
-
-  void accept(error_code& ec);
-  void accept();
 
   template <typename MutableBufferSequence,
             typename CompletionToken> // void(error_code, size_t)

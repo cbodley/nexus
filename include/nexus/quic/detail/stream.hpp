@@ -53,36 +53,6 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   using executor_type = asio::any_io_executor;
   executor_type get_executor();
 
-  void connect(stream_connect_operation& op);
-
-  template <typename CompletionToken>
-  decltype(auto) async_connect(CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code)>(
-        [this] (auto h) {
-          using Handler = std::decay_t<decltype(h)>;
-          using op_type = stream_connect_async<Handler, executor_type>;
-          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
-          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
-          connect(*op);
-          op.release(); // release ownership
-        }, token);
-  }
-
-  void accept(stream_accept_operation& op);
-
-  template <typename CompletionToken>
-  decltype(auto) async_accept(CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code)>(
-        [this] (auto h) {
-          using Handler = std::decay_t<decltype(h)>;
-          using op_type = stream_accept_async<Handler, executor_type>;
-          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
-          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
-          connect(*op);
-          op.release(); // release ownership
-        }, token);
-  }
-
   void read_headers(stream_header_read_operation& op);
 
   template <typename CompletionToken>

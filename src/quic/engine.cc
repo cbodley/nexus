@@ -22,11 +22,6 @@ engine_state::~engine_state()
   close();
 }
 
-udp::endpoint engine_state::local_endpoint() const
-{
-  return local_addr;
-}
-
 udp::endpoint engine_state::remote_endpoint(connection_state& cstate)
 {
   auto remote = udp::endpoint{};
@@ -49,10 +44,11 @@ void engine_state::connect(connection_state& cstate,
                            const char* hostname)
 {
   auto lock = std::unique_lock{mutex};
+  auto peer_ctx = &cstate.socket;
   auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&cstate);
   assert(!cstate.handle);
   ::lsquic_engine_connect(handle.get(), N_LSQVER,
-      local_addr.data(), endpoint.data(), this, cctx,
+      cstate.socket.local_addr.data(), endpoint.data(), peer_ctx, cctx,
       hostname, 0, nullptr, 0, nullptr, 0);
   assert(cstate.handle); // lsquic_engine_connect() calls on_connect()
 }
@@ -61,31 +57,50 @@ void engine_state::on_connect(connection_state& cstate, lsquic_conn_t* conn)
 {
   assert(!cstate.handle);
   cstate.handle = conn;
+  cstate.socket.connected.push_back(cstate);
 }
 
 void engine_state::accept(connection_state& cstate, accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  if (!incoming_connections.empty()) {
-    cstate.handle = incoming_connections.front();
-    incoming_connections.pop();
+  if (!cstate.socket.incoming_connections.empty()) {
+    cstate.handle = cstate.socket.incoming_connections.front();
+    cstate.socket.incoming_connections.pop_front();
+    cstate.socket.connected.push_back(cstate);
     op.post(error_code{}); // success
     return;
   }
   assert(!cstate.accept_);
   cstate.accept_ = &op;
+  cstate.socket.accepting_connections.push_back(cstate);
   process(lock);
   op.wait(lock);
 }
 
 connection_state* engine_state::on_accept(lsquic_conn_t* conn)
 {
-  if (accepting_connections.empty()) {
-    incoming_connections.push(conn);
+  const sockaddr* local = nullptr;
+  const sockaddr* peer = nullptr;
+  int r = ::lsquic_conn_get_sockaddr(conn, &local, &peer);
+  assert(r == 0); // XXX: not expected, but want to see if it happens
+  if (r != 0) {
     return nullptr;
   }
-  auto& cstate = accepting_connections.front();
-  accepting_connections.pop_front();
+  // get the peer_ctx from our call to lsquic_engine_packet_in()
+  auto peer_ctx = ::lsquic_conn_get_peer_ctx(conn, local);
+  assert(peer_ctx);
+  auto& socket = *static_cast<socket_state*>(peer_ctx);
+  if (socket.accepting_connections.empty()) {
+    // not waiting on accept, try to queue this for later
+    if (socket.incoming_connections.full()) {
+      ::lsquic_conn_close(conn);
+    } else {
+      socket.incoming_connections.push_back(conn);
+    }
+    return nullptr;
+  }
+  auto& cstate = socket.accepting_connections.front();
+  socket.accepting_connections.pop_front();
   assert(cstate.accept_);
   assert(!cstate.handle);
   cstate.handle = conn;
@@ -108,6 +123,10 @@ void engine_state::close(connection_state& cstate, error_code& ec)
 
 void engine_state::do_close(connection_state& cstate, error_code ec)
 {
+  if (cstate.is_linked()) {
+    auto& connected = cstate.socket.connected;
+    connected.erase(connected.iterator_to(cstate));
+  }
   cstate.handle = nullptr;
   // close incoming streams that we haven't accepted yet
   while (!cstate.incoming_streams.empty()) {
@@ -462,24 +481,43 @@ void engine_state::close()
 {
   auto lock = std::unique_lock{mutex};
   ::lsquic_engine_cooldown(handle.get());
+  process(lock);
+}
+
+void engine_state::listen(socket_state& socket, int backlog)
+{
+  auto lock = std::unique_lock{mutex};
+  socket.incoming_connections.set_capacity(backlog);
+  start_recv(socket);
+}
+
+void engine_state::close(socket_state& socket, error_code& ec)
+{
+  auto lock = std::unique_lock{mutex};
   // close incoming streams that we haven't accepted yet
-  while (!incoming_connections.empty()) {
-    auto conn = incoming_connections.front();
-    incoming_connections.pop();
+  while (!socket.incoming_connections.empty()) {
+    auto conn = socket.incoming_connections.front();
+    socket.incoming_connections.pop_front();
     ::lsquic_conn_close(conn);
+  }
+  // close connections on this socket
+  while (!socket.connected.empty()) {
+    auto& cstate = socket.connected.front();
+    ::lsquic_conn_close(cstate.handle);
+    do_close(cstate, make_error_code(errc::operation_canceled));
   }
   process(lock);
   // cancel connections pending accept
   auto ecanceled = make_error_code(errc::operation_canceled);
-  while (!accepting_connections.empty()) {
-    auto& cstate = accepting_connections.front();
-    accepting_connections.pop_front();
+  while (!socket.accepting_connections.empty()) {
+    auto& cstate = socket.accepting_connections.front();
+    socket.accepting_connections.pop_front();
     assert(cstate.accept_);
     cstate.accept_->defer(ecanceled);
     cstate.accept_ = nullptr;
   }
-  socket.close();
-  timer.cancel();
+  // cancel the async_wait for read, but don't close until ~socket_state()
+  socket.socket.cancel();
 }
 
 void engine_state::process(std::unique_lock<std::mutex>& lock)
@@ -492,13 +530,14 @@ void engine_state::reschedule(std::unique_lock<std::mutex>& lock)
 {
   int micros = 0;
   if (!::lsquic_engine_earliest_adv_tick(handle.get(), &micros)) {
+    timer.cancel();
     return;
   }
   if (micros <= 0) {
     process(lock);
     return;
   }
-  const auto  dur = std::chrono::microseconds{micros};
+  const auto dur = std::chrono::microseconds{micros};
   timer.expires_after(dur);
   timer.async_wait([this] (error_code ec) {
         if (!ec) {
@@ -513,12 +552,13 @@ void engine_state::on_timer()
   process(lock);
 }
 
-void engine_state::start_recv()
+void engine_state::start_recv(socket_state& socket)
 {
-  socket.async_wait(udp::socket::wait_read, [this] (error_code ec) {
+  socket.socket.async_wait(udp::socket::wait_read,
+      [this, &socket] (error_code ec) {
         if (!ec) {
-          on_readable();
-        } // else fatal?
+          on_readable(socket);
+        } // XXX: else fatal? retry?
       });
 }
 
@@ -531,7 +571,7 @@ constexpr size_t dstaddr4_size = sizeof(in_pktinfo)
 constexpr size_t dstaddr_size = std::max(dstaddr4_size, sizeof(in6_pktinfo));
 constexpr size_t max_control_size = CMSG_SPACE(ecn_size) + CMSG_SPACE(dstaddr_size);
 
-void engine_state::on_readable()
+void engine_state::on_readable(socket_state& socket)
 {
   auto msg = msghdr{};
 
@@ -551,15 +591,15 @@ void engine_state::on_readable()
   msg.msg_control = control.data();
   msg.msg_controllen = control.size();
 
-  const auto bytes = ::recvmsg(socket.native_handle(), &msg, 0);
+  const auto bytes = ::recvmsg(socket.socket.native_handle(), &msg, 0);
   if (bytes == -1) {
     perror("recvmsg");
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      start_recv();
-    } // else fatal?
+      start_recv(socket);
+    } // XXX: else fatal? retry?
     return;
   }
-  start_recv();
+  start_recv(socket);
 
   union sockaddr_union {
     sockaddr_storage storage;
@@ -569,10 +609,10 @@ void engine_state::on_readable()
   };
   sockaddr_union local;
 
-  if (local_addr.data()->sa_family == AF_INET6) {
-    ::memcpy(&local.addr6, local_addr.data(), sizeof(sockaddr_in6));
+  if (socket.local_addr.data()->sa_family == AF_INET6) {
+    ::memcpy(&local.addr6, socket.local_addr.data(), sizeof(sockaddr_in6));
   } else {
-    ::memcpy(&local.addr4, local_addr.data(), sizeof(sockaddr_in));
+    ::memcpy(&local.addr4, socket.local_addr.data(), sizeof(sockaddr_in));
   }
 
   int ecn = 0;
@@ -603,11 +643,11 @@ void engine_state::on_readable()
 
   auto lock = std::unique_lock{mutex};
   ::lsquic_engine_packet_in(handle.get(), buffer.data(), bytes,
-                            &local.addr, addr.data(), this, ecn);
+                            &local.addr, addr.data(), &socket, ecn);
   process(lock);
 }
 
-void engine_state::on_writeable()
+void engine_state::on_writeable(socket_state&)
 {
   auto lock = std::scoped_lock{mutex};
   ::lsquic_engine_send_unsent_packets(handle.get());
@@ -615,22 +655,30 @@ void engine_state::on_writeable()
 
 int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
 {
-  const int count = send_udp_packets(socket.native_handle(), specs, n_specs);
-  if (count < n_specs) {
-    const int error = errno;
-    if (error == EAGAIN || error == EWOULDBLOCK) {
-      // lsquic won't call our send_packets() callback again until we call
-      // lsquic_engine_send_unsent_packets()
-      // wait for the socket to become writeable again, so we can call that
-      socket.async_wait(udp::socket::wait_write, [this] (error_code ec) {
-            if (!ec) {
-              on_writeable();
-            } // else fatal?
-          });
-      assert(errno == error); // lsquic needs to see this errno
+  auto p = specs;
+  const auto end = std::next(specs, n_specs);
+  while (p < end) {
+    socket_state& socket = *static_cast<socket_state*>(p->peer_ctx);
+    error_code ec;
+    p = socket.send_packets(p, end, ec);
+    if (ec) {
+      if (ec == errc::resource_unavailable_try_again ||
+          ec == errc::operation_would_block) {
+        // lsquic won't call our send_packets() callback again until we call
+        // lsquic_engine_send_unsent_packets()
+        // wait for the socket to become writeable again, so we can call that
+        socket.socket.async_wait(udp::socket::wait_write,
+            [this, &socket] (error_code ec) {
+              if (!ec) {
+                on_writeable(socket);
+              } // else fatal?
+            });
+        errno = ec.value(); // lsquic needs to see this errno
+      }
+      break;
     }
   }
-  return count;
+  return std::distance(specs, p);
 }
 
 
@@ -665,28 +713,31 @@ static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
 static void on_read(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
   auto sstate = reinterpret_cast<stream_state*>(sctx);
-  sstate->conn.engine.on_stream_read(*sstate);
+  sstate->conn.socket.engine.on_stream_read(*sstate);
 }
 
 static void on_write(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
   auto sstate = reinterpret_cast<stream_state*>(sctx);
-  sstate->conn.engine.on_stream_write(*sstate);
+  sstate->conn.socket.engine.on_stream_write(*sstate);
 }
 
 static void on_close(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
   auto sstate = reinterpret_cast<stream_state*>(sctx);
   if (sstate) {
-    sstate->conn.engine.on_stream_close(*sstate);
+    sstate->conn.socket.engine.on_stream_close(*sstate);
   }
 }
 
 static void on_conn_closed(lsquic_conn_t* conn)
 {
   auto cctx = ::lsquic_conn_get_ctx(conn);
+  if (!cctx) {
+    return;
+  }
   auto cstate = reinterpret_cast<connection_state*>(cctx);
-  cstate->engine.on_close(*cstate, conn);
+  cstate->socket.engine.on_close(*cstate, conn);
 }
 
 static constexpr lsquic_stream_if make_client_stream_api()
@@ -760,31 +811,23 @@ static int client_send_packets(void* ectx, const lsquic_out_spec *specs,
   return estate->send_packets(specs, n_specs);
 }
 
-static udp::socket bind_socket(const asio::any_io_executor& ex,
-                               const udp::endpoint& endpoint, unsigned flags)
+ssl_ctx_st* server_lookup_cert(void* lctx, const sockaddr* local, const char* sni)
 {
-  // open the socket
-  auto socket = udp::socket{ex, endpoint.protocol()};
-  // set socket options before bind(), because the server enables REUSEADDR
-  error_code ec;
-  prepare_socket(socket, flags & LSENG_SERVER, ec);
-  if (ec) {
-    throw system_error(ec);
-  }
-  socket.bind(endpoint); // may throw
-  return socket;
+  auto& certs = *static_cast<ssl::cert_lookup*>(lctx);
+  return certs.lookup_cert(sni);
 }
 
-engine_state::engine_state(const asio::any_io_executor& ex,
-                           const udp::endpoint& endpoint, unsigned flags)
-  : engine_state(bind_socket(ex, endpoint, flags), flags)
+ssl_ctx_st* server_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 {
+  auto& socket = *static_cast<socket_state*>(peer_ctx);
+  return socket.ssl.get();
 }
 
-engine_state::engine_state(udp::socket&& socket, unsigned flags)
-  : socket(std::move(socket)),
-    timer(this->socket.get_executor()),
-    is_server(flags & LSENG_SERVER)
+engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
+                           ssl::cert_lookup* server_certs,
+                           const char* client_alpn)
+  : ex(ex), certs(server_certs),
+    timer(ex), is_server(flags & LSENG_SERVER)
 {
   lsquic_engine_settings settings;
   ::lsquic_engine_init_settings(&settings, flags);
@@ -795,43 +838,48 @@ engine_state::engine_state(udp::socket&& socket, unsigned flags)
   static const lsquic_stream_if stream_api = make_client_stream_api();
   api.ea_stream_if = &stream_api;
   api.ea_stream_if_ctx = this;
+  if (flags & LSENG_SERVER) {
+    if (certs) {
+      api.ea_lookup_cert = server_lookup_cert;
+      api.ea_cert_lu_ctx = certs;
+    }
+    api.ea_get_ssl_ctx = server_peer_ssl_ctx;
+  }
   if (flags & LSENG_HTTP) {
     static const lsquic_hset_if header_api = make_client_header_api();
     api.ea_hsi_if = &header_api;
     api.ea_hsi_ctx = this;
   }
+  api.ea_alpn = client_alpn;
   api.ea_settings = &settings;
   handle.reset(::lsquic_engine_new(flags, &api));
-
-  start_recv();
 }
 
 connection_state::executor_type connection_state::get_executor()
 {
-  return engine.get_executor();
+  return socket.get_executor();
 }
 
 udp::endpoint connection_state::remote_endpoint()
 {
-  return engine.remote_endpoint(*this);
+  return socket.engine.remote_endpoint(*this);
 }
 
-void connection_state::connect(const udp::endpoint& endpoint,
-                               const char* hostname)
+void connection_state::connect(stream_state& sstate,
+                               stream_connect_operation& op)
 {
-  engine.connect(*this, endpoint, hostname);
+  socket.engine.stream_connect(sstate, op);
 }
 
-void connection_state::accept(error_code& ec)
+void connection_state::accept(stream_state& sstate,
+                              stream_accept_operation& op)
 {
-  accept_sync op;
-  engine.accept(*this, op);
-  ec = *op.ec;
+  socket.engine.stream_accept(sstate, op);
 }
 
 void connection_state::close(error_code& ec)
 {
-  engine.close(*this, ec);
+  socket.engine.close(*this, ec);
 }
 
 } // namespace quic::detail

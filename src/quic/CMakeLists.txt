@@ -5,6 +5,7 @@ set(nexus-quic-srcs
 	global.cc
 	server.cc
 	socket.cc
+	ssl.cc
 	stream.cc)
 
 add_library(nexus-quic ${nexus-quic-srcs})
