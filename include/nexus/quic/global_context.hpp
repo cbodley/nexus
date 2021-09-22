@@ -31,6 +31,9 @@ class context {
     return *this;
   }
   ~context();
+
+  // emerg, alert, crit, error, warn, notice, info, debug
+  void log_to_stderr(const char* level);
 };
 
 class init_exception : std::exception {

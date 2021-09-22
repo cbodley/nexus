@@ -1,5 +1,6 @@
 #include <nexus/quic/global_context.hpp>
 
+#include <stdio.h>
 #include <lsquic.h>
 
 namespace nexus::quic::global {
@@ -13,6 +14,11 @@ context::~context()
 
 namespace detail {
 
+int log(void* ctx, const char* buf, size_t len)
+{
+  return ::fwrite(buf, 1, len, stderr);
+}
+
 context init(int flags)
 {
   if (int r = ::lsquic_global_init(flags); r != 0) {
@@ -22,6 +28,13 @@ context init(int flags)
 }
 
 } // namespace detail
+
+void context::log_to_stderr(const char* level)
+{
+  static lsquic_logger_if logger{detail::log};
+  ::lsquic_logger_init(&logger, nullptr, LLTS_HHMMSSMS);
+  ::lsquic_set_log_level(level);
+}
 
 context init_client()
 {
