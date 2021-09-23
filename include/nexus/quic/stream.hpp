@@ -65,12 +65,23 @@ class stream {
     return bytes;
   }
 
+  void flush(error_code& ec) {
+    state.flush(ec);
+  }
+  void flush() {
+    error_code ec;
+    flush(ec);
+    if (ec) {
+      throw system_error(ec);
+    }
+  }
+
   void shutdown(int how, error_code& ec) {
     state.shutdown(how, ec);
   }
   void shutdown(int how) {
     error_code ec;
-    state.shutdown(how, ec);
+    shutdown(how, ec);
     if (ec) {
       throw system_error(ec);
     }
