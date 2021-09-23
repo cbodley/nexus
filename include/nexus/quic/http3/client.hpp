@@ -13,8 +13,9 @@ class client {
   quic::detail::engine_state state;
   quic::detail::socket_state socket;
  public:
-  explicit client(udp::socket&& socket);
-  client(const asio::any_io_executor& ex, const udp::endpoint& endpoint);
+  explicit client(udp::socket&& socket, ssl::context_ptr ctx = nullptr);
+  client(const asio::any_io_executor& ex, const udp::endpoint& endpoint,
+         ssl::context_ptr ctx = nullptr);
 
   udp::endpoint local_endpoint() const;
 

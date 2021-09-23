@@ -5,7 +5,6 @@
 #include <openssl/ssl.h>
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/stream.hpp>
-#include <nexus/quic/ssl_certificate_map.hpp>
 #include <nexus/quic/global_context.hpp>
 
 #include "certificate.hpp"
@@ -70,10 +69,7 @@ TEST(server, accept_wait) // accept() before a connection is received
 
   auto ssl = init_context();
 
-  auto certs = quic::ssl::certificate_map{};
-  certs.insert("host", ssl);
-
-  auto server = quic::server{ex, &certs};
+  auto server = quic::server{ex, nullptr};
   const auto localhost = asio::ip::make_address("127.0.0.1");
   auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
   const auto endpoint = acceptor.local_endpoint();
@@ -108,10 +104,7 @@ TEST(server, accept_ready) // accept() after a connection is received
 
   auto ssl = init_context();
 
-  auto certs = quic::ssl::certificate_map{};
-  certs.insert("host", ssl);
-
-  auto server = quic::server{ex, &certs};
+  auto server = quic::server{ex, nullptr};
   const auto localhost = asio::ip::make_address("127.0.0.1");
   auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
   const auto endpoint = acceptor.local_endpoint();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nexus/udp.hpp>
+#include <nexus/quic/ssl.hpp>
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
 #include <nexus/quic/detail/socket.hpp>
@@ -15,9 +16,10 @@ class client {
   detail::engine_state state;
   detail::socket_state socket;
  public:
-  client(udp::socket&& socket, const char* alpn);
+  client(udp::socket&& socket, const char* alpn,
+         ssl::context_ptr ctx = nullptr);
   client(const asio::any_io_executor& ex, const udp::endpoint& endpoint,
-         const char* alpn);
+         const char* alpn, ssl::context_ptr ctx = nullptr);
 
   udp::endpoint local_endpoint() const;
 

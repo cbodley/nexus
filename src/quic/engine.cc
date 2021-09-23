@@ -838,13 +838,11 @@ engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
   static const lsquic_stream_if stream_api = make_client_stream_api();
   api.ea_stream_if = &stream_api;
   api.ea_stream_if_ctx = this;
-  if (flags & LSENG_SERVER) {
-    if (certs) {
-      api.ea_lookup_cert = server_lookup_cert;
-      api.ea_cert_lu_ctx = certs;
-    }
-    api.ea_get_ssl_ctx = server_peer_ssl_ctx;
+  if (certs) {
+    api.ea_lookup_cert = server_lookup_cert;
+    api.ea_cert_lu_ctx = certs;
   }
+  api.ea_get_ssl_ctx = server_peer_ssl_ctx;
   if (flags & LSENG_HTTP) {
     static const lsquic_hset_if header_api = make_client_header_api();
     api.ea_hsi_if = &header_api;
