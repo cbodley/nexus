@@ -51,6 +51,7 @@ void engine_state::connect(connection_state& cstate,
       cstate.socket.local_addr.data(), endpoint.data(), peer_ctx, cctx,
       hostname, 0, nullptr, 0, nullptr, 0);
   assert(cstate.handle); // lsquic_engine_connect() calls on_connect()
+  process(lock);
 }
 
 void engine_state::on_connect(connection_state& cstate, lsquic_conn_t* conn)
