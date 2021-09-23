@@ -769,7 +769,7 @@ static void on_conn_closed(lsquic_conn_t* conn)
   cstate->socket.engine.on_close(*cstate, conn);
 }
 
-static constexpr lsquic_stream_if make_client_stream_api()
+static constexpr lsquic_stream_if make_stream_api()
 {
   lsquic_stream_if api = {};
   api.on_new_conn = on_new_conn;
@@ -823,7 +823,7 @@ static void header_set_discard(void* hset)
   delete reinterpret_cast<recv_header_set*>(hset);
 }
 
-static constexpr lsquic_hset_if make_client_header_api()
+static constexpr lsquic_hset_if make_header_api()
 {
   lsquic_hset_if api = {};
   api.hsi_create_header_set  = header_set_create;
@@ -833,20 +833,20 @@ static constexpr lsquic_hset_if make_client_header_api()
   return api;
 }
 
-static int client_send_packets(void* ectx, const lsquic_out_spec *specs,
-                        unsigned n_specs)
+static int api_send_packets(void* ectx, const lsquic_out_spec *specs,
+                            unsigned n_specs)
 {
   auto estate = static_cast<engine_state*>(ectx);
   return estate->send_packets(specs, n_specs);
 }
 
-ssl_ctx_st* server_lookup_cert(void* lctx, const sockaddr* local, const char* sni)
+ssl_ctx_st* api_lookup_cert(void* lctx, const sockaddr* local, const char* sni)
 {
   auto& certs = *static_cast<ssl::cert_lookup*>(lctx);
   return certs.lookup_cert(sni);
 }
 
-ssl_ctx_st* server_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
+ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 {
   auto& socket = *static_cast<socket_state*>(peer_ctx);
   return socket.ssl.get();
@@ -862,18 +862,18 @@ engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
   ::lsquic_engine_init_settings(&settings, flags);
 
   lsquic_engine_api api = {};
-  api.ea_packets_out = client_send_packets;
+  api.ea_packets_out = api_send_packets;
   api.ea_packets_out_ctx = this;
-  static const lsquic_stream_if stream_api = make_client_stream_api();
+  static const lsquic_stream_if stream_api = make_stream_api();
   api.ea_stream_if = &stream_api;
   api.ea_stream_if_ctx = this;
   if (certs) {
-    api.ea_lookup_cert = server_lookup_cert;
+    api.ea_lookup_cert = api_lookup_cert;
     api.ea_cert_lu_ctx = certs;
   }
-  api.ea_get_ssl_ctx = server_peer_ssl_ctx;
+  api.ea_get_ssl_ctx = api_peer_ssl_ctx;
   if (flags & LSENG_HTTP) {
-    static const lsquic_hset_if header_api = make_client_header_api();
+    static const lsquic_hset_if header_api = make_header_api();
     api.ea_hsi_if = &header_api;
     api.ea_hsi_ctx = this;
   }
