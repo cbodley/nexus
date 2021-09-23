@@ -1,5 +1,6 @@
 #include <nexus/quic/http3/client.hpp>
 #include <nexus/quic/http3/stream.hpp>
+#include <nexus/quic/connection.hpp>
 #include <lsquic.h>
 
 namespace nexus::quic {
@@ -25,7 +26,7 @@ udp::endpoint client::local_endpoint() const
   return socket.local_endpoint();
 }
 
-void client::connect(client_connection& conn,
+void client::connect(connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
@@ -39,41 +40,6 @@ void client::close(error_code& ec)
 }
 
 void client::close()
-{
-  error_code ec;
-  close(ec);
-  if (ec) {
-    throw system_error(ec);
-  }
-}
-
-udp::endpoint client_connection::remote_endpoint()
-{
-  return state.remote_endpoint();
-}
-
-void client_connection::connect(stream& s, error_code& ec)
-{
-  detail::stream_connect_sync op;
-  state.connect(s.state, op);
-  ec = *op.ec;
-}
-
-void client_connection::connect(stream& s)
-{
-  error_code ec;
-  connect(s, ec);
-  if (ec) {
-    throw system_error(ec);
-  }
-}
-
-void client_connection::close(error_code& ec)
-{
-  state.close(ec);
-}
-
-void client_connection::close()
 {
   error_code ec;
   close(ec);

@@ -2,3 +2,6 @@ add_subdirectory(http3)
 
 add_unit_test(test_quic_server_accept test_server_accept.cc certificate.cc)
 target_link_libraries(test_quic_server_accept test_base nexus-quic)
+
+add_unit_test(test_quic_server_initiated_stream test_server_initiated_stream.cc certificate.cc)
+target_link_libraries(test_quic_server_initiated_stream test_base nexus-quic)

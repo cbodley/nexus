@@ -1,12 +1,14 @@
 #include <nexus/quic/stream.hpp>
+#include <nexus/quic/connection.hpp>
 #include <nexus/quic/http3/stream.hpp>
-#include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
 
 #include <lsquic.h>
 #include <lsxpack_header.h>
 
 namespace nexus::quic {
+
+stream::stream(connection& c) : stream(c.state) {}
 
 namespace http3 {
 

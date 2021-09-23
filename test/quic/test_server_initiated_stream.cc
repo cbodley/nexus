@@ -17,7 +17,7 @@ namespace {
 const error_code ok;
 
 auto capture(std::optional<error_code>& out) {
-  return [&out] (error_code ec) { out = ec; };
+  return [&out] (error_code ec, size_t bytes = 0) { out = ec; };
 }
 
 int alpn_select_cb(SSL* ssl, const unsigned char** out, unsigned char* outlen,
@@ -34,7 +34,7 @@ int alpn_select_cb(SSL* ssl, const unsigned char** out, unsigned char* outlen,
   }
 }
 
-quic::ssl::context_ptr init_context()
+quic::ssl::context_ptr init_server_context()
 {
   auto ctx = quic::ssl::context_create(::TLS_method());
   if (ctx) {
@@ -42,6 +42,7 @@ quic::ssl::context_ptr init_context()
     ::SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
     ::SSL_CTX_set_default_verify_paths(ctx.get());
     ::SSL_CTX_set_alpn_select_cb(ctx.get(), alpn_select_cb, nullptr);
+    ::SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
 
     auto key = test::generate_rsa_key(2048);
     auto cert = test::self_sign_certificate("US", "Nexus", "host", key,
@@ -60,50 +61,28 @@ quic::ssl::context_ptr init_context()
   return ctx;
 }
 
-} // anonymous namespace
-
-TEST(server, accept_wait) // accept() before a connection is received
+quic::ssl::context_ptr init_client_context()
 {
-  auto context = asio::io_context{};
-  auto ex = context.get_executor();
-  auto global = quic::global::init_client_server();
-
-  auto ssl = init_context();
-
-  auto server = quic::server{ex, nullptr};
-  const auto localhost = asio::ip::make_address("127.0.0.1");
-  auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
-  const auto endpoint = acceptor.local_endpoint();
-  acceptor.listen(16);
-
-  std::optional<error_code> accept_ec;
-  auto sconn = quic::connection{acceptor};
-  acceptor.async_accept(sconn, capture(accept_ec));
-
-  context.poll();
-  ASSERT_FALSE(context.stopped());
-  EXPECT_FALSE(accept_ec);
-
-  auto client = quic::client{ex, udp::endpoint{}, "h3"};
-  auto cconn = quic::connection{client, endpoint, "host"};
-
-  std::optional<error_code> stream_connect_ec;
-  auto cstream = quic::stream{cconn};
-  cconn.async_connect(cstream, capture(stream_connect_ec));
-
-  context.poll();
-  ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(accept_ec);
-  EXPECT_EQ(ok, *accept_ec);
+  auto ctx = quic::ssl::context_create(::TLS_method());
+  if (ctx) {
+    ::SSL_CTX_set_min_proto_version(ctx.get(), TLS1_3_VERSION);
+    ::SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
+    ::SSL_CTX_set_default_verify_paths(ctx.get());
+    //::SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, nullptr);
+  }
+  return ctx;
 }
 
-TEST(server, accept_ready) // accept() after a connection is received
+} // anonymous namespace
+
+TEST(server, connect_stream)
 {
   auto context = asio::io_context{};
   auto ex = context.get_executor();
   auto global = quic::global::init_client_server();
+  global.log_to_stderr("debug");
 
-  auto ssl = init_context();
+  auto ssl = init_server_context();
 
   auto server = quic::server{ex, nullptr};
   const auto localhost = asio::ip::make_address("127.0.0.1");
@@ -111,25 +90,52 @@ TEST(server, accept_ready) // accept() after a connection is received
   const auto endpoint = acceptor.local_endpoint();
   acceptor.listen(16);
 
-  auto client = quic::client{ex, udp::endpoint{}, "h3"};
-  auto cconn = quic::connection{client, endpoint, "host"};
-
-  std::optional<error_code> stream_connect_ec;
-  auto cstream = quic::stream{cconn};
-  cconn.async_connect(cstream, capture(stream_connect_ec));
-
-  context.poll();
-  ASSERT_FALSE(context.stopped());
-  EXPECT_TRUE(stream_connect_ec);
-
   std::optional<error_code> accept_ec;
   auto sconn = quic::connection{acceptor};
   acceptor.async_accept(sconn, capture(accept_ec));
+
+  auto client = quic::client{ex, udp::endpoint{}, "h3", init_client_context()};
+  auto cconn = quic::connection{client, endpoint, "host"};
 
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(accept_ec);
   EXPECT_EQ(ok, *accept_ec);
+
+  std::optional<error_code> sstream_connect_ec;
+  auto sstream = quic::stream{sconn};
+  sconn.async_connect(sstream, capture(sstream_connect_ec));
+
+  std::optional<error_code> cistream_accept_ec;
+  auto cistream = quic::stream{cconn};
+  cconn.async_accept(cistream, capture(cistream_accept_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(sstream_connect_ec);
+  EXPECT_EQ(ok, *sstream_connect_ec);
+  {
+    const auto data = std::string_view{"1234"};
+    std::optional<error_code> sstream_write_ec;
+    sstream.async_write_some(asio::buffer(data), capture(sstream_write_ec));
+    sstream.shutdown(1);
+    context.poll();
+    ASSERT_FALSE(context.stopped());
+    ASSERT_TRUE(sstream_write_ec);
+    EXPECT_EQ(ok, *sstream_write_ec);
+  }
+  ASSERT_TRUE(cistream_accept_ec);
+  EXPECT_EQ(ok, *cistream_accept_ec);
+  {
+    auto data = std::array<char, 5>{};
+    std::optional<error_code> cistream_read_ec;
+    cistream.async_read_some(asio::buffer(data), capture(cistream_read_ec));
+    context.poll();
+    ASSERT_FALSE(context.stopped());
+    ASSERT_TRUE(cistream_read_ec);
+    EXPECT_EQ(ok, *cistream_read_ec);
+    EXPECT_STREQ(data.data(), "1234");
+  }
 }
 
 } // namespace nexus

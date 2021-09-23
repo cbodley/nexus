@@ -1,24 +1,28 @@
 #pragma once
 
 #include <nexus/error_code.hpp>
-#include <nexus/quic/client.hpp>
-#include <nexus/quic/server.hpp>
 #include <nexus/quic/detail/handler_ptr.hpp>
 #include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/stream.hpp>
 
 namespace nexus::quic {
 
+namespace detail {
+
+struct connection_state;
+
+} // namespace detail
+
+class connection;
+
 class stream {
  protected:
-  friend class client_connection;
-  friend class server_connection;
+  friend class connection;
   friend class detail::connection_state;
   detail::stream_state state;
   explicit stream(detail::connection_state& cstate) : state(cstate) {}
  public:
-  explicit stream(server_connection& c) : stream(c.state) {}
-  explicit stream(client_connection& c) : stream(c.state) {}
+  explicit stream(connection& c);
 
   using executor_type = detail::stream_state::executor_type;
   executor_type get_executor() { return state.get_executor(); }

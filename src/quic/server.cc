@@ -1,5 +1,6 @@
 #include <nexus/quic/http3/server.hpp>
 #include <nexus/quic/http3/stream.hpp>
+#include <nexus/quic/connection.hpp>
 #include <nexus/udp.hpp>
 #include <lsquic.h>
 
@@ -28,38 +29,17 @@ void acceptor::listen(int backlog)
   return state.listen(backlog);
 }
 
-void acceptor::accept(server_connection& conn, error_code& ec)
+void acceptor::accept(connection& conn, error_code& ec)
 {
   detail::accept_sync op;
   state.accept(conn.state, op);
   ec = *op.ec;
 }
 
-void acceptor::accept(server_connection& conn)
+void acceptor::accept(connection& conn)
 {
   error_code ec;
   accept(conn, ec);
-  if (ec) {
-    throw system_error(ec);
-  }
-}
-
-udp::endpoint server_connection::remote_endpoint()
-{
-  return state.remote_endpoint();
-}
-
-void server_connection::accept(stream& s, error_code& ec)
-{
-  detail::stream_accept_sync op;
-  state.accept(s.state, op);
-  ec = *op.ec;
-}
-
-void server_connection::accept(stream& s)
-{
-  error_code ec;
-  accept(s, ec);
   if (ec) {
     throw system_error(ec);
   }

@@ -1,5 +1,6 @@
 set(nexus-quic-srcs
 	client.cc
+	connection.cc
 	engine.cc
 	error.cc
 	global.cc
