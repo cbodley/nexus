@@ -39,7 +39,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
     for (auto i = asio::buffer_sequence_begin(buffers);
          i != end && op.num_iovs < op.max_iovs;
          ++i, ++op.num_iovs) {
-      op.iovs[op.num_iovs].iov_base = i->data();
+      op.iovs[op.num_iovs].iov_base = const_cast<void*>(i->data());
       op.iovs[op.num_iovs].iov_len = i->size();
     }
   }
