@@ -76,12 +76,14 @@ class engine_state {
 
   void stream_connect(stream_state& sstate,
                       stream_connect_operation& op);
-  stream_state& on_stream_connect(connection_state& cstate,
+  stream_state* on_stream_connect(connection_state& cstate,
                                   lsquic_stream* stream);
 
   void stream_accept(stream_state& sstate, stream_accept_operation& op);
-  stream_state& on_stream_accept(connection_state& cstate,
+  stream_state* on_stream_accept(connection_state& cstate,
                                  lsquic_stream* stream);
+  stream_state* on_new_stream(connection_state& cstate,
+                              lsquic_stream* stream);
 
   void stream_read(stream_state& sstate, stream_data_operation& op);
   void stream_read_headers(stream_state& sstate,

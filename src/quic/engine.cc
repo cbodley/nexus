@@ -173,7 +173,7 @@ void engine_state::stream_connect(stream_state& sstate,
   op.wait(lock);
 }
 
-stream_state& engine_state::on_stream_connect(connection_state& cstate,
+stream_state* engine_state::on_stream_connect(connection_state& cstate,
                                               lsquic_stream_t* stream)
 {
   assert(!cstate.connecting_streams.empty());
@@ -185,7 +185,7 @@ stream_state& engine_state::on_stream_connect(connection_state& cstate,
   assert(sstate.connect_);
   sstate.connect_->defer(ec);
   sstate.connect_ = nullptr;
-  return sstate;
+  return &sstate;
 }
 
 void engine_state::stream_accept(stream_state& sstate,
@@ -201,14 +201,21 @@ void engine_state::stream_accept(stream_state& sstate,
     return;
   }
   assert(!sstate.accept_);
+  sstate.accept_ = &op;
   cstate.accepting_streams.push_back(sstate);
   op.wait(lock);
 }
 
-stream_state& engine_state::on_stream_accept(connection_state& cstate,
+stream_state* engine_state::on_stream_accept(connection_state& cstate,
                                              lsquic_stream* stream)
 {
-  assert(!cstate.accepting_streams.empty());
+  if (cstate.accepting_streams.empty()) {
+    // not waiting on accept, queue this for later
+    cstate.incoming_streams.push(stream);
+    // XXX: once we return null for the stream_ctx, we can't assign it later.
+    // once we accept this stream, we'll crash trying to read from it
+    return nullptr;
+  }
   auto& sstate = cstate.accepting_streams.front();
   cstate.accepting_streams.pop_front();
   assert(!sstate.handle);
@@ -217,7 +224,20 @@ stream_state& engine_state::on_stream_accept(connection_state& cstate,
   assert(sstate.accept_);
   sstate.accept_->defer(ec);
   sstate.accept_ = nullptr;
-  return sstate;
+  return &sstate;
+}
+
+stream_state* engine_state::on_new_stream(connection_state& cstate,
+                                          lsquic_stream_t* stream)
+{
+  // XXX: any way to decide between connect/accept without stream id?
+  const auto id = ::lsquic_stream_id(stream);
+  const int server = !!is_server;
+  if ((id & 1) == server) { // self-initiated
+    return on_stream_connect(cstate, stream);
+  } else { // peer-initiated
+    return on_stream_accept(cstate, stream);
+  }
 }
 
 void engine_state::stream_read(stream_state& sstate, stream_data_operation& op)
@@ -417,18 +437,20 @@ void engine_state::stream_shutdown(stream_state& sstate,
 void engine_state::stream_close(stream_state& sstate, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
-  if (!sstate.handle) {
-    ec = make_error_code(errc::not_connected);
-    return;
-  }
-  ::lsquic_stream_close(sstate.handle);
-  sstate.handle = nullptr;
   // cancel other stream requests now. otherwise on_stream_close() would
   // fail them with connection_reset
   auto ecanceled = make_error_code(errc::operation_canceled);
   if (sstate.accept_) {
     sstate.accept_->defer(ecanceled);
     sstate.accept_ = nullptr;
+    auto& accepting = sstate.conn.accepting_streams;
+    accepting.erase(accepting.iterator_to(sstate));
+  }
+  if (sstate.connect_) {
+    sstate.connect_->defer(ecanceled);
+    sstate.connect_ = nullptr;
+    auto& connecting = sstate.conn.connecting_streams;
+    connecting.erase(connecting.iterator_to(sstate));
   }
   if (sstate.in.header) {
     sstate.in.header->defer(ecanceled);
@@ -446,7 +468,13 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
     sstate.out.data->defer(ecanceled, 0);
     sstate.out.data = nullptr;
   }
-  process(lock);
+  if (!sstate.handle) {
+    ec = make_error_code(errc::not_connected);
+  } else {
+    ::lsquic_stream_close(sstate.handle);
+    sstate.handle = nullptr;
+    process(lock);
+  }
 }
 
 void engine_state::on_stream_close(stream_state& sstate)
@@ -706,8 +734,8 @@ static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
   auto conn = ::lsquic_stream_conn(stream);
   auto cctx = ::lsquic_conn_get_ctx(conn);
   auto cstate = reinterpret_cast<connection_state*>(cctx);
-  auto& sstate = estate->on_stream_connect(*cstate, stream);
-  return reinterpret_cast<lsquic_stream_ctx_t*>(&sstate);
+  auto sstate = estate->on_new_stream(*cstate, stream);
+  return reinterpret_cast<lsquic_stream_ctx_t*>(sstate);
 }
 
 static void on_read(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)

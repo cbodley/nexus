@@ -60,7 +60,7 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
           using op_type = stream_accept_async<Handler, executor_type>;
           auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
           auto op = handler_ptr<op_type, Handler>{p, &p->handler};
-          connect(sstate, *op);
+          accept(sstate, *op);
           op.release(); // release ownership
         }, token);
   }
