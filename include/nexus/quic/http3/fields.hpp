@@ -9,7 +9,7 @@
 
 namespace nexus::quic::http3 {
 
-// a key/value pair to represent a single header
+/// an immutable key/value pair to represent a single header
 class field : public boost::intrusive::list_base_hook<>,
               public boost::intrusive::set_base_hook<>
 {
@@ -35,18 +35,25 @@ class field : public boost::intrusive::list_base_hook<>,
   field(const field&) = delete;
   field& operator=(const field&) = delete;
 
+  /// return a view of the field name
   std::string_view name() const {
     return {buffer, name_size};
   }
+  /// return a view of the field value
   std::string_view value() const {
     return {buffer + name_size + delim.size(), value_size};
   }
 
+  /// enable or disable the caching of this field for header compression
   void never_index(bool value) { never_index_ = value; }
+  /// return whether or not this field can be cached for header compression
   bool never_index() const { return never_index_; }
 
+  /// return a null-terminated string of the form "<name>: <value>"
   const char* c_str() const { return buffer; }
+  /// return a null-terminated string of the form "<name>: <value>"
   const char* data() const { return buffer; }
+  /// return the string length of c_str()
   size_type size() const { return name_size + delim.size() + value_size; }
 
  private:
@@ -62,6 +69,7 @@ class field : public boost::intrusive::list_base_hook<>,
   };
   using ptr = std::unique_ptr<field, deleter>;
 
+  // allocate just enough memory to hold the given name and value
   static ptr create(std::string_view name, std::string_view value,
                     bool never_index)
   {
@@ -117,15 +125,20 @@ using field_list = boost::intrusive::list<field,
 
 } // namespace detail
 
-// an ordered list of headers for an http request or response
+/// an ordered list of headers for an http request or response. all field name
+/// comparisons are case-insensitive
 class fields {
   using list_type = detail::field_list;
   list_type list;
+  // maintain an index of the names for efficient searching
   using multiset_type = detail::field_multiset;
   multiset_type set;
  public:
+  /// construct an empty list of fields
   fields() = default;
+  /// move-construct the fields, leaving o empty
   fields(fields&& o) = default;
+  /// move-assign the fields, leaving o empty
   fields& operator=(fields&& o) {
     clear();
     list = std::move(o.list);
@@ -135,6 +148,7 @@ class fields {
   ~fields() { clear(); }
 
   using size_type = list_type::size_type;
+  /// return the total number of fields in the list
   size_type size() const { return list.size(); }
 
   bool empty() const { return list.empty(); }
@@ -150,10 +164,12 @@ class fields {
   const_iterator end() const { return list.end(); }
   const_iterator cend() const { return list.cend(); }
 
+  /// return the number of fields that match the given name
   size_type count(std::string_view name) const {
     return set.count(name);
   }
 
+  /// return an iterator to the first field that matches the given name
   iterator find(std::string_view name) {
     if (auto i = set.find(name); i != set.end()) {
       return list.iterator_to(*i);
@@ -161,6 +177,7 @@ class fields {
     return list.end();
   }
 
+  /// return an iterator to the first field that matches the given name
   const_iterator find(std::string_view name) const {
     if (auto i = set.find(name); i != set.end()) {
       return list.iterator_to(*i);
@@ -168,6 +185,8 @@ class fields {
     return list.end();
   }
 
+  /// return an iterator pair corresponding to the range of fields that match
+  /// the given name (the first match and one-past the last match)
   auto equal_range(std::string_view name)
       -> std::pair<iterator, iterator>
   {
@@ -180,6 +199,8 @@ class fields {
     return {list.iterator_to(*lower), list_upper};
   }
 
+  /// return an iterator pair corresponding to the range of fields that match
+  /// the given name (the first match and one-past the last match)
   auto equal_range(std::string_view name) const
       -> std::pair<const_iterator, const_iterator>
   {
@@ -192,6 +213,8 @@ class fields {
     return {list.iterator_to(*lower), list_upper};
   }
 
+  /// insert the given field after the last field that matches its name, or at
+  /// the end of the list
   iterator insert(std::string_view name, std::string_view value,
                   bool never_index = false)
   {
@@ -208,6 +231,8 @@ class fields {
     return list.insert(list_upper, *ptr.release());
   }
 
+  /// insert the given field at the end of the list, erasing any existing fields
+  /// with a matching name
   iterator assign(std::string_view name, std::string_view value,
                   bool never_index = false)
   {
@@ -228,17 +253,20 @@ class fields {
     return list.insert(list.end(), *ptr.release());
   }
 
+  /// erase the field at the given position
   iterator erase(iterator p) {
     set.erase(set.iterator_to(*p));
     return list.erase_and_dispose(p, field::deleter{});
   }
 
+  /// erase all fields in the range [begin,end)
   iterator erase(iterator begin, iterator end) {
     set.erase(set.iterator_to(*begin),
               std::next(set.iterator_to(*std::prev(end))));
     return list.erase_and_dispose(begin, end, field::deleter{});
   }
 
+  /// erase all fields
   void clear() {
     set.clear();
     list.clear_and_dispose(field::deleter{});
