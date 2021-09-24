@@ -139,12 +139,14 @@ class fields {
 
   bool empty() const { return list.empty(); }
 
+  using iterator = list_type::iterator;
   using const_iterator = list_type::const_iterator;
-  using iterator = const_iterator;
 
+  iterator begin() { return list.begin(); }
   const_iterator begin() const { return list.begin(); }
   const_iterator cbegin() const { return list.cbegin(); }
 
+  iterator end() { return list.end(); }
   const_iterator end() const { return list.end(); }
   const_iterator cend() const { return list.cend(); }
 
@@ -152,11 +154,30 @@ class fields {
     return set.count(name);
   }
 
+  iterator find(std::string_view name) {
+    if (auto i = set.find(name); i != set.end()) {
+      return list.iterator_to(*i);
+    }
+    return list.end();
+  }
+
   const_iterator find(std::string_view name) const {
     if (auto i = set.find(name); i != set.end()) {
       return list.iterator_to(*i);
     }
     return list.end();
+  }
+
+  auto equal_range(std::string_view name)
+      -> std::pair<iterator, iterator>
+  {
+    auto lower = set.lower_bound(name);
+    if (lower == set.end()) {
+      return {list.end(), list.end()};
+    }
+    auto upper = set.upper_bound(name);
+    auto list_upper = std::next(list.iterator_to(*std::prev(upper)));
+    return {list.iterator_to(*lower), list_upper};
   }
 
   auto equal_range(std::string_view name) const
