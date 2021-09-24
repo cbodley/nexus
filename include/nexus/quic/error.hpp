@@ -5,7 +5,8 @@
 namespace nexus::quic {
 
 enum class error {
-  end_of_stream = 1,
+  global_init_failed = 1,
+  end_of_stream = 2,
 };
 
 /// quic error category

@@ -11,6 +11,8 @@ const error_category& quic_category()
 
     std::string message(int ev) const override {
       switch (static_cast<error>(ev)) {
+        case error::global_init_failed:
+          return "global initialization failed";
         case error::end_of_stream:
           return "end of stream";
         default:
