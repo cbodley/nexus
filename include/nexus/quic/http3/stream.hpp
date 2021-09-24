@@ -1,19 +1,19 @@
 #pragma once
 
 #include <nexus/quic/stream.hpp>
-#include <nexus/quic/http3/client.hpp>
 #include <nexus/quic/http3/fields.hpp>
-#include <nexus/quic/http3/server.hpp>
 
-namespace nexus {
-namespace quic::http3 {
+namespace nexus::quic::http3 {
+
+class client_connection;
+class server_connection;
 
 class stream : public quic::stream {
   friend class client_connection;
   friend class server_connection;
  public:
-  explicit stream(server_connection& c) : quic::stream(c.state) {}
-  explicit stream(client_connection& c) : quic::stream(c.state) {}
+  explicit stream(client_connection& c);
+  explicit stream(server_connection& c);
 
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_read_headers(fields& f, CompletionToken&& token) {
@@ -32,5 +32,4 @@ class stream : public quic::stream {
   void write_headers(const fields& f);
 };
 
-} // namespace http3
-} // namespace nexus
+} // namespace nexus::quic::http3
