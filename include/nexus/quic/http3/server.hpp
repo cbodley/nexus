@@ -15,7 +15,7 @@ class server {
  public:
   using executor_type = quic::detail::stream_state::executor_type;
 
-  explicit server(const executor_type& ex, ssl::cert_lookup* certs);
+  server(const executor_type& ex, ssl::certificate_provider* certs);
 
   executor_type get_executor() { return state.get_executor(); }
 

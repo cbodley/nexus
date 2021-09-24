@@ -29,7 +29,7 @@ using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 class engine_state {
   std::mutex mutex;
   asio::any_io_executor ex;
-  ssl::cert_lookup* certs;
+  ssl::certificate_provider* certs;
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
   bool is_server;
@@ -44,7 +44,7 @@ class engine_state {
 
  public:
   engine_state(const asio::any_io_executor& ex, unsigned flags,
-               ssl::cert_lookup* server_certs,
+               ssl::certificate_provider* server_certs,
                const char* client_alpn);
   ~engine_state();
 

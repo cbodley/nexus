@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <string_view>
 
 #include <boost/intrusive_ptr.hpp>
@@ -20,11 +19,11 @@ using context_ptr = boost::intrusive_ptr<ssl_ctx_st>;
 context_ptr context_create(const ssl_method_st* method);
 
 // certificate lookup interface for SSL_set_cert_cb()
-class cert_lookup {
+class certificate_provider {
  public:
-  virtual ~cert_lookup() = default;
+  virtual ~certificate_provider() = default;
 
-  virtual ssl_ctx_st* lookup_cert(std::string_view sni) = 0;
+  virtual ssl_ctx_st* get_certificate_for_name(std::string_view sni) = 0;
 };
 
 } // namespace nexus::quic::ssl

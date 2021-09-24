@@ -844,8 +844,8 @@ static int api_send_packets(void* ectx, const lsquic_out_spec *specs,
 
 ssl_ctx_st* api_lookup_cert(void* lctx, const sockaddr* local, const char* sni)
 {
-  auto& certs = *static_cast<ssl::cert_lookup*>(lctx);
-  return certs.lookup_cert(sni);
+  auto& certs = *static_cast<ssl::certificate_provider*>(lctx);
+  return certs.get_certificate_for_name(sni);
 }
 
 ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
@@ -855,7 +855,7 @@ ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 }
 
 engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
-                           ssl::cert_lookup* server_certs,
+                           ssl::certificate_provider* server_certs,
                            const char* client_alpn)
   : ex(ex), certs(server_certs),
     timer(ex), is_server(flags & LSENG_SERVER)

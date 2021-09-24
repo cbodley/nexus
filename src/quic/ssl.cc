@@ -24,7 +24,7 @@ void certificate_map::insert(std::string_view sni, context_ptr ctx)
   certs.emplace(sni, std::move(ctx));
 }
 
-ssl_ctx_st* certificate_map::lookup_cert(std::string_view sni)
+ssl_ctx_st* certificate_map::get_certificate_for_name(std::string_view sni)
 {
   auto i = certs.find(sni);
   if (i != certs.end()) {

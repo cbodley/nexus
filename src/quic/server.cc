@@ -6,7 +6,7 @@
 
 namespace nexus::quic {
 
-server::server(const executor_type& ex, ssl::cert_lookup* certs)
+server::server(const executor_type& ex, ssl::certificate_provider* certs)
     : state(ex, LSENG_SERVER, certs, nullptr)
 {}
 
@@ -47,7 +47,7 @@ void acceptor::accept(connection& conn)
 
 namespace http3 {
 
-server::server(const executor_type& ex, ssl::cert_lookup* certs)
+server::server(const executor_type& ex, ssl::certificate_provider* certs)
     : state(ex, LSENG_SERVER | LSENG_HTTP, certs, nullptr)
 {}
 
