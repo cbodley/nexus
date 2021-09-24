@@ -51,7 +51,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   }
 
   using executor_type = asio::any_io_executor;
-  executor_type get_executor();
+  executor_type get_executor() const;
 
   void read_headers(stream_header_read_operation& op);
 

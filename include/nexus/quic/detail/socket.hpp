@@ -36,7 +36,7 @@ struct socket_state : boost::intrusive::list_base_hook<> {
   }
 
   using executor_type = asio::any_io_executor;
-  executor_type get_executor();
+  executor_type get_executor() const;
 
   udp::endpoint local_endpoint() const { return local_addr; }
 

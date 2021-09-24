@@ -5,7 +5,7 @@
 
 namespace nexus::quic {
 
-client::client(const asio::any_io_executor& ex,
+client::client(const executor_type& ex,
                const udp::endpoint& endpoint,
                const char* alpn, ssl::context_ptr ctx)
     : state(ex, 0, nullptr, alpn),
@@ -19,6 +19,11 @@ client::client(udp::socket&& socket, const char* alpn, ssl::context_ptr ctx)
       socket(state, std::move(socket), std::move(ctx))
 {
   this->socket.listen(0);
+}
+
+client::executor_type client::get_executor() const
+{
+  return state.get_executor();
 }
 
 udp::endpoint client::local_endpoint() const
@@ -50,7 +55,7 @@ void client::close()
 
 namespace http3 {
 
-client::client(const asio::any_io_executor& ex,
+client::client(const executor_type& ex,
                const udp::endpoint& endpoint, ssl::context_ptr ctx)
     : state(ex, LSENG_HTTP, nullptr, nullptr),
       socket(state, endpoint, false, std::move(ctx))
@@ -63,6 +68,11 @@ client::client(udp::socket&& socket, ssl::context_ptr ctx)
       socket(state, std::move(socket), std::move(ctx))
 {
   this->socket.listen(0);
+}
+
+client::executor_type client::get_executor() const
+{
+  return state.get_executor();
 }
 
 udp::endpoint client::local_endpoint() const

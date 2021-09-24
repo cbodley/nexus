@@ -18,7 +18,7 @@ class server {
 
   server(const executor_type& ex, ssl::certificate_provider* certs);
 
-  executor_type get_executor() { return state.get_executor(); }
+  executor_type get_executor() const;
 
   void close();
 };
@@ -27,8 +27,12 @@ class acceptor {
   friend class connection;
   detail::socket_state state;
  public:
+  using executor_type = detail::socket_state::executor_type;
+
   acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx);
   acceptor(server& s, const udp::endpoint& endpoint, ssl::context_ptr ctx);
+
+  executor_type get_executor() const;
 
   udp::endpoint local_endpoint() const;
 

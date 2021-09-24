@@ -29,7 +29,7 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   }
 
   using executor_type = asio::any_io_executor;
-  executor_type get_executor();
+  executor_type get_executor() const;
 
   udp::endpoint remote_endpoint();
 

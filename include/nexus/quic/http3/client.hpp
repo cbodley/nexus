@@ -13,9 +13,13 @@ class client {
   quic::detail::engine_state state;
   quic::detail::socket_state socket;
  public:
+  using executor_type = quic::detail::engine_state::executor_type;
+
   explicit client(udp::socket&& socket, ssl::context_ptr ctx = nullptr);
-  client(const asio::any_io_executor& ex, const udp::endpoint& endpoint,
+  client(const executor_type& ex, const udp::endpoint& endpoint,
          ssl::context_ptr ctx = nullptr);
+
+  executor_type get_executor() const;
 
   udp::endpoint local_endpoint() const;
 
@@ -32,11 +36,15 @@ class client_connection {
   friend class stream;
   quic::detail::connection_state state;
  public:
+  using executor_type = quic::detail::connection_state::executor_type;
+
   explicit client_connection(client& c) : state(c.socket) {}
   client_connection(client& c, const udp::endpoint& endpoint,
                     const char* hostname) : state(c.socket) {
     c.connect(*this, endpoint, hostname);
   }
+
+  executor_type get_executor() const;
 
   udp::endpoint remote_endpoint();
 

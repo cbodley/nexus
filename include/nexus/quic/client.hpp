@@ -15,10 +15,15 @@ class client {
   detail::engine_state state;
   detail::socket_state socket;
  public:
+  using executor_type = detail::engine_state::executor_type;
+
   client(udp::socket&& socket, const char* alpn,
          ssl::context_ptr ctx = nullptr); // TODO: noexcept
-  client(const asio::any_io_executor& ex, const udp::endpoint& endpoint,
+
+  client(const executor_type& ex, const udp::endpoint& endpoint,
          const char* alpn, ssl::context_ptr ctx = nullptr);
+
+  executor_type get_executor() const;
 
   udp::endpoint local_endpoint() const;
 

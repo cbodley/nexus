@@ -49,7 +49,7 @@ class engine_state {
   ~engine_state();
 
   using executor_type = asio::any_io_executor;
-  executor_type get_executor() { return ex; }
+  executor_type get_executor() const { return ex; }
 
   // return the bound address
   udp::endpoint local_endpoint(socket_state& socket) const;

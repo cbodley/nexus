@@ -22,10 +22,11 @@ class stream {
   detail::stream_state state;
   explicit stream(detail::connection_state& cstate) : state(cstate) {}
  public:
+  using executor_type = detail::stream_state::executor_type;
+
   explicit stream(connection& c);
 
-  using executor_type = detail::stream_state::executor_type;
-  executor_type get_executor() { return state.get_executor(); }
+  executor_type get_executor() const;
 
   template <typename MutableBufferSequence,
             typename CompletionToken> // void(error_code, size_t)
@@ -69,38 +70,14 @@ class stream {
     return bytes;
   }
 
-  void flush(error_code& ec) {
-    state.flush(ec);
-  }
-  void flush() {
-    error_code ec;
-    flush(ec);
-    if (ec) {
-      throw system_error(ec);
-    }
-  }
+  void flush(error_code& ec);
+  void flush();
 
-  void shutdown(int how, error_code& ec) {
-    state.shutdown(how, ec);
-  }
-  void shutdown(int how) {
-    error_code ec;
-    shutdown(how, ec);
-    if (ec) {
-      throw system_error(ec);
-    }
-  }
+  void shutdown(int how, error_code& ec);
+  void shutdown(int how);
 
-  void close(error_code& ec) {
-    state.close(ec);
-  }
-  void close() {
-    error_code ec;
-    state.close(ec);
-    if (ec) {
-      throw system_error(ec);
-    }
-  }
+  void close(error_code& ec);
+  void close();
 };
 
 } // namespace nexus::quic

@@ -13,21 +13,25 @@ class server {
   friend class acceptor;
   quic::detail::engine_state state;
  public:
-  using executor_type = quic::detail::stream_state::executor_type;
+  using executor_type = quic::detail::engine_state::executor_type;
 
   server(const executor_type& ex, ssl::certificate_provider* certs);
 
-  executor_type get_executor() { return state.get_executor(); }
+  executor_type get_executor() const;
 
-  void close() { state.close(); }
+  void close();
 };
 
 class acceptor {
   friend class server_connection;
   quic::detail::socket_state state;
  public:
+  using executor_type = quic::detail::socket_state::executor_type;
+
   acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx);
   acceptor(server& s, const udp::endpoint& endpoint, ssl::context_ptr ctx);
+
+  executor_type get_executor() const;
 
   udp::endpoint local_endpoint() const;
 
@@ -50,7 +54,11 @@ class server_connection {
   friend class stream;
   quic::detail::connection_state state;
  public:
+  using executor_type = quic::detail::connection_state::executor_type;
+
   explicit server_connection(acceptor& a) : state(a.state) {}
+
+  executor_type get_executor() const;
 
   udp::endpoint remote_endpoint();
 
@@ -63,7 +71,9 @@ class server_connection {
   void accept(stream& s);
 
   // TODO: push stream
-  void close(error_code& ec) { state.close(ec); }
+
+  void close(error_code& ec);
+  void close();
 };
 
 } // namespace nexus::quic::http3

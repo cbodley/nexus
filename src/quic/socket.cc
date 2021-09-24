@@ -57,7 +57,7 @@ socket_state::socket_state(engine_state& engine, const udp::endpoint& endpoint,
 {
 }
 
-auto socket_state::get_executor() -> executor_type
+socket_state::executor_type socket_state::get_executor() const
 {
   return engine.get_executor();
 }

@@ -10,6 +10,11 @@ server::server(const executor_type& ex, ssl::certificate_provider* certs)
     : state(ex, LSENG_SERVER, certs, nullptr)
 {}
 
+server::executor_type server::get_executor() const
+{
+  return state.get_executor();
+}
+
 acceptor::acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx)
     : state(s.state, std::move(socket), std::move(ctx))
 {}
@@ -18,6 +23,11 @@ acceptor::acceptor(server& s, const udp::endpoint& endpoint,
                    ssl::context_ptr ctx)
     : state(s.state, endpoint, true, std::move(ctx))
 {}
+
+acceptor::executor_type acceptor::get_executor() const
+{
+  return state.get_executor();
+}
 
 udp::endpoint acceptor::local_endpoint() const
 {
@@ -51,6 +61,11 @@ server::server(const executor_type& ex, ssl::certificate_provider* certs)
     : state(ex, LSENG_SERVER | LSENG_HTTP, certs, nullptr)
 {}
 
+server::executor_type server::get_executor() const
+{
+  return state.get_executor();
+}
+
 acceptor::acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx)
     : state(s.state, std::move(socket), std::move(ctx))
 {}
@@ -59,6 +74,11 @@ acceptor::acceptor(server& s, const udp::endpoint& endpoint,
                    ssl::context_ptr ctx)
     : state(s.state, endpoint, true, std::move(ctx))
 {}
+
+acceptor::executor_type acceptor::get_executor() const
+{
+  return state.get_executor();
+}
 
 udp::endpoint acceptor::local_endpoint() const
 {
@@ -86,6 +106,20 @@ void server_connection::accept(stream& s)
 {
   error_code ec;
   accept(s, ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
+void server_connection::close(error_code& ec)
+{
+  state.close(ec);
+}
+
+void server_connection::close()
+{
+  error_code ec;
+  close(ec);
   if (ec) {
     throw system_error(ec);
   }

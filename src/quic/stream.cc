@@ -1,6 +1,7 @@
-#include <nexus/quic/stream.hpp>
 #include <nexus/quic/connection.hpp>
 #include <nexus/quic/http3/stream.hpp>
+#include <nexus/quic/http3/client.hpp>
+#include <nexus/quic/http3/server.hpp>
 #include <nexus/quic/detail/engine.hpp>
 
 #include <lsquic.h>
@@ -10,7 +11,57 @@ namespace nexus::quic {
 
 stream::stream(connection& c) : stream(c.state) {}
 
+stream::executor_type stream::get_executor() const
+{
+  return state.get_executor();
+}
+
+void stream::flush(error_code& ec)
+{
+  state.flush(ec);
+}
+
+void stream::flush()
+{
+  error_code ec;
+  flush(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
+void stream::shutdown(int how, error_code& ec)
+{
+  state.shutdown(how, ec);
+}
+
+void stream::shutdown(int how)
+{
+  error_code ec;
+  shutdown(how, ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
+void stream::close(error_code& ec)
+{
+  state.close(ec);
+}
+
+void stream::close()
+{
+  error_code ec;
+  state.close(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
 namespace http3 {
+
+stream::stream(client_connection& c) : quic::stream(c.state) {}
+stream::stream(server_connection& c) : quic::stream(c.state) {}
 
 void stream::read_headers(fields& f, error_code& ec)
 {
@@ -46,7 +97,7 @@ void stream::write_headers(const fields& f)
 
 namespace detail {
 
-stream_state::executor_type stream_state::get_executor()
+stream_state::executor_type stream_state::get_executor() const
 {
   return conn.get_executor();
 }

@@ -15,9 +15,13 @@ class connection {
   friend class detail::socket_state;
   detail::connection_state state;
  public:
+  using executor_type = detail::connection_state::executor_type;
+
   explicit connection(acceptor& a);
   explicit connection(client& c);
   connection(client& c, const udp::endpoint& endpoint, const char* hostname);
+
+  executor_type get_executor() const;
 
   udp::endpoint remote_endpoint();
 

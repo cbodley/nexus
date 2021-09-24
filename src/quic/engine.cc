@@ -10,8 +10,7 @@
 #include <nexus/quic/detail/stream.hpp>
 #include <nexus/quic/socket.hpp>
 
-namespace nexus {
-namespace quic::detail {
+namespace nexus::quic::detail {
 
 void engine_deleter::operator()(lsquic_engine* e) const {
   ::lsquic_engine_destroy(e);
@@ -884,32 +883,4 @@ engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
   handle.reset(::lsquic_engine_new(flags, &api));
 }
 
-connection_state::executor_type connection_state::get_executor()
-{
-  return socket.get_executor();
-}
-
-udp::endpoint connection_state::remote_endpoint()
-{
-  return socket.engine.remote_endpoint(*this);
-}
-
-void connection_state::connect(stream_state& sstate,
-                               stream_connect_operation& op)
-{
-  socket.engine.stream_connect(sstate, op);
-}
-
-void connection_state::accept(stream_state& sstate,
-                              stream_accept_operation& op)
-{
-  socket.engine.stream_accept(sstate, op);
-}
-
-void connection_state::close(error_code& ec)
-{
-  socket.engine.close(*this, ec);
-}
-
-} // namespace quic::detail
-} // namespace nexus
+} // namespace nexus::quic::detail
