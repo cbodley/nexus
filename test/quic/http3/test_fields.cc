@@ -3,16 +3,6 @@
 
 namespace nexus::quic::http3 {
 
-TEST(field, create)
-{
-  auto f = field::create("shape", "square", should_index::never);
-  EXPECT_EQ("shape", f->name());
-  EXPECT_EQ("square", f->value());
-  EXPECT_EQ(should_index::never, f->index());
-  EXPECT_STREQ("shape: square", f->c_str());
-  EXPECT_EQ(::strlen(f->c_str()), f->size());
-}
-
 TEST(fields, empty)
 {
   fields f;
@@ -63,18 +53,21 @@ TEST(fields, insert_same_name_out_of_order)
   fields f;
   f.insert("shape", "square");
   f.insert("color", "blue");
-  f.insert("shape", "circle");
+  f.insert("shape", "circle", true);
 
   EXPECT_EQ(3, f.size());
   const auto first = f.begin();
   ASSERT_NE(first, f.end());
   EXPECT_STREQ("shape: square", first->c_str());
+  EXPECT_FALSE(first->never_index());
   const auto second = std::next(first);
   ASSERT_NE(second, f.end());
   EXPECT_STREQ("shape: circle", second->c_str());
+  EXPECT_TRUE(second->never_index());
   const auto third = std::next(second);
   ASSERT_NE(third, f.end());
   EXPECT_STREQ("color: blue", third->c_str());
+  EXPECT_FALSE(third->never_index());
   const auto fourth = std::next(third);
   EXPECT_EQ(fourth, f.end());
 
@@ -86,7 +79,7 @@ TEST(fields, insert_same_name_out_of_order)
 TEST(fields, assign)
 {
   fields f;
-  f.insert("shape", "square");
+  f.insert("shape", "square", true);
   f.insert("color", "blue");
   f.insert("shape", "circle");
   f.assign("shape", "line");
@@ -98,6 +91,7 @@ TEST(fields, assign)
   const auto second = std::next(first);
   ASSERT_NE(second, f.end());
   EXPECT_STREQ("shape: line", second->c_str());
+  EXPECT_FALSE(second->never_index());
   const auto third = std::next(second);
   EXPECT_EQ(third, f.end());
 

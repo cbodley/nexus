@@ -9,28 +9,23 @@
 
 namespace nexus::quic::http3 {
 
-// controls how each header is cached by header compression
-enum class should_index : uint8_t {
-  yes = 0,   // LSHPACK_ADD_INDEX
-  no = 1,    // LSHPACK_NO_INDEX
-  never = 2, // LSHPACK_NEVER_INDEX
-  value = 3, // LSHPACK_VAL_INDEX
-};
-
 // a key/value pair to represent a single header
 class field : public boost::intrusive::list_base_hook<>,
               public boost::intrusive::set_base_hook<>
 {
+  friend class fields;
   using size_type = uint16_t;
   size_type name_size;
   size_type value_size;
-  should_index index_;
+  uint8_t never_index_;
   char buffer[3]; // accounts for delimiter and null terminator
 
   static constexpr auto delim = std::string_view{": "};
 
-  field(std::string_view name, std::string_view value, should_index index)
-      : name_size(name.size()), value_size(value.size()), index_(index) {
+  // private constructor, use the create() factory function instead
+  field(std::string_view name, std::string_view value, uint8_t never_index)
+      : name_size(name.size()), value_size(value.size()),
+        never_index_(never_index) {
     auto pos = std::copy(name.begin(), name.end(), buffer);
     pos = std::copy(delim.begin(), delim.end(), pos);
     pos = std::copy(value.begin(), value.end(), pos);
@@ -46,12 +41,15 @@ class field : public boost::intrusive::list_base_hook<>,
   std::string_view value() const {
     return {buffer + name_size + delim.size(), value_size};
   }
-  should_index index() const { return index_; }
+
+  void never_index(bool value) { never_index_ = value; }
+  bool never_index() const { return never_index_; }
 
   const char* c_str() const { return buffer; }
   const char* data() const { return buffer; }
   size_type size() const { return name_size + delim.size() + value_size; }
 
+ private:
   struct deleter {
     void operator()(field* f) {
       const size_t size = sizeof(field) + f->name_size + f->value_size;
@@ -65,7 +63,7 @@ class field : public boost::intrusive::list_base_hook<>,
   using ptr = std::unique_ptr<field, deleter>;
 
   static ptr create(std::string_view name, std::string_view value,
-                    should_index index)
+                    bool never_index)
   {
     const size_t size = sizeof(field) + name.size() + value.size();
     using Alloc = std::allocator<char>;
@@ -73,7 +71,7 @@ class field : public boost::intrusive::list_base_hook<>,
     auto alloc = Alloc{};
     auto p = Traits::allocate(alloc, size);
     try {
-      return ptr{new (p) field(name, value, index)};
+      return ptr{new (p) field(name, value, never_index)};
     } catch (const std::exception&) {
       Traits::deallocate(alloc, p, size);
       throw;
@@ -174,9 +172,9 @@ class fields {
   }
 
   iterator insert(std::string_view name, std::string_view value,
-                  should_index index = should_index::yes)
+                  bool never_index = false)
   {
-    auto ptr = field::create(name, value, index);
+    auto ptr = field::create(name, value, never_index);
 
     auto lower = set.lower_bound(name);
     if (lower == set.end()) {
@@ -190,9 +188,9 @@ class fields {
   }
 
   iterator assign(std::string_view name, std::string_view value,
-                  should_index index = should_index::yes)
+                  bool never_index = false)
   {
-    auto ptr = field::create(name, value, index);
+    auto ptr = field::create(name, value, never_index);
 
     auto lower = set.lower_bound(name);
     if (lower == set.end()) {

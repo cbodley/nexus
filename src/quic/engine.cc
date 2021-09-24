@@ -356,7 +356,9 @@ static void do_write_headers(lsquic_stream_t* stream,
     const size_t val_len = f->value().size();
     lsxpack_header_set_offset2(&header, buf, name_offset, name_len,
                                val_offset, val_len);
-    header.indexed_type = static_cast<uint8_t>(f->index());
+    if (f->never_index()) {
+      header.flags = LSXPACK_NEVER_INDEX;
+    }
   }
   auto headers = lsquic_http_headers{num_headers, array};
   if (::lsquic_stream_send_headers(stream, &headers, 0) == -1) {
@@ -812,8 +814,8 @@ static int header_set_process(void* hset, lsxpack_header* hdr)
     auto headers = reinterpret_cast<recv_header_set*>(hset);
     auto name = std::string_view{hdr->buf + hdr->name_offset, hdr->name_len};
     auto value = std::string_view{hdr->buf + hdr->val_offset, hdr->val_len};
-    auto index = static_cast<http3::should_index>(hdr->indexed_type);
-    auto f = headers->fields.insert(name, value, index);
+    const bool never_index = hdr->flags & LSXPACK_NEVER_INDEX;
+    auto f = headers->fields.insert(name, value, never_index);
   }
   return 0;
 }
