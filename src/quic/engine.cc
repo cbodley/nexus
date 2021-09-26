@@ -117,7 +117,7 @@ void engine_state::close(connection_state& cstate, error_code& ec)
     return;
   }
   ::lsquic_conn_close(cstate.handle);
-  do_close(cstate, make_error_code(errc::operation_canceled));
+  do_close(cstate, make_error_code(error::operation_aborted));
   process(lock);
 }
 
@@ -153,7 +153,28 @@ void engine_state::do_close(connection_state& cstate, error_code ec)
 
 void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
 {
-  do_close(cstate, make_error_code(errc::connection_reset));
+  error_code ec;
+  switch (::lsquic_conn_status(conn, nullptr, 0)) {
+    case LSCONN_ST_VERNEG_FAILURE:
+    case LSCONN_ST_HSK_FAILURE:
+      ec = make_error_code(error::handshake_failed);
+      break;
+    case LSCONN_ST_TIMED_OUT:
+      ec = make_error_code(error::timed_out);
+      break;
+    case LSCONN_ST_PEER_GOING_AWAY:
+      ec = make_error_code(error::going_away);
+      break;
+    case LSCONN_ST_USER_ABORTED:
+      ec = make_error_code(error::operation_aborted);
+      break;
+    case LSCONN_ST_ERROR:
+    case LSCONN_ST_RESET:
+    default:
+      ec = make_error_code(error::connection_reset);
+      break;
+  }
+  do_close(cstate, ec);
 }
 
 void engine_state::stream_connect(stream_state& sstate,
@@ -412,7 +433,7 @@ void engine_state::stream_shutdown(stream_state& sstate,
     ec.assign(errno, system_category());
     return;
   }
-  auto ecanceled = make_error_code(errc::operation_canceled);
+  auto ecanceled = make_error_code(error::operation_aborted);
   if (shutdown_read) {
     if (sstate.in.header) {
       sstate.in.header->defer(ecanceled);
@@ -441,7 +462,7 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   auto lock = std::unique_lock{mutex};
   // cancel other stream requests now. otherwise on_stream_close() would
   // fail them with connection_reset
-  auto ecanceled = make_error_code(errc::operation_canceled);
+  auto ecanceled = make_error_code(error::operation_aborted);
   if (sstate.accept_) {
     sstate.accept_->defer(ecanceled);
     sstate.accept_ = nullptr;
@@ -534,11 +555,11 @@ void engine_state::close(socket_state& socket, error_code& ec)
   while (!socket.connected.empty()) {
     auto& cstate = socket.connected.front();
     ::lsquic_conn_close(cstate.handle);
-    do_close(cstate, make_error_code(errc::operation_canceled));
+    do_close(cstate, make_error_code(error::operation_aborted));
   }
   process(lock);
   // cancel connections pending accept
-  auto ecanceled = make_error_code(errc::operation_canceled);
+  auto ecanceled = make_error_code(error::operation_aborted);
   while (!socket.accepting_connections.empty()) {
     auto& cstate = socket.accepting_connections.front();
     socket.accepting_connections.pop_front();
