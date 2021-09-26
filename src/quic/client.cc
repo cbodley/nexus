@@ -9,14 +9,14 @@ namespace quic {
 client::client(const executor_type& ex,
                const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, 0, nullptr),
+    : state(ex, 0),
       socket(state, endpoint, false, ctx)
 {
   socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), 0, nullptr),
+    : state(socket.get_executor(), 0),
       socket(state, std::move(socket), ctx)
 {
   this->socket.listen(0);
@@ -60,14 +60,14 @@ namespace h3 {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, LSENG_HTTP, nullptr),
+    : state(ex, LSENG_HTTP),
       socket(state, endpoint, false, ctx)
 {
   socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), LSENG_HTTP, nullptr),
+    : state(socket.get_executor(), LSENG_HTTP),
       socket(state, std::move(socket), ctx)
 {
   this->socket.listen(0);

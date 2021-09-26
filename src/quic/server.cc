@@ -7,8 +7,8 @@
 namespace nexus {
 namespace quic {
 
-server::server(const executor_type& ex, ssl::certificate_provider* certs)
-    : state(ex, LSENG_SERVER, certs)
+server::server(const executor_type& ex)
+    : state(ex, LSENG_SERVER)
 {}
 
 server::executor_type server::get_executor() const
@@ -60,8 +60,8 @@ void acceptor::accept(connection& conn)
 
 namespace h3 {
 
-server::server(const executor_type& ex, ssl::certificate_provider* certs)
-    : state(ex, LSENG_SERVER | LSENG_HTTP, certs)
+server::server(const executor_type& ex)
+    : state(ex, LSENG_SERVER | LSENG_HTTP)
 {}
 
 server::executor_type server::get_executor() const

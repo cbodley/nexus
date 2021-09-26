@@ -841,22 +841,14 @@ static int api_send_packets(void* ectx, const lsquic_out_spec *specs,
   return estate->send_packets(specs, n_specs);
 }
 
-ssl_ctx_st* api_lookup_cert(void* lctx, const sockaddr* local, const char* sni)
-{
-  auto& certs = *static_cast<ssl::certificate_provider*>(lctx);
-  return certs.get_certificate_for_name(sni);
-}
-
 ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 {
   auto& socket = *static_cast<socket_state*>(peer_ctx);
   return socket.ssl.native_handle();
 }
 
-engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
-                           ssl::certificate_provider* server_certs)
-  : ex(ex), certs(server_certs),
-    timer(ex), is_server(flags & LSENG_SERVER)
+engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags)
+  : ex(ex), timer(ex), is_server(flags & LSENG_SERVER)
 {
   lsquic_engine_settings settings;
   ::lsquic_engine_init_settings(&settings, flags);
@@ -867,10 +859,6 @@ engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
   static const lsquic_stream_if stream_api = make_stream_api();
   api.ea_stream_if = &stream_api;
   api.ea_stream_if_ctx = this;
-  if (certs) {
-    api.ea_lookup_cert = api_lookup_cert;
-    api.ea_cert_lu_ctx = certs;
-  }
   api.ea_get_ssl_ctx = api_peer_ssl_ctx;
   if (flags & LSENG_HTTP) {
     static const lsquic_hset_if header_api = make_header_api();

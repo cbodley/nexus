@@ -29,7 +29,6 @@ using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 class engine_state {
   std::mutex mutex;
   asio::any_io_executor ex;
-  ssl::certificate_provider* certs;
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
   bool is_server;
@@ -43,8 +42,7 @@ class engine_state {
   void on_writeable(socket_state& socket);
 
  public:
-  engine_state(const asio::any_io_executor& ex, unsigned flags,
-               ssl::certificate_provider* server_certs);
+  engine_state(const asio::any_io_executor& ex, unsigned flags);
   ~engine_state();
 
   using executor_type = asio::any_io_executor;

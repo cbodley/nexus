@@ -32,7 +32,7 @@ TEST(server, connect_stream)
   auto ssl = test::init_server_context(alpn);
   auto sslc = test::init_client_context(alpn);
 
-  auto server = quic::server{ex, nullptr};
+  auto server = quic::server{ex};
   const auto localhost = asio::ip::make_address("127.0.0.1");
   auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
   const auto endpoint = acceptor.local_endpoint();

@@ -19,9 +19,8 @@ class server {
   /// the polymorphic executor type, asio::any_io_executor
   using executor_type = detail::engine_state::executor_type;
 
-  /// construct the server with an optional certificate provider; if none is
-  /// given, the acceptor's SSL context is used for associated connections
-  server(const executor_type& ex, ssl::certificate_provider* certs);
+  /// construct the server with its associated executor
+  server(const executor_type& ex);
 
   /// return the associated io executor
   executor_type get_executor() const;
