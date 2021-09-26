@@ -41,18 +41,18 @@ static udp::socket bind_socket(const asio::any_io_executor& ex,
 }
 
 socket_state::socket_state(engine_state& engine, udp::socket&& socket,
-                           ssl::context_ptr&& ssl)
+                           asio::ssl::context& ssl)
     : engine(engine),
       socket(std::move(socket)),
-      ssl(std::move(ssl)),
+      ssl(ssl),
       local_addr(this->socket.local_endpoint())
 {}
 
 socket_state::socket_state(engine_state& engine, const udp::endpoint& endpoint,
-                           bool is_server, ssl::context_ptr&& ssl)
+                           bool is_server, asio::ssl::context& ssl)
     : engine(engine),
       socket(bind_socket(engine.get_executor(), endpoint, is_server)),
-      ssl(std::move(ssl)),
+      ssl(ssl),
       local_addr(this->socket.local_endpoint())
 {
 }

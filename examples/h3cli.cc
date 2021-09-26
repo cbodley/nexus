@@ -41,6 +41,10 @@ int main(int argc, char** argv) {
   auto ioc = asio::io_context{};
   auto ex = ioc.get_executor();
 
+  auto ssl = asio::ssl::context{asio::ssl::context::tlsv13};
+  ::SSL_CTX_set_min_proto_version(ssl.native_handle(), TLS1_3_VERSION);
+  ::SSL_CTX_set_max_proto_version(ssl.native_handle(), TLS1_3_VERSION);
+
   // resolve hostname
   const auto remote_endpoint = [&] {
       auto resolver = udp::resolver{ex};
@@ -48,7 +52,7 @@ int main(int argc, char** argv) {
     }();
 
   auto global = nexus::quic::global::init_client();
-  auto client = nexus::quic::http3::client{ex, udp::endpoint{}};
+  auto client = nexus::quic::http3::client{ex, udp::endpoint{}, ssl};
   auto conn = nexus::quic::http3::client_connection{client};
   client.connect(conn, remote_endpoint, hostname);
   auto stream = nexus::quic::http3::stream{conn};
@@ -65,17 +69,20 @@ int main(int argc, char** argv) {
   conn.async_connect(stream, [&] (error_code ec) {
     if (ec) {
       std::cerr << "async_connect failed with " << ec << std::endl;
+      client.close();
       return;
     }
     stream.async_write_headers(request, [&] (error_code ec) {
       if (ec) {
         std::cerr << "async_write_headers failed with " << ec << std::endl;
+        client.close();
         return;
       }
       stream.shutdown(1);
       stream.async_read_headers(response, [&] (error_code ec) {
         if (ec) {
           std::cerr << "async_read_headers failed with " << ec << std::endl;
+          client.close();
           return;
         }
         for (const auto& f : response) {

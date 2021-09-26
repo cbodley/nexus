@@ -47,6 +47,7 @@ class context {
   }
   ~context();
 
+  /// return true if the context represents successful initialization
   operator bool() const { return initialized; }
 
   /// enable log output to stderr, where the log level is one of:

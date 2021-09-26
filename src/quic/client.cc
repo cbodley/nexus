@@ -7,16 +7,16 @@ namespace nexus::quic {
 
 client::client(const executor_type& ex,
                const udp::endpoint& endpoint,
-               const char* alpn, ssl::context_ptr ctx)
-    : state(ex, 0, nullptr, alpn),
-      socket(state, endpoint, false, std::move(ctx))
+               asio::ssl::context& ctx)
+    : state(ex, 0, nullptr),
+      socket(state, endpoint, false, ctx)
 {
   socket.listen(0);
 }
 
-client::client(udp::socket&& socket, const char* alpn, ssl::context_ptr ctx)
-    : state(socket.get_executor(), 0, nullptr, alpn),
-      socket(state, std::move(socket), std::move(ctx))
+client::client(udp::socket&& socket, asio::ssl::context& ctx)
+    : state(socket.get_executor(), 0, nullptr),
+      socket(state, std::move(socket), ctx)
 {
   this->socket.listen(0);
 }
@@ -55,17 +55,17 @@ void client::close()
 
 namespace http3 {
 
-client::client(const executor_type& ex,
-               const udp::endpoint& endpoint, ssl::context_ptr ctx)
-    : state(ex, LSENG_HTTP, nullptr, nullptr),
-      socket(state, endpoint, false, std::move(ctx))
+client::client(const executor_type& ex, const udp::endpoint& endpoint,
+               asio::ssl::context& ctx)
+    : state(ex, LSENG_HTTP, nullptr),
+      socket(state, endpoint, false, ctx)
 {
   socket.listen(0);
 }
 
-client::client(udp::socket&& socket, ssl::context_ptr ctx)
-    : state(socket.get_executor(), LSENG_HTTP, nullptr, nullptr),
-      socket(state, std::move(socket), std::move(ctx))
+client::client(udp::socket&& socket, asio::ssl::context& ctx)
+    : state(socket.get_executor(), LSENG_HTTP, nullptr),
+      socket(state, std::move(socket), ctx)
 {
   this->socket.listen(0);
 }

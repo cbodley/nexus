@@ -44,8 +44,7 @@ class engine_state {
 
  public:
   engine_state(const asio::any_io_executor& ex, unsigned flags,
-               ssl::certificate_provider* server_certs,
-               const char* client_alpn);
+               ssl::certificate_provider* server_certs);
   ~engine_state();
 
   using executor_type = asio::any_io_executor;

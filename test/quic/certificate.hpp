@@ -1,29 +1,26 @@
 #pragma once
 
 #include <chrono>
-#include <memory>
 #include <string_view>
-#include <boost/intrusive_ptr.hpp>
-
-struct evp_pkey_st; //  EVP_PKEY
-struct x509_st; // X509
-
-void intrusive_ptr_add_ref(evp_pkey_st* pkey);
-void intrusive_ptr_release(evp_pkey_st* pkey);
+#include <nexus/error_code.hpp>
+#include <nexus/quic/ssl.hpp>
 
 namespace nexus::test {
 
-using evp_pkey_ptr = boost::intrusive_ptr<evp_pkey_st>;
+void self_sign_certificate(asio::ssl::context& ctx,
+                           std::string_view country,
+                           std::string_view organization,
+                           std::string_view common_name,
+                           std::chrono::seconds duration,
+                           error_code& ec);
 
-evp_pkey_ptr generate_rsa_key(int bits);
+void self_sign_certificate(asio::ssl::context& ctx,
+                           std::string_view country,
+                           std::string_view organization,
+                           std::string_view common_name,
+                           std::chrono::seconds duration);
 
-struct x509_deleter { void operator()(x509_st* p); };
-using x509_ptr = std::unique_ptr<x509_st, x509_deleter>;
-
-x509_ptr self_sign_certificate(std::string_view country,
-                               std::string_view organization,
-                               std::string_view common_name,
-                               evp_pkey_ptr key,
-                               std::chrono::seconds duration);
+asio::ssl::context init_client_context(const char* alpn);
+asio::ssl::context init_server_context(const char* alpn);
 
 } // namespace nexus::test

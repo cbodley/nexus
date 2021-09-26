@@ -850,12 +850,11 @@ ssl_ctx_st* api_lookup_cert(void* lctx, const sockaddr* local, const char* sni)
 ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 {
   auto& socket = *static_cast<socket_state*>(peer_ctx);
-  return socket.ssl.get();
+  return socket.ssl.native_handle();
 }
 
 engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
-                           ssl::certificate_provider* server_certs,
-                           const char* client_alpn)
+                           ssl::certificate_provider* server_certs)
   : ex(ex), certs(server_certs),
     timer(ex), is_server(flags & LSENG_SERVER)
 {
@@ -878,7 +877,6 @@ engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags,
     api.ea_hsi_if = &header_api;
     api.ea_hsi_ctx = this;
   }
-  api.ea_alpn = client_alpn;
   api.ea_settings = &settings;
   handle.reset(::lsquic_engine_new(flags, &api));
 }

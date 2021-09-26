@@ -7,7 +7,7 @@
 namespace nexus::quic {
 
 server::server(const executor_type& ex, ssl::certificate_provider* certs)
-    : state(ex, LSENG_SERVER, certs, nullptr)
+    : state(ex, LSENG_SERVER, certs)
 {}
 
 server::executor_type server::get_executor() const
@@ -15,13 +15,13 @@ server::executor_type server::get_executor() const
   return state.get_executor();
 }
 
-acceptor::acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx)
-    : state(s.state, std::move(socket), std::move(ctx))
+acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
+    : state(s.state, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
-                   ssl::context_ptr ctx)
-    : state(s.state, endpoint, true, std::move(ctx))
+                   asio::ssl::context& ctx)
+    : state(s.state, endpoint, true, ctx)
 {}
 
 acceptor::executor_type acceptor::get_executor() const
@@ -58,7 +58,7 @@ void acceptor::accept(connection& conn)
 namespace http3 {
 
 server::server(const executor_type& ex, ssl::certificate_provider* certs)
-    : state(ex, LSENG_SERVER | LSENG_HTTP, certs, nullptr)
+    : state(ex, LSENG_SERVER | LSENG_HTTP, certs)
 {}
 
 server::executor_type server::get_executor() const
@@ -66,13 +66,13 @@ server::executor_type server::get_executor() const
   return state.get_executor();
 }
 
-acceptor::acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx)
-    : state(s.state, std::move(socket), std::move(ctx))
+acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
+    : state(s.state, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
-                   ssl::context_ptr ctx)
-    : state(s.state, endpoint, true, std::move(ctx))
+                   asio::ssl::context& ctx)
+    : state(s.state, endpoint, true, ctx)
 {}
 
 acceptor::executor_type acceptor::get_executor() const

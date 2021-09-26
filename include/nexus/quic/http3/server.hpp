@@ -41,10 +41,10 @@ class acceptor {
   using executor_type = quic::detail::socket_state::executor_type;
 
   /// construct the acceptor, taking ownership of a bound UDP socket
-  acceptor(server& s, udp::socket&& socket, ssl::context_ptr ctx);
+  acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx);
 
   /// construct the acceptor and bind a UDP socket to the given endpoint
-  acceptor(server& s, const udp::endpoint& endpoint, ssl::context_ptr ctx);
+  acceptor(server& s, const udp::endpoint& endpoint, asio::ssl::context& ctx);
 
   /// return the associated io executor
   executor_type get_executor() const;

@@ -20,16 +20,16 @@ struct connection_state;
 struct socket_state : boost::intrusive::list_base_hook<> {
   engine_state& engine;
   udp::socket socket;
-  ssl::context_ptr ssl;
+  asio::ssl::context& ssl;
   udp::endpoint local_addr; // socket's bound address
   boost::circular_buffer<lsquic_conn*> incoming_connections;
   boost::intrusive::list<connection_state> accepting_connections;
   boost::intrusive::list<connection_state> connected;
 
   socket_state(engine_state& engine, udp::socket&& socket,
-               ssl::context_ptr&& ssl);
+               asio::ssl::context& ssl);
   socket_state(engine_state& engine, const udp::endpoint& endpoint,
-               bool is_server, ssl::context_ptr&& ssl);
+               bool is_server, asio::ssl::context& ssl);
   ~socket_state() {
     error_code ec_ignored;
     close(ec_ignored);

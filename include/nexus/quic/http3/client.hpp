@@ -19,11 +19,11 @@ class client {
   using executor_type = quic::detail::engine_state::executor_type;
 
   /// construct the client, taking ownership of a bound UDP socket
-  explicit client(udp::socket&& socket, ssl::context_ptr ctx = nullptr);
+  explicit client(udp::socket&& socket, asio::ssl::context& ctx);
 
   /// construct the client and bind a UDP socket to the given endpoint
   client(const executor_type& ex, const udp::endpoint& endpoint,
-         ssl::context_ptr ctx = nullptr);
+         asio::ssl::context& ctx);
 
   /// return the associated io executor
   executor_type get_executor() const;
