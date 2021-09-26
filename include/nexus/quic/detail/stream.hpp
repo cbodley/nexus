@@ -5,7 +5,7 @@
 
 #include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/error.hpp>
-#include <nexus/quic/http3/fields.hpp>
+#include <nexus/h3/fields.hpp>
 
 struct lsquic_stream;
 
@@ -56,7 +56,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   void read_headers(stream_header_read_operation& op);
 
   template <typename CompletionToken>
-  decltype(auto) async_read_headers(http3::fields& fields,
+  decltype(auto) async_read_headers(h3::fields& fields,
                                     CompletionToken&& token) {
     return asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &fields] (auto h) {
@@ -101,7 +101,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   void write_headers(stream_header_write_operation& op);
 
   template <typename CompletionToken>
-  decltype(auto) async_write_headers(const http3::fields& fields,
+  decltype(auto) async_write_headers(const h3::fields& fields,
                                      CompletionToken&& token) {
     return asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &fields] (auto h) {

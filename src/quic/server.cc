@@ -1,10 +1,11 @@
-#include <nexus/quic/http3/server.hpp>
-#include <nexus/quic/http3/stream.hpp>
+#include <nexus/h3/server.hpp>
+#include <nexus/h3/stream.hpp>
 #include <nexus/quic/connection.hpp>
 #include <nexus/udp.hpp>
 #include <lsquic.h>
 
-namespace nexus::quic {
+namespace nexus {
+namespace quic {
 
 server::server(const executor_type& ex, ssl::certificate_provider* certs)
     : state(ex, LSENG_SERVER, certs)
@@ -55,7 +56,9 @@ void acceptor::accept(connection& conn)
   }
 }
 
-namespace http3 {
+} // namespace quic
+
+namespace h3 {
 
 server::server(const executor_type& ex, ssl::certificate_provider* certs)
     : state(ex, LSENG_SERVER | LSENG_HTTP, certs)
@@ -125,6 +128,5 @@ void server_connection::close()
   }
 }
 
-} // namespace http3
-
-} // namespace nexus::quic
+} // namespace h3
+} // namespace nexus

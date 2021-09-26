@@ -1,0 +1,2 @@
+add_unit_test(test_h3_fields test_fields.cc)
+target_link_libraries(test_h3_fields test_base nexus-headers)

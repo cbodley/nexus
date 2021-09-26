@@ -3,7 +3,7 @@
 #include <nexus/udp.hpp>
 #include <nexus/quic/client.hpp>
 
-namespace nexus::quic::http3 {
+namespace nexus::h3 {
 
 class client_connection;
 class stream;
@@ -89,4 +89,4 @@ class client_connection {
   void close();
 };
 
-} // namespace nexus::quic::http3
+} // namespace nexus::h3

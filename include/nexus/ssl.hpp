@@ -4,7 +4,7 @@
 
 #include <asio/ssl.hpp>
 
-namespace nexus::quic::ssl {
+namespace nexus::ssl {
 
 /// certificate provider interface used with SSL_set_cert_cb(), allowing the
 /// server to select different SSL certificates for each requested hostname
@@ -17,4 +17,4 @@ class certificate_provider {
   virtual SSL_CTX* get_certificate_for_name(std::string_view sni) = 0;
 };
 
-} // namespace nexus::quic::ssl
+} // namespace nexus::ssl

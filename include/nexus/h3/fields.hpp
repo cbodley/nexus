@@ -7,7 +7,7 @@
 #include <boost/intrusive/set.hpp>
 #include <boost/intrusive/list.hpp>
 
-namespace nexus::quic::http3 {
+namespace nexus::h3 {
 
 /// an immutable key/value pair to represent a single header
 class field : public boost::intrusive::list_base_hook<>,
@@ -273,4 +273,4 @@ class fields {
   }
 };
 
-} // namespace nexus::quic::http3
+} // namespace nexus::h3

@@ -4,15 +4,15 @@
 #include <asio.hpp>
 
 #include <nexus/quic/global_context.hpp>
-#include <nexus/quic/http3/client.hpp>
-#include <nexus/quic/http3/stream.hpp>
+#include <nexus/h3/client.hpp>
+#include <nexus/h3/stream.hpp>
 
 using asio::ip::udp;
 using nexus::error_code;
 using body_buffer = std::array<char, 4096>;
 
-static void read_print_stream(nexus::quic::http3::stream& stream,
-                              nexus::quic::http3::client& client,
+static void read_print_stream(nexus::h3::stream& stream,
+                              nexus::h3::client& client,
                               body_buffer& buffer)
 {
   stream.async_read_some(asio::buffer(buffer), [&] (error_code ec, size_t bytes) {
@@ -52,18 +52,18 @@ int main(int argc, char** argv) {
     }();
 
   auto global = nexus::quic::global::init_client();
-  auto client = nexus::quic::http3::client{ex, udp::endpoint{}, ssl};
-  auto conn = nexus::quic::http3::client_connection{client};
+  auto client = nexus::h3::client{ex, udp::endpoint{}, ssl};
+  auto conn = nexus::h3::client_connection{client};
   client.connect(conn, remote_endpoint, hostname);
-  auto stream = nexus::quic::http3::stream{conn};
+  auto stream = nexus::h3::stream{conn};
 
-  auto request = nexus::quic::http3::fields{};
+  auto request = nexus::h3::fields{};
   request.insert(":method", "GET");
   request.insert(":scheme", "https");
   request.insert(":path", path);
   request.insert(":authority", hostname);
   request.insert("user-agent", "h3cli/lsquic");
-  auto response = nexus::quic::http3::fields{};
+  auto response = nexus::h3::fields{};
   auto buffer = body_buffer{};
 
   conn.async_connect(stream, [&] (error_code ec) {

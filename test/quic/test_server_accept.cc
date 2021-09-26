@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <optional>
 #include <lsquic.h>
-#include <nexus/quic/ssl.hpp>
+#include <nexus/ssl.hpp>
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/connection.hpp>
 #include <nexus/quic/stream.hpp>

@@ -1,9 +1,10 @@
 #pragma once
 
 #include <nexus/udp.hpp>
+#include <nexus/ssl.hpp>
 #include <nexus/quic/server.hpp>
 
-namespace nexus::quic::http3 {
+namespace nexus::h3 {
 
 class acceptor;
 class server_connection;
@@ -115,4 +116,4 @@ class server_connection {
   void close();
 };
 
-} // namespace nexus::quic::http3
+} // namespace nexus::h3

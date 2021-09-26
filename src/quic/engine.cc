@@ -274,7 +274,7 @@ void engine_state::stream_read_headers(stream_state& sstate,
 }
 
 struct recv_header_set {
-  http3::fields fields;
+  h3::fields fields;
   int is_push_promise;
   lsxpack_header header;
   std::vector<char> buffer;
@@ -340,7 +340,7 @@ void engine_state::stream_write_headers(stream_state& sstate,
 }
 
 static void do_write_headers(lsquic_stream_t* stream,
-                             const http3::fields& fields, error_code& ec)
+                             const h3::fields& fields, error_code& ec)
 {
   // stack-allocate a lsxpack_header array
   auto array = reinterpret_cast<lsxpack_header*>(

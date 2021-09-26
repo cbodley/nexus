@@ -2,7 +2,7 @@
 
 #include <boost/intrusive/list.hpp>
 #include <boost/circular_buffer.hpp>
-#include <nexus/quic/ssl.hpp>
+#include <nexus/ssl.hpp>
 #include <nexus/quic/detail/connection.hpp>
 
 struct lsquic_out_spec;

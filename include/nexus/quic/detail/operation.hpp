@@ -7,7 +7,7 @@
 #include <asio/associated_executor.hpp>
 #include <boost/intrusive/list.hpp>
 #include <nexus/error_code.hpp>
-#include <nexus/quic/http3/fields.hpp>
+#include <nexus/h3/fields.hpp>
 #include <nexus/quic/detail/handler_ptr.hpp>
 
 namespace nexus::quic::detail {
@@ -210,14 +210,14 @@ struct stream_data_async :
 };
 
 struct stream_header_read_operation : operation {
-  http3::fields& fields;
+  h3::fields& fields;
 
   stream_header_read_operation(complete_fn complete, wait_fn wait,
-                               http3::fields& fields) noexcept
+                               h3::fields& fields) noexcept
       : operation(complete, wait), fields(fields) {}
 };
 struct stream_header_read_sync : sync_operation<stream_header_read_operation> {
-  explicit stream_header_read_sync(http3::fields& fields) noexcept
+  explicit stream_header_read_sync(h3::fields& fields) noexcept
       : sync_operation<stream_header_read_operation>(fields) {}
 };
 template <typename Handler, typename IoExecutor>
@@ -225,21 +225,21 @@ struct stream_header_read_async :
     async_operation<stream_header_read_operation, Handler, IoExecutor> {
 
   stream_header_read_async(Handler&& handler, const IoExecutor& io_ex,
-                           http3::fields& fields)
+                           h3::fields& fields)
       : async_operation<stream_header_read_operation, Handler, IoExecutor>(
           std::move(handler), io_ex, fields)
   {}
 };
 
 struct stream_header_write_operation : operation {
-  const http3::fields& fields;
+  const h3::fields& fields;
 
   stream_header_write_operation(complete_fn complete, wait_fn wait,
-                                const http3::fields& fields) noexcept
+                                const h3::fields& fields) noexcept
       : operation(complete, wait), fields(fields) {}
 };
 struct stream_header_write_sync : sync_operation<stream_header_write_operation> {
-  explicit stream_header_write_sync(const http3::fields& fields) noexcept
+  explicit stream_header_write_sync(const h3::fields& fields) noexcept
       : sync_operation<stream_header_write_operation>(fields) {}
 };
 template <typename Handler, typename IoExecutor>
@@ -247,7 +247,7 @@ struct stream_header_write_async :
     async_operation<stream_header_write_operation, Handler, IoExecutor> {
 
   stream_header_write_async(Handler&& handler, const IoExecutor& io_ex,
-                            const http3::fields& fields)
+                            const h3::fields& fields)
       : async_operation<stream_header_write_operation, Handler, IoExecutor>(
           std::move(handler), io_ex, fields)
   {}

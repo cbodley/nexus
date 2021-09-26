@@ -3,7 +3,7 @@
 #include <chrono>
 #include <string_view>
 #include <nexus/error_code.hpp>
-#include <nexus/quic/ssl.hpp>
+#include <nexus/ssl.hpp>
 
 namespace nexus::test {
 

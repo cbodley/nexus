@@ -1,7 +1,7 @@
 #pragma once
 
 #include <nexus/udp.hpp>
-#include <nexus/quic/ssl.hpp>
+#include <nexus/ssl.hpp>
 #include <nexus/quic/detail/engine.hpp>
 #include <nexus/quic/detail/socket.hpp>
 

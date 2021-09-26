@@ -1,7 +1,7 @@
-#include <nexus/quic/http3/fields.hpp>
+#include <nexus/h3/fields.hpp>
 #include <gtest/gtest.h>
 
-namespace nexus::quic::http3 {
+namespace nexus::h3 {
 
 TEST(fields, empty)
 {
@@ -100,4 +100,4 @@ TEST(fields, assign)
   EXPECT_EQ(third, upper);
 }
 
-} // namespace nexus::quic::http3
+} // namespace nexus::h3

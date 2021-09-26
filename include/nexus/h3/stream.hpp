@@ -1,9 +1,9 @@
 #pragma once
 
 #include <nexus/quic/stream.hpp>
-#include <nexus/quic/http3/fields.hpp>
+#include <nexus/h3/fields.hpp>
 
-namespace nexus::quic::http3 {
+namespace nexus::h3 {
 
 class client_connection;
 class server_connection;
@@ -59,4 +59,4 @@ class stream : public quic::stream {
   void write_headers(const fields& f);
 };
 
-} // namespace nexus::quic::http3
+} // namespace nexus::h3
