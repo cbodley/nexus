@@ -6,7 +6,7 @@
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/connection.hpp>
 #include <nexus/quic/stream.hpp>
-#include <nexus/quic/global_context.hpp>
+#include <nexus/global_init.hpp>
 
 #include "certificate.hpp"
 
@@ -26,7 +26,7 @@ TEST(server, accept_wait) // accept() before a connection is received
 {
   auto context = asio::io_context{};
   auto ex = context.get_executor();
-  auto global = quic::global::init_client_server();
+  auto global = global::init_client_server();
 
   auto ssl = test::init_server_context("\04test");
   auto sslc = test::init_client_context("\04test");
@@ -62,7 +62,7 @@ TEST(server, accept_ready) // accept() after a connection is received
 {
   auto context = asio::io_context{};
   auto ex = context.get_executor();
-  auto global = quic::global::init_client_server();
+  auto global = global::init_client_server();
 
   auto ssl = test::init_server_context("\04test");
   auto sslc = test::init_client_context("\04test");

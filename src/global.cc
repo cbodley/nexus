@@ -1,16 +1,30 @@
-#include <nexus/quic/global_context.hpp>
+#include <nexus/global_init.hpp>
 
 #include <stdio.h>
 #include <lsquic.h>
 
-namespace nexus::quic::global {
+namespace nexus {
 
-context::~context()
+const error_category& global_category()
 {
-  if (initialized) {
-    ::lsquic_global_cleanup();
-  }
+  struct category : public error_category {
+    const char* name() const noexcept override {
+      return "nexus::global";
+    }
+    std::string message(int ev) const override {
+      switch (static_cast<global::error>(ev)) {
+        case global::error::init_failed:
+          return "global initialization failed";
+        default:
+          return "unknown";
+      }
+    }
+  };
+  static category instance;
+  return instance;
 }
+
+namespace global {
 
 namespace detail {
 
@@ -21,11 +35,11 @@ int log(void* ctx, const char* buf, size_t len)
 
 context init(int flags, error_code& ec)
 {
-  if (int r = ::lsquic_global_init(flags); r == 0) {
-    return context::initialized_tag{}; // success
+  if (int r = ::lsquic_global_init(flags); r != 0) {
+    ec = make_error_code(error::init_failed);
+    return {}; // failure
   }
-  ec = make_error_code(error::global_init_failed);
-  return {}; // failure
+  return ::lsquic_global_cleanup; // success
 }
 
 } // namespace detail
@@ -80,4 +94,5 @@ context init_client_server()
   return ctx;
 }
 
-} // namespace nexus::quic::global
+} // namespace global
+} // namespace nexus

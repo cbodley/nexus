@@ -6,7 +6,6 @@ namespace nexus::quic {
 
 enum class error {
 // generic error category
-  global_init_failed = 1,
   operation_aborted,
 // connection error category
   handshake_failed,

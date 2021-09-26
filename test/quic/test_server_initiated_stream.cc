@@ -6,7 +6,7 @@
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/connection.hpp>
 #include <nexus/quic/stream.hpp>
-#include <nexus/quic/global_context.hpp>
+#include <nexus/global_init.hpp>
 
 #include "certificate.hpp"
 
@@ -26,7 +26,7 @@ TEST(server, connect_stream)
 {
   auto context = asio::io_context{};
   auto ex = context.get_executor();
-  auto global = quic::global::init_client_server();
+  auto global = global::init_client_server();
 
   const char* alpn = "\04test";
   auto ssl = test::init_server_context(alpn);

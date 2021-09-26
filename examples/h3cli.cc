@@ -3,7 +3,7 @@
 
 #include <asio.hpp>
 
-#include <nexus/quic/global_context.hpp>
+#include <nexus/global_init.hpp>
 #include <nexus/h3/client.hpp>
 #include <nexus/h3/stream.hpp>
 
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
       return resolver.resolve(hostname, portstr)->endpoint();
     }();
 
-  auto global = nexus::quic::global::init_client();
+  auto global = nexus::global::init_client();
   auto client = nexus::h3::client{ex, udp::endpoint{}, ssl};
   auto conn = nexus::h3::client_connection{client};
   client.connect(conn, remote_endpoint, hostname);
