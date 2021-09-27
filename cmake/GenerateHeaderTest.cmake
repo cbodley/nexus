@@ -1,0 +1,1 @@
+file(WRITE ${HEADER_TEST_FILENAME} "#include <${HEADER_TEST_INCLUDE_PATH}>\n")

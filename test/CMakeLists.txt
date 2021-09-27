@@ -9,6 +9,7 @@ function(add_unit_test target)
 	add_test(NAME ${target} COMMAND $<TARGET_FILE:${target}>)
 endfunction()
 
+add_subdirectory(headers)
+
 add_subdirectory(h3)
 add_subdirectory(quic)
-
