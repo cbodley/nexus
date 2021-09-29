@@ -308,11 +308,15 @@ void engine_state::on_stream_read(stream_state& sstate)
   error_code ec;
   if (sstate.in.header) {
     auto& op = *std::exchange(sstate.in.header, nullptr);
-    auto headers = std::unique_ptr<recv_header_set>(
-        reinterpret_cast<recv_header_set*>(
-            ::lsquic_stream_get_hset(sstate.handle)));
-    op.fields = std::move(headers->fields);
-    op.defer(ec); // success
+    auto hset = ::lsquic_stream_get_hset(sstate.handle);
+    if (!hset) {
+      ec = make_error_code(error::stream_reset);
+    } else {
+      auto headers = std::unique_ptr<recv_header_set>(
+          reinterpret_cast<recv_header_set*>(hset)); // take ownership
+      op.fields = std::move(headers->fields);
+    }
+    op.defer(ec);
   } else if (sstate.in.data) {
     auto& op = *std::exchange(sstate.in.data, nullptr);
     auto bytes = ::lsquic_stream_readv(sstate.handle, op.iovs, op.num_iovs);
@@ -466,7 +470,7 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   auto lock = std::unique_lock{mutex};
   // cancel other stream requests now. otherwise on_stream_close() would
   // fail them with connection_reset
-  auto ecanceled = make_error_code(error::operation_aborted);
+  auto ecanceled = make_error_code(error::stream_aborted);
   if (sstate.accept_) {
     sstate.accept_->defer(ecanceled);
     sstate.accept_ = nullptr;
@@ -486,21 +490,20 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   ::lsquic_stream_close(sstate.handle);
   sstate.handle = nullptr;
 
-  const auto ebadf = make_error_code(errc::bad_file_descriptor);
   if (sstate.in.header) {
-    sstate.in.header->defer(ebadf);
+    sstate.in.header->defer(ecanceled);
     sstate.in.header = nullptr;
   }
   if (sstate.in.data) {
-    sstate.in.data->defer(ebadf);
+    sstate.in.data->defer(ecanceled);
     sstate.in.data = nullptr;
   }
   if (sstate.out.header) {
-    sstate.out.header->defer(ebadf);
+    sstate.out.header->defer(ecanceled);
     sstate.out.header = nullptr;
   }
   if (sstate.out.data) {
-    sstate.out.data->defer(ebadf, 0);
+    sstate.out.data->defer(ecanceled, 0);
     sstate.out.data = nullptr;
   }
   process(lock);
@@ -511,12 +514,12 @@ void engine_state::on_stream_close(stream_state& sstate)
   sstate.handle = nullptr;
   if (sstate.connect_) {
     // peer refused or handshake failed?
-    sstate.connect_->defer(make_error_code(errc::connection_refused));
+    sstate.connect_->defer(make_error_code(error::stream_reset));
     sstate.connect_ = nullptr;
     return;
   }
   // remote closed? cancel other requests on this stream
-  auto ec = make_error_code(errc::connection_reset);
+  auto ec = make_error_code(error::stream_reset);
   if (sstate.in.header) {
     sstate.in.header->defer(ec);
     sstate.in.header = nullptr;
@@ -558,15 +561,15 @@ void engine_state::close(socket_state& socket)
     socket.incoming_connections.pop_front();
     ::lsquic_conn_close(conn);
   }
+  const auto ecanceled = make_error_code(error::connection_aborted);
   // close connections on this socket
   while (!socket.connected.empty()) {
     auto& cstate = socket.connected.front();
     ::lsquic_conn_close(cstate.handle);
-    do_close(cstate, make_error_code(error::operation_aborted));
+    do_close(cstate, ecanceled);
   }
   process(lock);
   // cancel connections pending accept
-  auto ecanceled = make_error_code(error::operation_aborted);
   while (!socket.accepting_connections.empty()) {
     auto& cstate = socket.accepting_connections.front();
     socket.accepting_connections.pop_front();
@@ -574,7 +577,7 @@ void engine_state::close(socket_state& socket)
     cstate.accept_->defer(ecanceled);
     cstate.accept_ = nullptr;
   }
-  // cancel the async_wait for read, but don't close until ~socket_state()
+  // XXX: cancel the async_wait for read, but don't close until ~socket_state()
   socket.socket.cancel();
 }
 

@@ -15,6 +15,7 @@ enum class error {
   connection_going_away,
 // stream errors
   end_of_stream,
+  stream_aborted,
   stream_reset,
 };
 

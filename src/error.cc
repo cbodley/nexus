@@ -25,6 +25,8 @@ const error_category& quic_category()
           return "peer is going away";
         case error::end_of_stream:
           return "end of stream";
+        case error::stream_aborted:
+          return "stream aborted";
         case error::stream_reset:
           return "stream reset by peer";
         default:
