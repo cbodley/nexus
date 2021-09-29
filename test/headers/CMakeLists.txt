@@ -1,6 +1,6 @@
 # add an executable for each header just to test that it's self-contained
 set(NEXUS_HEADER_DIR ${CMAKE_SOURCE_DIR}/include)
-file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS ${NEXUS_HEADER_DIR}/*)
+file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS ${NEXUS_HEADER_DIR}/*.hpp)
 #list(FILTER HEADER_FILES EXCLUDE REGEX detail)
 
 function(add_header_test target include_path)
