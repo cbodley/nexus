@@ -430,7 +430,7 @@ void engine_state::stream_shutdown(stream_state& sstate,
   const bool shutdown_write = (how == 1 || how == 2);
   auto lock = std::unique_lock{mutex};
   if (!sstate.handle) {
-    ec = make_error_code(errc::not_connected);
+    ec = make_error_code(errc::bad_file_descriptor);
     return;
   }
   if (::lsquic_stream_shutdown(sstate.handle, how) == -1) {
@@ -479,56 +479,59 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
     auto& connecting = sstate.conn.connecting_streams;
     connecting.erase(connecting.iterator_to(sstate));
   }
+  if (!sstate.handle) {
+    ec = make_error_code(errc::not_connected);
+    return;
+  }
+  ::lsquic_stream_close(sstate.handle);
+  sstate.handle = nullptr;
+
+  const auto ebadf = make_error_code(errc::bad_file_descriptor);
   if (sstate.in.header) {
-    sstate.in.header->defer(ecanceled);
+    sstate.in.header->defer(ebadf);
     sstate.in.header = nullptr;
   }
   if (sstate.in.data) {
-    sstate.in.data->defer(ecanceled, 0);
+    sstate.in.data->defer(ebadf);
     sstate.in.data = nullptr;
   }
   if (sstate.out.header) {
-    sstate.out.header->defer(ecanceled);
+    sstate.out.header->defer(ebadf);
     sstate.out.header = nullptr;
   }
   if (sstate.out.data) {
-    sstate.out.data->defer(ecanceled, 0);
+    sstate.out.data->defer(ebadf, 0);
     sstate.out.data = nullptr;
   }
-  if (!sstate.handle) {
-    ec = make_error_code(errc::not_connected);
-  } else {
-    ::lsquic_stream_close(sstate.handle);
-    sstate.handle = nullptr;
-    process(lock);
-  }
+  process(lock);
 }
 
 void engine_state::on_stream_close(stream_state& sstate)
 {
+  sstate.handle = nullptr;
   if (sstate.connect_) {
     // peer refused or handshake failed?
     sstate.connect_->defer(make_error_code(errc::connection_refused));
     sstate.connect_ = nullptr;
-  } else {
-    // remote closed? cancel other requests on this stream
-    auto ec = make_error_code(errc::connection_reset);
-    if (sstate.in.header) {
-      sstate.in.header->defer(ec);
-      sstate.in.header = nullptr;
-    }
-    if (sstate.in.data) {
-      sstate.in.data->defer(ec, 0);
-      sstate.in.data = nullptr;
-    }
-    if (sstate.out.header) {
-      sstate.out.header->defer(ec);
-      sstate.out.header = nullptr;
-    }
-    if (sstate.out.data) {
-      sstate.out.data->defer(ec, 0);
-      sstate.out.data = nullptr;
-    }
+    return;
+  }
+  // remote closed? cancel other requests on this stream
+  auto ec = make_error_code(errc::connection_reset);
+  if (sstate.in.header) {
+    sstate.in.header->defer(ec);
+    sstate.in.header = nullptr;
+  }
+  if (sstate.in.data) {
+    sstate.in.data->defer(ec, 0);
+    sstate.in.data = nullptr;
+  }
+  if (sstate.out.header) {
+    sstate.out.header->defer(ec);
+    sstate.out.header = nullptr;
+  }
+  if (sstate.out.data) {
+    sstate.out.data->defer(ec, 0);
+    sstate.out.data = nullptr;
   }
 }
 
