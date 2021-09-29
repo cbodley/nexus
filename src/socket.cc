@@ -79,9 +79,9 @@ void socket_state::accept(connection_state& cstate, accept_operation& op)
   engine.accept(cstate, op);
 }
 
-void socket_state::close(error_code& ec)
+void socket_state::close()
 {
-  engine.close(*this, ec);
+  engine.close(*this);
 }
 
 auto socket_state::send_packets(const lsquic_out_spec* begin,

@@ -56,6 +56,11 @@ void acceptor::accept(connection& conn)
   }
 }
 
+void acceptor::close()
+{
+  state.close();
+}
+
 } // namespace quic
 
 namespace h3 {
@@ -91,6 +96,27 @@ udp::endpoint acceptor::local_endpoint() const
 void acceptor::listen(int backlog)
 {
   return state.listen(backlog);
+}
+
+void acceptor::accept(server_connection& conn, error_code& ec)
+{
+  quic::detail::accept_sync op;
+  state.accept(conn.state, op);
+  ec = *op.ec;
+}
+
+void acceptor::accept(server_connection& conn)
+{
+  error_code ec;
+  accept(conn, ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
+void acceptor::close()
+{
+  state.close();
 }
 
 udp::endpoint server_connection::remote_endpoint()

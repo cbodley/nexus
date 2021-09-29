@@ -31,8 +31,7 @@ struct socket_state : boost::intrusive::list_base_hook<> {
   socket_state(engine_state& engine, const udp::endpoint& endpoint,
                bool is_server, asio::ssl::context& ssl);
   ~socket_state() {
-    error_code ec_ignored;
-    close(ec_ignored);
+    close();
   }
 
   using executor_type = asio::any_io_executor;
@@ -63,7 +62,7 @@ struct socket_state : boost::intrusive::list_base_hook<> {
         }, token);
   }
 
-  void close(error_code& ec);
+  void close();
 
   const lsquic_out_spec* send_packets(const lsquic_out_spec* begin,
                                       const lsquic_out_spec* end,

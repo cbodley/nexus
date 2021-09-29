@@ -39,19 +39,10 @@ void client::connect(connection& conn,
   state.connect(conn.state, endpoint, hostname);
 }
 
-void client::close(error_code& ec)
-{
-  state.close();
-  socket.close(ec);
-}
-
 void client::close()
 {
-  error_code ec;
-  close(ec);
-  if (ec) {
-    throw system_error(ec);
-  }
+  state.close();
+  socket.close();
 }
 
 } // namespace quic
@@ -90,19 +81,10 @@ void client::connect(client_connection& conn,
   state.connect(conn.state, endpoint, hostname);
 }
 
-void client::close(error_code& ec)
-{
-  state.close();
-  socket.close(ec);
-}
-
 void client::close()
 {
-  error_code ec;
-  close(ec);
-  if (ec) {
-    throw system_error(ec);
-  }
+  state.close();
+  socket.close();
 }
 
 udp::endpoint client_connection::remote_endpoint()

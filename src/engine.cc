@@ -549,7 +549,7 @@ void engine_state::listen(socket_state& socket, int backlog)
   start_recv(socket);
 }
 
-void engine_state::close(socket_state& socket, error_code& ec)
+void engine_state::close(socket_state& socket)
 {
   auto lock = std::unique_lock{mutex};
   // close incoming streams that we haven't accepted yet

@@ -56,7 +56,7 @@ class engine_state {
   void close();
 
   void listen(socket_state& socket, int backlog);
-  void close(socket_state& socket, error_code& ec);
+  void close(socket_state& socket);
 
   void connect(connection_state& cstate,
                const udp::endpoint& endpoint,
