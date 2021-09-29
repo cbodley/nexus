@@ -81,6 +81,7 @@ class acceptor {
 class server_connection {
   friend class acceptor;
   friend class stream;
+  friend class quic::detail::socket_state;
   quic::detail::connection_state state;
  public:
   /// the polymorphic executor type, asio::any_io_executor

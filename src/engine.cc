@@ -82,7 +82,6 @@ connection_state* engine_state::on_accept(lsquic_conn_t* conn)
   const sockaddr* local = nullptr;
   const sockaddr* peer = nullptr;
   int r = ::lsquic_conn_get_sockaddr(conn, &local, &peer);
-  assert(r == 0); // XXX: not expected, but want to see if it happens
   if (r != 0) {
     return nullptr;
   }
@@ -149,6 +148,7 @@ void engine_state::do_close(connection_state& cstate, error_code ec)
     sstate.accept_->defer(ec);
     sstate.accept_ = nullptr;
   }
+  // TODO: other pending stream operations should see this error too
 }
 
 void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
@@ -157,16 +157,16 @@ void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
   switch (::lsquic_conn_status(conn, nullptr, 0)) {
     case LSCONN_ST_VERNEG_FAILURE:
     case LSCONN_ST_HSK_FAILURE:
-      ec = make_error_code(error::handshake_failed);
+      ec = make_error_code(error::connection_handshake_failed);
       break;
     case LSCONN_ST_TIMED_OUT:
-      ec = make_error_code(error::timed_out);
+      ec = make_error_code(error::connection_timed_out);
       break;
     case LSCONN_ST_PEER_GOING_AWAY:
-      ec = make_error_code(error::going_away);
+      ec = make_error_code(error::connection_going_away);
       break;
     case LSCONN_ST_USER_ABORTED:
-      ec = make_error_code(error::operation_aborted);
+      ec = make_error_code(error::connection_aborted);
       break;
     case LSCONN_ST_ERROR:
     case LSCONN_ST_RESET:
@@ -351,6 +351,10 @@ void engine_state::stream_write_headers(stream_state& sstate,
   auto lock = std::unique_lock{mutex};
   assert(!sstate.out.data);
   assert(!sstate.out.header);
+  if (!sstate.handle) {
+    op.post(make_error_code(errc::not_connected), 0);
+    return;
+  }
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
     op.post(error_code{errno, system_category()});
     return;

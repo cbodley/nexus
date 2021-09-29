@@ -5,14 +5,15 @@
 namespace nexus::quic {
 
 enum class error {
-// generic error category
-  operation_aborted,
-// connection error category
-  handshake_failed,
-  timed_out,
+// generic errors
+  operation_aborted = 1,
+// connection errors
+  connection_aborted,
+  connection_handshake_failed,
+  connection_timed_out,
   connection_reset,
-  going_away,
-// stream error category
+  connection_going_away,
+// stream errors
   end_of_stream,
   stream_reset,
 };
