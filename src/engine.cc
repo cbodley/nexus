@@ -303,8 +303,10 @@ void engine_state::stream_read(stream_state& sstate, stream_data_operation& op)
     op.post(make_error_code(errc::not_connected));
     return;
   }
-  assert(!sstate.in.header);
-  assert(!sstate.in.data);
+  if (sstate.in.header || sstate.in.data) { // no concurrent reads
+    op.post(make_error_code(error::stream_busy));
+    return;
+  }
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
     op.post(error_code{errno, system_category()}, 0);
     return;
@@ -318,8 +320,14 @@ void engine_state::stream_read_headers(stream_state& sstate,
                                        stream_header_read_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(!sstate.in.data);
-  assert(!sstate.in.header);
+  if (!sstate.handle) {
+    op.post(make_error_code(errc::not_connected));
+    return;
+  }
+  if (sstate.in.header || sstate.in.data) { // no concurrent reads
+    op.post(make_error_code(error::stream_busy));
+    return;
+  }
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
     op.post(error_code{errno, system_category()}, 0);
     return;
@@ -373,8 +381,10 @@ void engine_state::stream_write(stream_state& sstate, stream_data_operation& op)
     op.post(make_error_code(errc::not_connected), 0);
     return;
   }
-  assert(!sstate.out.header);
-  assert(!sstate.out.data);
+  if (sstate.out.header || sstate.out.data) { // no concurrent writes
+    op.post(make_error_code(error::stream_busy));
+    return;
+  }
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
     op.post(error_code{errno, system_category()}, 0);
     return;
@@ -388,10 +398,12 @@ void engine_state::stream_write_headers(stream_state& sstate,
                                         stream_header_write_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(!sstate.out.data);
-  assert(!sstate.out.header);
   if (!sstate.handle) {
     op.post(make_error_code(errc::not_connected), 0);
+    return;
+  }
+  if (sstate.out.header || sstate.out.data) { // no concurrent writes
+    op.post(make_error_code(error::stream_busy));
     return;
   }
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
