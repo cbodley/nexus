@@ -17,6 +17,13 @@ int send_udp_packets(int fd, const lsquic_out_spec* specs, unsigned n_specs);
 class engine_state;
 struct connection_state;
 
+union sockaddr_union {
+  sockaddr_storage storage;
+  sockaddr addr;
+  sockaddr_in addr4;
+  sockaddr_in6 addr6;
+};
+
 struct socket_state : boost::intrusive::list_base_hook<> {
   engine_state& engine;
   udp::socket socket;
@@ -67,6 +74,9 @@ struct socket_state : boost::intrusive::list_base_hook<> {
   const lsquic_out_spec* send_packets(const lsquic_out_spec* begin,
                                       const lsquic_out_spec* end,
                                       error_code& ec);
+
+  size_t recv_packet(iovec iov, udp::endpoint& peer, sockaddr_union& self,
+                     int& ecn, error_code& ec);
 };
 
 } // namespace nexus::quic::detail
