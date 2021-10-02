@@ -34,7 +34,8 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   stream_accept_operation* accept_ = nullptr;
 
   template <typename BufferSequence>
-  void init_op(const BufferSequence& buffers, stream_data_operation& op) {
+  static void init_op(const BufferSequence& buffers,
+                      stream_data_operation& op) {
     const auto end = asio::buffer_sequence_end(buffers);
     for (auto i = asio::buffer_sequence_begin(buffers);
          i != end && op.num_iovs < op.max_iovs;
@@ -45,10 +46,6 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
   }
 
   explicit stream_state(connection_state& conn) : conn(conn) {}
-  ~stream_state() {
-    error_code ec_ignored;
-    close(ec_ignored);
-  }
 
   using executor_type = asio::any_io_executor;
   executor_type get_executor() const;

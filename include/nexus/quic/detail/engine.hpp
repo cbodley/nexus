@@ -69,14 +69,15 @@ class engine_state {
   void close(connection_state& cstate, error_code& ec);
   void on_close(connection_state& cstate, lsquic_conn* conn);
 
-  void do_close(connection_state& cstate, error_code ec);
+  void cancel(connection_state& cstate, error_code ec);
 
-  void stream_connect(stream_state& sstate,
+  void stream_connect(connection_state& cstate,
                       stream_connect_operation& op);
   stream_state* on_stream_connect(connection_state& cstate,
                                   lsquic_stream* stream);
 
-  void stream_accept(stream_state& sstate, stream_accept_operation& op);
+  void stream_accept(connection_state& cstate,
+                     stream_accept_operation& op);
   stream_state* on_stream_accept(connection_state& cstate,
                                  lsquic_stream* stream);
   stream_state* on_new_stream(connection_state& cstate,
@@ -91,6 +92,9 @@ class engine_state {
   void stream_write_headers(stream_state& sstate,
                             stream_header_write_operation& op);
   void on_stream_write(stream_state& sstate);
+
+  void stream_cancel_read(stream_state& sstate, error_code ec);
+  void stream_cancel_write(stream_state& sstate, error_code ec);
 
   void stream_flush(stream_state& sstate, error_code& ec);
   void stream_shutdown(stream_state& sstate, int how, error_code& ec);

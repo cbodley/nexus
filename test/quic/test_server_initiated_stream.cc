@@ -51,11 +51,11 @@ TEST(server, connect_stream)
   EXPECT_EQ(ok, *accept_ec);
 
   std::optional<error_code> sstream_connect_ec;
-  auto sstream = quic::stream{sconn};
+  auto sstream = quic::stream{};
   sconn.async_connect(sstream, capture(sstream_connect_ec));
 
   std::optional<error_code> cistream_accept_ec;
-  auto cistream = quic::stream{cconn};
+  auto cistream = quic::stream{};
   cconn.async_accept(cistream, capture(cistream_accept_ec));
 
   context.poll();

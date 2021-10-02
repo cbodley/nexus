@@ -27,8 +27,8 @@ udp::endpoint connection::remote_endpoint()
 
 void connection::connect(stream& s, error_code& ec)
 {
-  detail::stream_connect_sync op;
-  state.connect(s.state, op);
+  auto op = detail::stream_connect_sync{s.state};
+  state.connect(op);
   ec = *op.ec;
 }
 
@@ -43,8 +43,8 @@ void connection::connect(stream& s)
 
 void connection::accept(stream& s, error_code& ec)
 {
-  detail::stream_accept_sync op;
-  state.accept(s.state, op);
+  auto op = detail::stream_accept_sync{s.state};
+  state.accept(op);
   ec = *op.ec;
 }
 
@@ -83,16 +83,14 @@ udp::endpoint connection_state::remote_endpoint()
   return socket.engine.remote_endpoint(*this);
 }
 
-void connection_state::connect(stream_state& sstate,
-                               stream_connect_operation& op)
+void connection_state::connect(stream_connect_operation& op)
 {
-  socket.engine.stream_connect(sstate, op);
+  socket.engine.stream_connect(*this, op);
 }
 
-void connection_state::accept(stream_state& sstate,
-                              stream_accept_operation& op)
+void connection_state::accept(stream_accept_operation& op)
 {
-  socket.engine.stream_accept(sstate, op);
+  socket.engine.stream_accept(*this, op);
 }
 
 void connection_state::close(error_code& ec)

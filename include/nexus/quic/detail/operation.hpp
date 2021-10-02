@@ -1,6 +1,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <sys/uio.h>
@@ -11,6 +12,8 @@
 #include <nexus/quic/detail/handler_ptr.hpp>
 
 namespace nexus::quic::detail {
+
+struct stream_state;
 
 struct operation : boost::intrusive::list_base_hook<> {
   enum class completion_type { post, defer, dispatch, destroy };
@@ -157,34 +160,48 @@ struct accept_async :
 };
 
 struct stream_connect_operation : operation {
-  stream_connect_operation(complete_fn complete, wait_fn wait) noexcept
-      : operation(complete, wait) {}
+  std::unique_ptr<stream_state>& stream;
+
+  stream_connect_operation(complete_fn complete, wait_fn wait,
+                           std::unique_ptr<stream_state>& stream) noexcept
+      : operation(complete, wait), stream(stream)
+  {}
 };
 struct stream_connect_sync : sync_operation<stream_connect_operation> {
+  stream_connect_sync(std::unique_ptr<stream_state>& stream)
+      : sync_operation<stream_connect_operation>(stream) {}
 };
 template <typename Handler, typename IoExecutor>
 struct stream_connect_async :
     async_operation<stream_connect_operation, Handler, IoExecutor> {
 
-  stream_connect_async(Handler&& handler, const IoExecutor& io_ex)
+  stream_connect_async(Handler&& handler, const IoExecutor& io_ex,
+                       std::unique_ptr<stream_state>& stream)
       : async_operation<stream_connect_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
+          std::move(handler), io_ex, stream)
   {}
 };
 
 struct stream_accept_operation : operation {
-  stream_accept_operation(complete_fn complete, wait_fn wait) noexcept
-      : operation(complete, wait) {}
+  std::unique_ptr<stream_state>& stream;
+
+  stream_accept_operation(complete_fn complete, wait_fn wait,
+                          std::unique_ptr<stream_state>& stream) noexcept
+      : operation(complete, wait), stream(stream)
+  {}
 };
 struct stream_accept_sync : sync_operation<stream_accept_operation> {
+  stream_accept_sync(std::unique_ptr<stream_state>& stream)
+      : sync_operation<stream_accept_operation>(stream) {}
 };
 template <typename Handler, typename IoExecutor>
 struct stream_accept_async :
     async_operation<stream_accept_operation, Handler, IoExecutor> {
 
-  stream_accept_async(Handler&& handler, const IoExecutor& io_ex)
+  stream_accept_async(Handler&& handler, const IoExecutor& io_ex,
+                      std::unique_ptr<stream_state>& stream)
       : async_operation<stream_accept_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
+          std::move(handler), io_ex, stream)
   {}
 };
 
@@ -214,11 +231,13 @@ struct stream_header_read_operation : operation {
 
   stream_header_read_operation(complete_fn complete, wait_fn wait,
                                h3::fields& fields) noexcept
-      : operation(complete, wait), fields(fields) {}
+      : operation(complete, wait), fields(fields)
+  {}
 };
 struct stream_header_read_sync : sync_operation<stream_header_read_operation> {
   explicit stream_header_read_sync(h3::fields& fields) noexcept
-      : sync_operation<stream_header_read_operation>(fields) {}
+      : sync_operation<stream_header_read_operation>(fields)
+  {}
 };
 template <typename Handler, typename IoExecutor>
 struct stream_header_read_async :
@@ -236,11 +255,13 @@ struct stream_header_write_operation : operation {
 
   stream_header_write_operation(complete_fn complete, wait_fn wait,
                                 const h3::fields& fields) noexcept
-      : operation(complete, wait), fields(fields) {}
+      : operation(complete, wait), fields(fields)
+  {}
 };
 struct stream_header_write_sync : sync_operation<stream_header_write_operation> {
   explicit stream_header_write_sync(const h3::fields& fields) noexcept
-      : sync_operation<stream_header_write_operation>(fields) {}
+      : sync_operation<stream_header_write_operation>(fields)
+  {}
 };
 template <typename Handler, typename IoExecutor>
 struct stream_header_write_async :

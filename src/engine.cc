@@ -100,6 +100,7 @@ connection_state* engine_state::on_accept(lsquic_conn_t* conn)
   }
   auto& cstate = socket.accepting_connections.front();
   socket.accepting_connections.pop_front();
+  socket.connected.push_back(cstate);
   assert(cstate.accept_);
   assert(!cstate.handle);
   cstate.handle = conn;
@@ -115,44 +116,75 @@ void engine_state::close(connection_state& cstate, error_code& ec)
     ec = make_error_code(errc::not_connected);
     return;
   }
+
+  cancel(cstate, make_error_code(error::connection_aborted));
+
   ::lsquic_conn_close(cstate.handle);
-  do_close(cstate, make_error_code(error::operation_aborted));
+  cstate.handle = nullptr;
+
+  assert(cstate.accept_ == nullptr);
+  assert(cstate.is_linked());
+  auto& connected = cstate.socket.connected;
+  connected.erase(connected.iterator_to(cstate));
+
   process(lock);
 }
 
-void engine_state::do_close(connection_state& cstate, error_code ec)
+using stream_ptr = std::unique_ptr<stream_state>;
+
+void engine_state::cancel(connection_state& cstate, error_code ec)
 {
-  if (cstate.is_linked()) {
-    auto& connected = cstate.socket.connected;
-    connected.erase(connected.iterator_to(cstate));
-  }
-  cstate.handle = nullptr;
   // close incoming streams that we haven't accepted yet
   while (!cstate.incoming_streams.empty()) {
-    auto stream = cstate.incoming_streams.front();
-    cstate.incoming_streams.pop();
-    ::lsquic_stream_close(stream);
+    // take ownership of the stream and free on scope exit
+    auto sstate = stream_ptr{&cstate.incoming_streams.front()};
+    cstate.incoming_streams.pop_front();
+    ::lsquic_stream_close(sstate->handle);
   }
   // cancel pending stream connect/accept
   while (!cstate.connecting_streams.empty()) {
     auto& sstate = cstate.connecting_streams.front();
     cstate.connecting_streams.pop_front();
+    assert(!sstate.handle);
     assert(sstate.connect_);
-    sstate.connect_->defer(ec);
-    sstate.connect_ = nullptr;
+    auto op = std::exchange(sstate.connect_, nullptr);
+    op->defer(ec); // don't access sstate after this, op may hold last ref
   }
   while (!cstate.accepting_streams.empty()) {
     auto& sstate = cstate.accepting_streams.front();
     cstate.accepting_streams.pop_front();
+    assert(!sstate.handle);
     assert(sstate.accept_);
-    sstate.accept_->defer(ec);
-    sstate.accept_ = nullptr;
+    auto op = std::exchange(sstate.accept_, nullptr);
+    op->defer(ec); // don't access sstate after this, op may hold last ref
   }
-  // TODO: other pending stream operations should see this error too
+  // close connected streams
+  while (!cstate.connected_streams.empty()) {
+    auto& sstate = cstate.connected_streams.front();
+    cstate.connected_streams.pop_front();
+
+    ::lsquic_stream_close(sstate.handle);
+    sstate.handle = nullptr;
+
+    stream_cancel_read(sstate, ec);
+    stream_cancel_write(sstate, ec);
+  }
 }
 
 void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
 {
+  if (!cstate.handle) {
+    // already closed the connection locally and canceled its streams
+    return;
+  }
+  assert(cstate.handle == conn);
+  cstate.handle = nullptr;
+
+  assert(cstate.accept_ == nullptr);
+  assert(cstate.is_linked());
+  auto& connected = cstate.socket.connected;
+  connected.erase(connected.iterator_to(cstate));
+
   error_code ec;
   switch (::lsquic_conn_status(conn, nullptr, 0)) {
     case LSCONN_ST_VERNEG_FAILURE:
@@ -174,19 +206,20 @@ void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
       ec = make_error_code(error::connection_reset);
       break;
   }
-  do_close(cstate, ec);
+
+  cancel(cstate, ec);
 }
 
-void engine_state::stream_connect(stream_state& sstate,
+void engine_state::stream_connect(connection_state& cstate,
                                   stream_connect_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  auto& cstate = sstate.conn;
   if (!cstate.handle) {
     op.post(make_error_code(errc::not_connected));
     return;
   }
-  assert(!sstate.connect_);
+  op.stream = std::make_unique<stream_state>(cstate);
+  auto& sstate = *op.stream;
   sstate.connect_ = &op;
   cstate.connecting_streams.push_back(sstate);
   ::lsquic_conn_make_stream(cstate.handle);
@@ -200,6 +233,7 @@ stream_state* engine_state::on_stream_connect(connection_state& cstate,
   assert(!cstate.connecting_streams.empty());
   auto& sstate = cstate.connecting_streams.front();
   cstate.connecting_streams.pop_front();
+  cstate.connected_streams.push_back(sstate);
   assert(!sstate.handle);
   sstate.handle = stream;
   auto ec = error_code{}; // success
@@ -209,19 +243,21 @@ stream_state* engine_state::on_stream_connect(connection_state& cstate,
   return &sstate;
 }
 
-void engine_state::stream_accept(stream_state& sstate,
+void engine_state::stream_accept(connection_state& cstate,
                                  stream_accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(!sstate.handle);
-  auto& cstate = sstate.conn;
   if (!cstate.incoming_streams.empty()) {
-    sstate.handle = cstate.incoming_streams.front();
-    cstate.incoming_streams.pop();
+    // take ownership of the first incoming stream
+    auto sstate = stream_ptr{&cstate.incoming_streams.front()};
+    cstate.incoming_streams.pop_front();
+    cstate.connected_streams.push_back(*sstate);
+    op.stream = std::move(sstate);
     op.post(error_code{}); // success
     return;
   }
-  assert(!sstate.accept_);
+  op.stream = std::make_unique<stream_state>(cstate);
+  auto& sstate = *op.stream;
   sstate.accept_ = &op;
   cstate.accepting_streams.push_back(sstate);
   op.wait(lock);
@@ -232,13 +268,13 @@ stream_state* engine_state::on_stream_accept(connection_state& cstate,
 {
   if (cstate.accepting_streams.empty()) {
     // not waiting on accept, queue this for later
-    cstate.incoming_streams.push(stream);
-    // XXX: once we return null for the stream_ctx, we can't assign it later.
-    // once we accept this stream, we'll crash trying to read from it
-    return nullptr;
+    auto sstate = std::make_unique<stream_state>(cstate);
+    cstate.incoming_streams.push_back(*sstate);
+    return sstate.release();
   }
   auto& sstate = cstate.accepting_streams.front();
   cstate.accepting_streams.pop_front();
+  cstate.connected_streams.push_back(sstate);
   assert(!sstate.handle);
   sstate.handle = stream;
   auto ec = error_code{}; // success
@@ -443,24 +479,10 @@ void engine_state::stream_shutdown(stream_state& sstate,
   }
   auto ecanceled = make_error_code(error::operation_aborted);
   if (shutdown_read) {
-    if (sstate.in.header) {
-      sstate.in.header->defer(ecanceled);
-      sstate.in.header = nullptr;
-    }
-    if (sstate.in.data) {
-      sstate.in.data->defer(ecanceled, 0);
-      sstate.in.data = nullptr;
-    }
+    stream_cancel_read(sstate, ecanceled);
   }
   if (shutdown_write) {
-    if (sstate.out.header) {
-      sstate.out.header->defer(ecanceled);
-      sstate.out.header = nullptr;
-    }
-    if (sstate.out.data) {
-      sstate.out.data->defer(ecanceled, 0);
-      sstate.out.data = nullptr;
-    }
+    stream_cancel_write(sstate, ecanceled);
   }
   process(lock);
 }
@@ -468,8 +490,8 @@ void engine_state::stream_shutdown(stream_state& sstate,
 void engine_state::stream_close(stream_state& sstate, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
-  // cancel other stream requests now. otherwise on_stream_close() would
-  // fail them with connection_reset
+  // cancel other stream requests here. otherwise on_stream_close() would
+  // fail them with stream_reset
   auto ecanceled = make_error_code(error::stream_aborted);
   if (sstate.accept_) {
     sstate.accept_->defer(ecanceled);
@@ -488,46 +510,27 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
     return;
   }
   ::lsquic_stream_close(sstate.handle);
-  sstate.handle = nullptr;
 
-  if (sstate.in.header) {
-    sstate.in.header->defer(ecanceled);
-    sstate.in.header = nullptr;
-  }
-  if (sstate.in.data) {
-    sstate.in.data->defer(ecanceled);
-    sstate.in.data = nullptr;
-  }
-  if (sstate.out.header) {
-    sstate.out.header->defer(ecanceled);
-    sstate.out.header = nullptr;
-  }
-  if (sstate.out.data) {
-    sstate.out.data->defer(ecanceled, 0);
-    sstate.out.data = nullptr;
-  }
+  stream_cancel_read(sstate, ecanceled);
+  stream_cancel_write(sstate, ecanceled);
   process(lock);
+  assert(!sstate.handle); // on_stream_close() was called by process()
 }
 
-void engine_state::on_stream_close(stream_state& sstate)
+void engine_state::stream_cancel_read(stream_state& sstate, error_code ec)
 {
-  sstate.handle = nullptr;
-  if (sstate.connect_) {
-    // peer refused or handshake failed?
-    sstate.connect_->defer(make_error_code(error::stream_reset));
-    sstate.connect_ = nullptr;
-    return;
-  }
-  // remote closed? cancel other requests on this stream
-  auto ec = make_error_code(error::stream_reset);
   if (sstate.in.header) {
     sstate.in.header->defer(ec);
     sstate.in.header = nullptr;
   }
   if (sstate.in.data) {
-    sstate.in.data->defer(ec, 0);
+    sstate.in.data->defer(ec);
     sstate.in.data = nullptr;
   }
+}
+
+void engine_state::stream_cancel_write(stream_state& sstate, error_code ec)
+{
   if (sstate.out.header) {
     sstate.out.header->defer(ec);
     sstate.out.header = nullptr;
@@ -536,6 +539,23 @@ void engine_state::on_stream_close(stream_state& sstate)
     sstate.out.data->defer(ec, 0);
     sstate.out.data = nullptr;
   }
+}
+
+void engine_state::on_stream_close(stream_state& sstate)
+{
+  if (!sstate.handle) {
+    return; // already closed
+  }
+  sstate.handle = nullptr;
+  assert(!sstate.connect_);
+
+  assert(sstate.is_linked());
+  auto& connected = sstate.conn.connected_streams;
+  connected.erase(connected.iterator_to(sstate));
+
+  const auto ec = make_error_code(error::stream_reset);
+  stream_cancel_read(sstate, ec);
+  stream_cancel_write(sstate, ec);
 }
 
 void engine_state::close()
@@ -565,8 +585,12 @@ void engine_state::close(socket_state& socket)
   // close connections on this socket
   while (!socket.connected.empty()) {
     auto& cstate = socket.connected.front();
+    socket.connected.pop_front();
+
     ::lsquic_conn_close(cstate.handle);
-    do_close(cstate, ecanceled);
+    cstate.handle = nullptr;
+
+    cancel(cstate, ecanceled);
   }
   process(lock);
   // cancel connections pending accept
@@ -717,7 +741,7 @@ void engine_state::on_writeable(socket_state&)
 int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
 {
   auto p = specs;
-  const auto end = std::next(specs, n_specs);
+  const auto end = std::next(p, n_specs);
   while (p < end) {
     socket_state& socket = *static_cast<socket_state*>(p->peer_ctx);
     error_code ec;

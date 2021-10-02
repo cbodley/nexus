@@ -49,7 +49,7 @@ TEST(server, accept_wait) // accept() before a connection is received
   auto cconn = quic::connection{client, endpoint, "host"};
 
   std::optional<error_code> stream_connect_ec;
-  auto cstream = quic::stream{cconn};
+  auto cstream = quic::stream{};
   cconn.async_connect(cstream, capture(stream_connect_ec));
 
   context.poll();
@@ -77,7 +77,7 @@ TEST(server, accept_ready) // accept() after a connection is received
   auto cconn = quic::connection{client, endpoint, "host"};
 
   std::optional<error_code> stream_connect_ec;
-  auto cstream = quic::stream{cconn};
+  auto cstream = quic::stream{};
   cconn.async_connect(cstream, capture(stream_connect_ec));
 
   context.poll();

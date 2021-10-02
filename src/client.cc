@@ -94,8 +94,8 @@ udp::endpoint client_connection::remote_endpoint()
 
 void client_connection::connect(stream& s, error_code& ec)
 {
-  quic::detail::stream_connect_sync op;
-  state.connect(s.state, op);
+  auto op = quic::detail::stream_connect_sync{s.state};
+  state.connect(op);
   ec = *op.ec;
 }
 

@@ -1,12 +1,9 @@
 # TODO
 
-## SSL
+## Error Handling
 
-* client side verification
-
-## Client
-
-* connection::handshake() to wait for handshake to complete?
+* on connection error, fail pending stream operations too
+* error_condition for connection errors so callers can tell whether an error is fatal to the connection
 
 ## QUIC
 

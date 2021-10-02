@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
   auto client = nexus::h3::client{ex, udp::endpoint{}, ssl};
   auto conn = nexus::h3::client_connection{client};
   client.connect(conn, remote_endpoint, hostname);
-  auto stream = nexus::h3::stream{conn};
+  auto stream = nexus::h3::stream{};
 
   auto request = nexus::h3::fields{};
   request.insert(":method", "GET");

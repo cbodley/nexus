@@ -1,8 +1,7 @@
 #pragma once
 
+#include <memory>
 #include <nexus/error_code.hpp>
-#include <nexus/quic/detail/handler_ptr.hpp>
-#include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/stream.hpp>
 
 namespace nexus::quic {
@@ -21,14 +20,16 @@ class stream {
  protected:
   friend class connection;
   friend class detail::connection_state;
-  detail::stream_state state;
-  explicit stream(detail::connection_state& cstate) : state(cstate) {}
+  std::unique_ptr<detail::stream_state> state;
  public:
   /// the polymorphic executor type, asio::any_io_executor
   using executor_type = detail::stream_state::executor_type;
 
-  /// construct a stream to be connected or accepted on the given connection
-  explicit stream(connection& c);
+  /// default-construct an empty stream
+  stream() = default;
+
+  /// close the stream on destruction
+  ~stream();
 
   /// return the associated io executor
   executor_type get_executor() const;
@@ -38,19 +39,19 @@ class stream {
             typename CompletionToken> // void(error_code, size_t)
   decltype(auto) async_read_some(const MutableBufferSequence& buffers,
                                  CompletionToken&& token) {
-    return state.async_read_some(buffers, std::forward<CompletionToken>(token));
+    return state->async_read_some(buffers, std::forward<CompletionToken>(token));
   }
 
   /// read some bytes into the given buffer sequence
   template <typename MutableBufferSequence>
   size_t read_some(const MutableBufferSequence& buffers, error_code& ec) {
-    return state.read_some(buffers, ec);
+    return state->read_some(buffers, ec);
   }
   /// read some bytes into the given buffer sequence
   template <typename MutableBufferSequence>
   size_t read_some(const MutableBufferSequence& buffers) {
     error_code ec;
-    const size_t bytes = state.read_some(buffers, ec);
+    const size_t bytes = state->read_some(buffers, ec);
     if (ec) {
       throw system_error(ec);
     }
@@ -63,21 +64,21 @@ class stream {
             typename CompletionToken> // void(error_code, size_t)
   decltype(auto) async_write_some(const ConstBufferSequence& buffers,
                                   CompletionToken&& token) {
-    return state.async_write_some(buffers, std::forward<CompletionToken>(token));
+    return state->async_write_some(buffers, std::forward<CompletionToken>(token));
   }
 
   /// write some bytes from the given buffer sequence. written bytes may be
   /// buffered until they fill an outgoing packet
   template <typename ConstBufferSequence>
   size_t write_some(const ConstBufferSequence& buffers, error_code& ec) {
-    return state.write_some(buffers, ec);
+    return state->write_some(buffers, ec);
   }
   /// write some bytes from the given buffer sequence. written bytes may be
   /// buffered until they fill an outgoing packet
   template <typename ConstBufferSequence>
   size_t write_some(const ConstBufferSequence& buffers) {
     error_code ec;
-    const size_t bytes = state.write_some(buffers, ec);
+    const size_t bytes = state->write_some(buffers, ec);
     if (ec) {
       throw system_error(ec);
     }

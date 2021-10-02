@@ -126,8 +126,8 @@ udp::endpoint server_connection::remote_endpoint()
 
 void server_connection::accept(stream& s, error_code& ec)
 {
-  quic::detail::stream_accept_sync op;
-  state.accept(s.state, op);
+  auto op = quic::detail::stream_accept_sync{s.state};
+  state.accept(op);
   ec = *op.ec;
 }
 

@@ -15,18 +15,12 @@ class stream : public quic::stream {
   friend class client_connection;
   friend class server_connection;
  public:
-  /// construct a stream to be connected or accepted on the given connection
-  explicit stream(client_connection& c);
-
-  /// construct a stream to be accepted or pushed on the given connection
-  explicit stream(server_connection& c);
-
   /// read headers from the stream. this must either be called before reading
   /// body via read_some()/async_read_some(), or after reading returns an
   /// end_of_stream error to read the optional trailer section
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_read_headers(fields& f, CompletionToken&& token) {
-    return state.async_read_headers(f, std::forward<CompletionToken>(token));
+    return state->async_read_headers(f, std::forward<CompletionToken>(token));
   }
 
   /// read headers from the stream. this must either be called before reading
@@ -44,7 +38,7 @@ class stream : public quic::stream {
   /// and implies the end of the message body
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_write_headers(const fields& f, CompletionToken&& token) {
-    return state.async_write_headers(f, std::forward<CompletionToken>(token));
+    return state->async_write_headers(f, std::forward<CompletionToken>(token));
   }
 
   /// write headers to the stream. if this is called after another call to

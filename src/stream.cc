@@ -53,16 +53,22 @@ void stream_state::close(error_code& ec)
 
 } // namespace detail
 
-stream::stream(connection& c) : stream(c.state) {}
+stream::~stream()
+{
+  if (state) {
+    error_code ec_ignored;
+    state->close(ec_ignored);
+  }
+}
 
 stream::executor_type stream::get_executor() const
 {
-  return state.get_executor();
+  return state->get_executor();
 }
 
 void stream::flush(error_code& ec)
 {
-  state.flush(ec);
+  state->flush(ec);
 }
 
 void stream::flush()
@@ -76,7 +82,7 @@ void stream::flush()
 
 void stream::shutdown(int how, error_code& ec)
 {
-  state.shutdown(how, ec);
+  state->shutdown(how, ec);
 }
 
 void stream::shutdown(int how)
@@ -90,13 +96,13 @@ void stream::shutdown(int how)
 
 void stream::close(error_code& ec)
 {
-  state.close(ec);
+  state->close(ec);
 }
 
 void stream::close()
 {
   error_code ec;
-  state.close(ec);
+  state->close(ec);
   if (ec) {
     throw system_error(ec);
   }
@@ -106,13 +112,10 @@ void stream::close()
 
 namespace h3 {
 
-stream::stream(client_connection& c) : quic::stream(c.state) {}
-stream::stream(server_connection& c) : quic::stream(c.state) {}
-
 void stream::read_headers(fields& f, error_code& ec)
 {
   auto op = quic::detail::stream_header_read_sync{f};
-  state.read_headers(op);
+  state->read_headers(op);
   ec = *op.ec;
 }
 void stream::read_headers(fields& f)
@@ -127,7 +130,7 @@ void stream::read_headers(fields& f)
 void stream::write_headers(const fields& f, error_code& ec)
 {
   auto op = quic::detail::stream_header_write_sync{f};
-  state.write_headers(op);
+  state->write_headers(op);
   ec = *op.ec;
 }
 void stream::write_headers(const fields& f)
