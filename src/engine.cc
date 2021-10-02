@@ -476,7 +476,7 @@ void engine_state::stream_shutdown(stream_state& sstate,
     ec.assign(errno, system_category());
     return;
   }
-  auto ecanceled = make_error_code(error::operation_aborted);
+  auto ecanceled = make_error_code(error::stream_aborted);
   if (shutdown_read) {
     stream_cancel_read(sstate, ecanceled);
   }

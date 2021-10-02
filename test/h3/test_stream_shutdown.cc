@@ -1,8 +1,6 @@
 #include <nexus/h3/server.hpp>
 #include <gtest/gtest.h>
 #include <optional>
-#include <lsquic.h>
-#include <openssl/ssl.h>
 #include <nexus/h3/client.hpp>
 #include <nexus/h3/stream.hpp>
 #include <nexus/global_init.hpp>
@@ -20,24 +18,6 @@ auto capture(std::optional<error_code>& ec) {
 }
 
 } // anonymous namespace
-
-// shutdown for 0, 1, or 2
-// 
-// shutdown before operation
-// shutdown during pending operation
-// remote shutdown before operation
-// remote shutdown during pending operation
-//
-// read_some
-// write_some
-// read_headers
-// write_headers
-// flush
-// shutdown
-// close
-
-// shutdown for read after read_some -> EBADF
-// shutdown for write after read_some -> ok
 
 class Stream : public testing::Test {
  public:
@@ -126,7 +106,7 @@ TEST_F(Stream, shutdown_pending_read_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(read_headers_ec);
-  EXPECT_EQ(errc::bad_file_descriptor, *read_headers_ec);
+  EXPECT_EQ(quic::error::stream_aborted, *read_headers_ec);
 }
 
 TEST_F(Stream, remote_shutdown_pending_read_headers)
@@ -179,7 +159,7 @@ TEST_F(Stream, remote_shutdown_before_read_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(read_headers_ec);
-  EXPECT_EQ(errc::bad_file_descriptor, *read_headers_ec);
+  EXPECT_EQ(quic::error::stream_reset, *read_headers_ec);
 }
 
 TEST_F(Stream, shutdown_pending_read)
@@ -197,7 +177,7 @@ TEST_F(Stream, shutdown_pending_read)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_read_ec);
-  EXPECT_EQ(errc::bad_file_descriptor, *cstream_read_ec);
+  EXPECT_EQ(quic::error::stream_aborted, *cstream_read_ec);
 }
 
 TEST_F(Stream, shutdown_before_read)
@@ -234,7 +214,7 @@ TEST_F(Stream, shutdown_pending_write)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_write_ec);
-  EXPECT_EQ(errc::bad_file_descriptor, *cstream_write_ec);
+  EXPECT_EQ(quic::error::stream_aborted, *cstream_write_ec);
 }
 
 TEST_F(Stream, shutdown_before_write)
