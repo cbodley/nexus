@@ -23,9 +23,16 @@ class client {
   /// construct the client, taking ownership of a bound UDP socket
   client(udp::socket&& socket, asio::ssl::context& ctx); // TODO: noexcept
 
+  /// construct the client, taking ownership of a bound UDP socket
+  client(udp::socket&& socket, asio::ssl::context& ctx, const settings& s); // TODO: noexcept
+
   /// construct the client and bind a UDP socket to the given endpoint
   client(const executor_type& ex, const udp::endpoint& endpoint,
          asio::ssl::context& ctx);
+
+  /// construct the client and bind a UDP socket to the given endpoint
+  client(const executor_type& ex, const udp::endpoint& endpoint,
+         asio::ssl::context& ctx, const settings& s);
 
   /// return the associated io executor
   executor_type get_executor() const;

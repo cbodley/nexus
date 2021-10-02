@@ -6,17 +6,31 @@
 namespace nexus {
 namespace quic {
 
-client::client(const executor_type& ex,
-               const udp::endpoint& endpoint,
+client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, 0),
+    : state(ex, nullptr, 0),
+      socket(state, endpoint, false, ctx)
+{
+  socket.listen(0);
+}
+
+client::client(const executor_type& ex, const udp::endpoint& endpoint,
+               asio::ssl::context& ctx, const settings& s)
+    : state(ex, &s, 0),
       socket(state, endpoint, false, ctx)
 {
   socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), 0),
+    : state(socket.get_executor(), nullptr, 0),
+      socket(state, std::move(socket), ctx)
+{
+  this->socket.listen(0);
+}
+
+client::client(udp::socket&& socket, asio::ssl::context& ctx, const settings& s)
+    : state(socket.get_executor(), &s, 0),
       socket(state, std::move(socket), ctx)
 {
   this->socket.listen(0);
@@ -51,14 +65,30 @@ namespace h3 {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, LSENG_HTTP),
+    : state(ex, nullptr, LSENG_HTTP),
+      socket(state, endpoint, false, ctx)
+{
+  socket.listen(0);
+}
+
+client::client(const executor_type& ex, const udp::endpoint& endpoint,
+               asio::ssl::context& ctx, const quic::settings& s)
+    : state(ex, &s, LSENG_HTTP),
       socket(state, endpoint, false, ctx)
 {
   socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), LSENG_HTTP),
+    : state(socket.get_executor(), nullptr, LSENG_HTTP),
+      socket(state, std::move(socket), ctx)
+{
+  this->socket.listen(0);
+}
+
+client::client(udp::socket&& socket, asio::ssl::context& ctx,
+               const quic::settings& s)
+    : state(socket.get_executor(), &s, LSENG_HTTP),
       socket(state, std::move(socket), ctx)
 {
   this->socket.listen(0);

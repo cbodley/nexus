@@ -66,6 +66,8 @@ void engine_state::accept(connection_state& cstate, accept_operation& op)
     cstate.handle = cstate.socket.incoming_connections.front();
     cstate.socket.incoming_connections.pop_front();
     cstate.socket.connected.push_back(cstate);
+    auto ctx = reinterpret_cast<lsquic_conn_ctx_t*>(&cstate);
+    ::lsquic_conn_set_ctx(cstate.handle, ctx);
     op.post(error_code{}); // success
     return;
   }
@@ -139,6 +141,7 @@ void engine_state::cancel(connection_state& cstate, error_code ec)
     auto sstate = stream_ptr{&cstate.incoming_streams.front()};
     cstate.incoming_streams.pop_front();
     ::lsquic_stream_close(sstate->handle);
+    sstate->handle = nullptr;
   }
   // cancel pending stream connect/accept
   while (!cstate.connecting_streams.empty()) {
@@ -147,7 +150,7 @@ void engine_state::cancel(connection_state& cstate, error_code ec)
     assert(!sstate.handle);
     assert(sstate.connect_);
     auto op = std::exchange(sstate.connect_, nullptr);
-    op->defer(ec); // don't access sstate after this, op may hold last ref
+    op->defer(ec);
   }
   while (!cstate.accepting_streams.empty()) {
     auto& sstate = cstate.accepting_streams.front();
@@ -155,13 +158,14 @@ void engine_state::cancel(connection_state& cstate, error_code ec)
     assert(!sstate.handle);
     assert(sstate.accept_);
     auto op = std::exchange(sstate.accept_, nullptr);
-    op->defer(ec); // don't access sstate after this, op may hold last ref
+    op->defer(ec);
   }
   // close connected streams
   while (!cstate.connected_streams.empty()) {
     auto& sstate = cstate.connected_streams.front();
     cstate.connected_streams.pop_front();
 
+    assert(sstate.handle);
     ::lsquic_stream_close(sstate.handle);
     sstate.handle = nullptr;
 
@@ -269,6 +273,7 @@ stream_state* engine_state::on_stream_accept(connection_state& cstate,
     // not waiting on accept, queue this for later
     auto sstate = std::make_unique<stream_state>(cstate);
     cstate.incoming_streams.push_back(*sstate);
+    sstate->handle = stream;
     return sstate.release();
   }
   auto& sstate = cstate.accepting_streams.front();
@@ -521,11 +526,15 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
     return;
   }
   ::lsquic_stream_close(sstate.handle);
+  sstate.handle = nullptr;
+
+  assert(sstate.is_linked());
+  auto& connected = sstate.conn.connected_streams;
+  connected.erase(connected.iterator_to(sstate));
 
   stream_cancel_read(sstate, ecanceled);
   stream_cancel_write(sstate, ecanceled);
   process(lock);
-  assert(!sstate.handle); // on_stream_close() was called by process()
 }
 
 void engine_state::stream_cancel_read(stream_state& sstate, error_code ec)
@@ -558,7 +567,6 @@ void engine_state::on_stream_close(stream_state& sstate)
     return; // already closed
   }
   sstate.handle = nullptr;
-  assert(!sstate.connect_);
 
   assert(sstate.is_linked());
   auto& connected = sstate.conn.connected_streams;
@@ -857,12 +865,10 @@ ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
   return socket.ssl.native_handle();
 }
 
-engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags)
+engine_state::engine_state(const asio::any_io_executor& ex,
+                           const settings* s, unsigned flags)
   : ex(ex), timer(ex), is_server(flags & LSENG_SERVER)
 {
-  lsquic_engine_settings settings;
-  ::lsquic_engine_init_settings(&settings, flags);
-
   lsquic_engine_api api = {};
   api.ea_packets_out = api_send_packets;
   api.ea_packets_out_ctx = this;
@@ -875,7 +881,20 @@ engine_state::engine_state(const asio::any_io_executor& ex, unsigned flags)
     api.ea_hsi_if = &header_api;
     api.ea_hsi_ctx = this;
   }
-  api.ea_settings = &settings;
+
+  // apply and validate the settings
+  lsquic_engine_settings es;
+  ::lsquic_engine_init_settings(&es, flags);
+  if (s) {
+    write_settings(*s, es);
+  }
+  char errbuf[256];
+  int r = ::lsquic_engine_check_settings(&es, flags, errbuf, sizeof(errbuf));
+  if (r == -1) {
+    throw bad_setting(errbuf);
+  }
+  api.ea_settings = &es;
+
   handle.reset(::lsquic_engine_new(flags, &api));
 }
 

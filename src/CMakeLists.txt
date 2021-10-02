@@ -5,6 +5,7 @@ set(nexus-srcs
 	error.cc
 	global.cc
 	server.cc
+	settings.cc
 	socket.cc
 	stream.cc)
 

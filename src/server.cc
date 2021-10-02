@@ -8,7 +8,11 @@ namespace nexus {
 namespace quic {
 
 server::server(const executor_type& ex)
-    : state(ex, LSENG_SERVER)
+    : state(ex, nullptr, LSENG_SERVER)
+{}
+
+server::server(const executor_type& ex, const settings& s)
+    : state(ex, &s, LSENG_SERVER)
 {}
 
 server::executor_type server::get_executor() const
@@ -66,7 +70,11 @@ void acceptor::close()
 namespace h3 {
 
 server::server(const executor_type& ex)
-    : state(ex, LSENG_SERVER | LSENG_HTTP)
+    : state(ex, nullptr, LSENG_SERVER | LSENG_HTTP)
+{}
+
+server::server(const executor_type& ex, const quic::settings& s)
+    : state(ex, &s, LSENG_SERVER | LSENG_HTTP)
 {}
 
 server::executor_type server::get_executor() const

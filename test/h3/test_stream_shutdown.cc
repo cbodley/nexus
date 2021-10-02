@@ -4,6 +4,7 @@
 #include <nexus/h3/client.hpp>
 #include <nexus/h3/stream.hpp>
 #include <nexus/global_init.hpp>
+#include <lsquic.h>
 
 #include "certificate.hpp"
 
@@ -22,6 +23,15 @@ auto capture(std::optional<error_code>& ec) {
 class Stream : public testing::Test {
  public:
   static constexpr const char* alpn = "\02h3";
+
+  static quic::settings server_settings()
+  {
+    auto settings = quic::default_server_settings();
+    settings.max_streams_per_connection = 2;
+    settings.connection_flow_control_window = LSQUIC_MIN_FCW;
+    settings.incoming_stream_flow_control_window = LSQUIC_MIN_FCW;
+    return settings;
+  }
 
   asio::io_context context;
   global::context global;
@@ -43,7 +53,7 @@ class Stream : public testing::Test {
       : global(global::init_client_server()),
         ssl(test::init_server_context(alpn)),
         sslc(test::init_client_context(alpn)),
-        server(context.get_executor()),
+        server(context.get_executor(), server_settings()),
         localhost(asio::ip::make_address("127.0.0.1")),
         acceptor(server, udp::endpoint{localhost, 0}, ssl),
         sconn(acceptor),
@@ -53,8 +63,15 @@ class Stream : public testing::Test {
 
   void SetUp() override
   {
-    //global.log_to_stderr("debug");
     acceptor.listen(16);
+
+    std::optional<error_code> cstream_connect_ec;
+    cconn.async_connect(cstream, capture(cstream_connect_ec));
+
+    context.poll();
+    ASSERT_FALSE(context.stopped());
+    ASSERT_TRUE(cstream_connect_ec);
+    EXPECT_EQ(ok, *cstream_connect_ec);
 
     std::optional<error_code> accept_ec;
     acceptor.async_accept(sconn, capture(accept_ec));
@@ -66,14 +83,6 @@ class Stream : public testing::Test {
 
     std::optional<error_code> sstream_accept_ec;
     sconn.async_accept(sstream, capture(sstream_accept_ec));
-
-    std::optional<error_code> cstream_connect_ec;
-    cconn.async_connect(cstream, capture(cstream_connect_ec));
-
-    context.poll();
-    ASSERT_FALSE(context.stopped());
-    ASSERT_TRUE(cstream_connect_ec);
-    EXPECT_EQ(ok, *cstream_connect_ec);
 
     // the server won't see this stream until we write a packet for it
     std::optional<error_code> cstream_write_headers_ec;
@@ -199,22 +208,27 @@ TEST_F(Stream, shutdown_before_read)
 
 TEST_F(Stream, shutdown_pending_write)
 {
-  const auto data = std::array<char, 65536>{};
-  std::optional<error_code> cstream_write_ec;
-  // async_write_some() won't block as long as the stream is writeable. keep
-  // writing until we fill the flow control window and block
-  do {
-    cstream_write_ec = std::nullopt;
-    cstream.async_write_some(asio::buffer(data), capture(cstream_write_ec));
-    context.poll();
-    ASSERT_FALSE(context.stopped());
-  } while (cstream_write_ec);
+  // async_write_some() won't block as long as the stream is writeable. fill
+  // the flow control window to make the second call block
+  const auto data = std::array<char, LSQUIC_MIN_FCW>{};
+  std::optional<error_code> cstream_write1_ec;
+  cstream.async_write_some(asio::buffer(data), capture(cstream_write1_ec));
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(cstream_write1_ec);
+  EXPECT_EQ(ok, *cstream_write1_ec);
+
+  std::optional<error_code> cstream_write2_ec;
+  cstream.async_write_some(asio::buffer(data), capture(cstream_write2_ec));
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  EXPECT_FALSE(cstream_write2_ec);
 
   cstream.shutdown(1);
   context.poll();
   ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(cstream_write_ec);
-  EXPECT_EQ(quic::error::stream_aborted, *cstream_write_ec);
+  ASSERT_TRUE(cstream_write2_ec);
+  EXPECT_EQ(quic::error::stream_aborted, *cstream_write2_ec);
 }
 
 TEST_F(Stream, shutdown_before_write)
@@ -229,6 +243,95 @@ TEST_F(Stream, shutdown_before_write)
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_write_ec);
   EXPECT_EQ(errc::bad_file_descriptor, *cstream_write_ec);
+}
+
+TEST_F(Stream, shutdown_pending_write_headers)
+{
+  // use cstream to fill the connection's write window
+  const auto data = std::array<char, LSQUIC_MIN_FCW>{};
+  std::optional<error_code> cstream_write_ec;
+  cstream.async_write_some(asio::buffer(data), capture(cstream_write_ec));
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(cstream_write_ec);
+  EXPECT_EQ(ok, *cstream_write_ec);
+
+  auto cstream2 = h3::stream{};
+  std::optional<error_code> cstream2_connect_ec;
+  cconn.async_connect(cstream2, capture(cstream2_connect_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(cstream2_connect_ec);
+  EXPECT_EQ(ok, cstream2_connect_ec);
+
+  auto fields = h3::fields{};
+  std::optional<error_code> write_headers_ec;
+  cstream2.async_write_headers(fields, capture(write_headers_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_FALSE(write_headers_ec);
+
+  cstream2.shutdown(1);
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(write_headers_ec);
+  EXPECT_EQ(quic::error::stream_aborted, *write_headers_ec);
+}
+
+TEST_F(Stream, remote_shutdown_pending_write_headers)
+{
+  auto fields = h3::fields{};
+  std::optional<error_code> write_headers_ec;
+  cstream.async_write_headers(fields, capture(write_headers_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_FALSE(write_headers_ec);
+
+  sstream.shutdown(1);
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(write_headers_ec);
+  EXPECT_EQ(quic::error::stream_reset, *write_headers_ec);
+}
+
+TEST_F(Stream, shutdown_before_write_headers)
+{
+  cstream.shutdown(0);
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+
+  auto fields = h3::fields{};
+  std::optional<error_code> write_headers_ec;
+  cstream.async_write_headers(fields, capture(write_headers_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(write_headers_ec);
+  EXPECT_EQ(errc::bad_file_descriptor, *write_headers_ec);
+}
+
+
+TEST_F(Stream, remote_shutdown_before_write_headers)
+{
+  sstream.shutdown(1);
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+
+  auto fields = h3::fields{};
+  std::optional<error_code> write_headers_ec;
+  cstream.async_write_headers(fields, capture(write_headers_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(write_headers_ec);
+  EXPECT_EQ(quic::error::stream_reset, *write_headers_ec);
 }
 
 TEST_F(Stream, shutdown_after_close)

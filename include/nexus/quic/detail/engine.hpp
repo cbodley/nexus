@@ -9,6 +9,7 @@
 
 #include <nexus/error_code.hpp>
 #include <nexus/udp.hpp>
+#include <nexus/quic/settings.hpp>
 #include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/socket.hpp>
 
@@ -17,8 +18,7 @@ struct lsquic_conn;
 struct lsquic_stream;
 struct lsquic_out_spec;
 
-namespace nexus {
-namespace quic::detail {
+namespace nexus::quic::detail {
 
 struct connection_state;
 struct stream_state;
@@ -42,7 +42,8 @@ class engine_state {
   void on_writeable(socket_state& socket);
 
  public:
-  engine_state(const asio::any_io_executor& ex, unsigned flags);
+  engine_state(const asio::any_io_executor& ex,
+               const settings* s, unsigned flags);
   ~engine_state();
 
   using executor_type = asio::any_io_executor;
@@ -105,5 +106,4 @@ class engine_state {
   int send_packets(const lsquic_out_spec *specs, unsigned n_specs);
 };
 
-} // namespace quic::detail
-} // namespace nexus
+} // namespace nexus::quic::detail
