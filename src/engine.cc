@@ -358,7 +358,7 @@ void engine_state::on_stream_read(stream_state& sstate)
     auto& op = *std::exchange(sstate.in.header, nullptr);
     auto hset = ::lsquic_stream_get_hset(sstate.handle);
     if (!hset) {
-      ec = make_error_code(error::stream_reset);
+      ec = make_error_code(error::end_of_stream);
     } else {
       auto headers = std::unique_ptr<recv_header_set>(
           reinterpret_cast<recv_header_set*>(hset)); // take ownership

@@ -133,7 +133,7 @@ TEST_F(Stream, remote_shutdown_pending_read_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(read_headers_ec);
-  EXPECT_EQ(quic::error::stream_reset, *read_headers_ec);
+  EXPECT_EQ(quic::error::end_of_stream, *read_headers_ec);
 }
 
 TEST_F(Stream, shutdown_before_read_headers)
@@ -153,22 +153,30 @@ TEST_F(Stream, shutdown_before_read_headers)
   EXPECT_EQ(errc::bad_file_descriptor, *read_headers_ec);
 }
 
-
 TEST_F(Stream, remote_shutdown_before_read_headers)
 {
-  sstream.shutdown(1);
+  auto f1 = h3::fields{};
+  std::optional<error_code> read_headers1_ec;
+  sstream.async_read_headers(f1, capture(read_headers1_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(read_headers1_ec);
+  EXPECT_EQ(ok, *read_headers1_ec);
+
+  cstream.shutdown(1);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
 
-  auto fields = h3::fields{};
-  std::optional<error_code> read_headers_ec;
-  cstream.async_read_headers(fields, capture(read_headers_ec));
+  auto f2 = h3::fields{};
+  std::optional<error_code> read_headers2_ec;
+  sstream.async_read_headers(f2, capture(read_headers2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(read_headers_ec);
-  EXPECT_EQ(quic::error::stream_reset, *read_headers_ec);
+  ASSERT_TRUE(read_headers2_ec);
+  EXPECT_EQ(quic::error::end_of_stream, *read_headers2_ec);
 }
 
 TEST_F(Stream, shutdown_pending_read)
@@ -256,6 +264,7 @@ TEST_F(Stream, shutdown_pending_write_headers)
   ASSERT_TRUE(cstream_write_ec);
   EXPECT_EQ(ok, *cstream_write_ec);
 
+  // open another stream to block on async_write_headers()
   auto cstream2 = h3::stream{};
   std::optional<error_code> cstream2_connect_ec;
   cconn.async_connect(cstream2, capture(cstream2_connect_ec));
@@ -281,27 +290,9 @@ TEST_F(Stream, shutdown_pending_write_headers)
   EXPECT_EQ(quic::error::stream_aborted, *write_headers_ec);
 }
 
-TEST_F(Stream, remote_shutdown_pending_write_headers)
-{
-  auto fields = h3::fields{};
-  std::optional<error_code> write_headers_ec;
-  cstream.async_write_headers(fields, capture(write_headers_ec));
-
-  context.poll();
-  ASSERT_FALSE(context.stopped());
-  ASSERT_FALSE(write_headers_ec);
-
-  sstream.shutdown(1);
-
-  context.poll();
-  ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(write_headers_ec);
-  EXPECT_EQ(quic::error::stream_reset, *write_headers_ec);
-}
-
 TEST_F(Stream, shutdown_before_write_headers)
 {
-  cstream.shutdown(0);
+  cstream.shutdown(1);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -316,22 +307,21 @@ TEST_F(Stream, shutdown_before_write_headers)
   EXPECT_EQ(errc::bad_file_descriptor, *write_headers_ec);
 }
 
-
 TEST_F(Stream, remote_shutdown_before_write_headers)
 {
-  sstream.shutdown(1);
+  cstream.shutdown(0);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
 
   auto fields = h3::fields{};
   std::optional<error_code> write_headers_ec;
-  cstream.async_write_headers(fields, capture(write_headers_ec));
+  sstream.async_write_headers(fields, capture(write_headers_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(write_headers_ec);
-  EXPECT_EQ(quic::error::stream_reset, *write_headers_ec);
+  EXPECT_EQ(ok, *write_headers_ec);
 }
 
 TEST_F(Stream, shutdown_after_close)
