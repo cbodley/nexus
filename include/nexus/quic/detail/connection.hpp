@@ -14,6 +14,10 @@ struct socket_state;
 
 struct connection_state : public boost::intrusive::list_base_hook<> {
   socket_state& socket;
+  // make sure that connection errors get delivered to the application. if we
+  // see a fatal connection error while there are no pending operations we can
+  // deliver the error to, save it here and deliver it to the next operation
+  error_code err;
   lsquic_conn* handle = nullptr;
   accept_operation* accept_ = nullptr;
 

@@ -33,6 +33,9 @@ inline error_condition make_error_condition(error e)
   return {static_cast<int>(e), quic_category()};
 }
 
+/// application-level error category
+const error_category& application_category();
+
 } // namespace nexus::quic
 
 namespace SYSTEM_ERROR_NAMESPACE {

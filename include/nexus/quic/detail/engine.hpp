@@ -63,6 +63,7 @@ class engine_state {
                const udp::endpoint& endpoint,
                const char* hostname);
   void on_connect(connection_state& cstate, lsquic_conn* conn);
+  void on_handshake(connection_state& cstate, int status);
 
   void accept(connection_state& cstate, accept_operation& op);
   connection_state* on_accept(lsquic_conn* conn);
@@ -70,7 +71,10 @@ class engine_state {
   void close(connection_state& cstate, error_code& ec);
   void on_close(connection_state& cstate, lsquic_conn* conn);
 
-  void cancel(connection_state& cstate, error_code ec);
+  void on_conncloseframe(connection_state& cstate,
+                         int app_error, uint64_t code);
+
+  int cancel(connection_state& cstate, error_code ec);
 
   void stream_connect(connection_state& cstate,
                       stream_connect_operation& op);
@@ -94,8 +98,8 @@ class engine_state {
                             stream_header_write_operation& op);
   void on_stream_write(stream_state& sstate);
 
-  void stream_cancel_read(stream_state& sstate, error_code ec);
-  void stream_cancel_write(stream_state& sstate, error_code ec);
+  int stream_cancel_read(stream_state& sstate, error_code ec);
+  int stream_cancel_write(stream_state& sstate, error_code ec);
 
   void stream_flush(stream_state& sstate, error_code& ec);
   void stream_shutdown(stream_state& sstate, int how, error_code& ec);

@@ -1,3 +1,6 @@
+add_unit_test(test_quic_handshake test_handshake.cc)
+target_link_libraries(test_quic_handshake test_base nexus)
+
 add_unit_test(test_quic_server_accept test_server_accept.cc)
 target_link_libraries(test_quic_server_accept test_base nexus)
 
