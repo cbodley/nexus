@@ -1,18 +1,17 @@
 # TODO
 
-## Error Handling
-
-* on connection error, fail pending stream operations too
-* error_condition for connection errors so callers can tell whether an error is fatal to the connection
-
 ## QUIC
 
-* add interfaces to interact with flow control, stream limits, etc
 * stream prioritization
+* session resumption
 * push promises
 * unidirectional streams?
-* session resumption
 * connection migration
+
+## UDP
+
+* send packets with IP_PKTINFO
+* use sendmmsg()/recvmmsg() to reduce the number of system calls
 
 ## Async
 
