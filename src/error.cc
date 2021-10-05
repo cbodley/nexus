@@ -39,6 +39,27 @@ const error_category& quic_category()
           return "unknown";
       }
     }
+
+    std::error_condition default_error_condition(int code) const noexcept override {
+      switch (static_cast<error>(code)) {
+        case error::connection_aborted:
+        case error::stream_aborted:
+          return errc::connection_aborted;
+
+        case error::connection_timed_out:
+          return errc::timed_out;
+
+        case error::connection_reset:
+        case error::stream_reset:
+          return errc::connection_reset;
+
+        case error::stream_busy:
+          return errc::device_or_resource_busy;
+
+        default:
+          return {code, category()};
+      }
+    }
   };
   static category instance;
   return instance;
