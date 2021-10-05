@@ -115,7 +115,7 @@ TEST_F(Stream, shutdown_pending_read_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(read_headers_ec);
-  EXPECT_EQ(quic::error::stream_aborted, *read_headers_ec);
+  EXPECT_EQ(quic::stream_error::aborted, *read_headers_ec);
 }
 
 TEST_F(Stream, remote_shutdown_pending_read_headers)
@@ -133,7 +133,7 @@ TEST_F(Stream, remote_shutdown_pending_read_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(read_headers_ec);
-  EXPECT_EQ(quic::error::end_of_stream, *read_headers_ec);
+  EXPECT_EQ(quic::stream_error::eof, *read_headers_ec);
 }
 
 TEST_F(Stream, shutdown_before_read_headers)
@@ -176,7 +176,7 @@ TEST_F(Stream, remote_shutdown_before_read_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(read_headers2_ec);
-  EXPECT_EQ(quic::error::end_of_stream, *read_headers2_ec);
+  EXPECT_EQ(quic::stream_error::eof, *read_headers2_ec);
 }
 
 TEST_F(Stream, shutdown_pending_read)
@@ -194,7 +194,7 @@ TEST_F(Stream, shutdown_pending_read)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_read_ec);
-  EXPECT_EQ(quic::error::stream_aborted, *cstream_read_ec);
+  EXPECT_EQ(quic::stream_error::aborted, *cstream_read_ec);
 }
 
 TEST_F(Stream, shutdown_before_read)
@@ -236,7 +236,7 @@ TEST_F(Stream, shutdown_pending_write)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_write2_ec);
-  EXPECT_EQ(quic::error::stream_aborted, *cstream_write2_ec);
+  EXPECT_EQ(quic::stream_error::aborted, *cstream_write2_ec);
 }
 
 TEST_F(Stream, shutdown_before_write)
@@ -287,7 +287,7 @@ TEST_F(Stream, shutdown_pending_write_headers)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(write_headers_ec);
-  EXPECT_EQ(quic::error::stream_aborted, *write_headers_ec);
+  EXPECT_EQ(quic::stream_error::aborted, *write_headers_ec);
 }
 
 TEST_F(Stream, shutdown_before_write_headers)

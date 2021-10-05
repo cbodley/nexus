@@ -8,8 +8,6 @@
 #include <nexus/quic/detail/socket.hpp>
 #include <nexus/quic/detail/stream.hpp>
 #include <nexus/quic/socket.hpp>
-#include <nexus/quic/transport_error.hpp>
-#include <nexus/quic/tls_error.hpp>
 
 namespace nexus::quic::detail {
 
@@ -67,7 +65,7 @@ void engine_state::on_handshake(connection_state& cstate, int s)
     case LSQ_HSK_FAIL:
     case LSQ_HSK_RESUMED_FAIL:
       if (!cstate.err) {
-        cstate.err = make_error_code(error::connection_handshake_failed);
+        cstate.err = make_error_code(connection_error::handshake_failed);
       }
       break;
   }
@@ -132,7 +130,7 @@ void engine_state::close(connection_state& cstate, error_code& ec)
     return;
   }
 
-  cancel(cstate, make_error_code(error::connection_aborted));
+  cancel(cstate, make_error_code(connection_error::aborted));
 
   ::lsquic_conn_close(cstate.handle);
   cstate.handle = nullptr;
@@ -213,22 +211,22 @@ void engine_state::on_close(connection_state& cstate, lsquic_conn_t* conn)
     switch (status) {
       case LSCONN_ST_VERNEG_FAILURE:
       case LSCONN_ST_HSK_FAILURE:
-        ec = make_error_code(error::connection_handshake_failed);
+        ec = make_error_code(connection_error::handshake_failed);
         break;
       case LSCONN_ST_TIMED_OUT:
-        ec = make_error_code(error::connection_timed_out);
+        ec = make_error_code(connection_error::timed_out);
         break;
       case LSCONN_ST_PEER_GOING_AWAY:
-        ec = make_error_code(error::connection_going_away);
+        ec = make_error_code(connection_error::going_away);
         break;
       case LSCONN_ST_USER_ABORTED:
       case LSCONN_ST_CLOSED:
-        ec = make_error_code(error::connection_aborted);
+        ec = make_error_code(connection_error::aborted);
         break;
       case LSCONN_ST_ERROR:
       case LSCONN_ST_RESET:
       default:
-        ec = make_error_code(error::connection_reset);
+        ec = make_error_code(connection_error::reset);
         break;
     }
   }
@@ -245,7 +243,7 @@ void engine_state::on_conncloseframe(connection_state& cstate,
 {
   error_code ec;
   if (app_error == -1) {
-    ec = make_error_code(error::connection_reset);
+    ec = make_error_code(connection_error::reset);
   } else if (app_error) {
     ec.assign(code, application_category());
   } else if ((code & 0xffff'ffff'ffff'ff00) == 0x0100) {
@@ -370,7 +368,7 @@ void engine_state::stream_read(stream_state& sstate, stream_data_operation& op)
     return;
   }
   if (sstate.in.header || sstate.in.data) { // no concurrent reads
-    op.post(make_error_code(error::stream_busy));
+    op.post(make_error_code(stream_error::busy));
     return;
   }
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
@@ -395,7 +393,7 @@ void engine_state::stream_read_headers(stream_state& sstate,
     return;
   }
   if (sstate.in.header || sstate.in.data) { // no concurrent reads
-    op.post(make_error_code(error::stream_busy));
+    op.post(make_error_code(stream_error::busy));
     return;
   }
   if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
@@ -423,7 +421,7 @@ void engine_state::on_stream_read(stream_state& sstate)
     auto& op = *std::exchange(sstate.in.header, nullptr);
     auto hset = ::lsquic_stream_get_hset(sstate.handle);
     if (!hset) {
-      ec = make_error_code(error::end_of_stream);
+      ec = make_error_code(stream_error::eof);
     } else {
       auto headers = std::unique_ptr<recv_header_set>(
           reinterpret_cast<recv_header_set*>(hset)); // take ownership
@@ -437,7 +435,7 @@ void engine_state::on_stream_read(stream_state& sstate)
       bytes = 0;
       ec.assign(errno, system_category());
     } else if (bytes == 0) {
-      ec = make_error_code(error::end_of_stream);
+      ec = make_error_code(stream_error::eof);
     }
     op.defer(ec, bytes);
   }
@@ -456,7 +454,7 @@ void engine_state::stream_write(stream_state& sstate, stream_data_operation& op)
     return;
   }
   if (sstate.out.header || sstate.out.data) { // no concurrent writes
-    op.post(make_error_code(error::stream_busy));
+    op.post(make_error_code(stream_error::busy));
     return;
   }
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
@@ -481,7 +479,7 @@ void engine_state::stream_write_headers(stream_state& sstate,
     return;
   }
   if (sstate.out.header || sstate.out.data) { // no concurrent writes
-    op.post(make_error_code(error::stream_busy));
+    op.post(make_error_code(stream_error::busy));
     return;
   }
   if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
@@ -574,7 +572,7 @@ void engine_state::stream_shutdown(stream_state& sstate,
     ec.assign(errno, system_category());
     return;
   }
-  auto ecanceled = make_error_code(error::stream_aborted);
+  auto ecanceled = make_error_code(stream_error::aborted);
   if (shutdown_read) {
     stream_cancel_read(sstate, ecanceled);
   }
@@ -589,7 +587,7 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   auto lock = std::unique_lock{mutex};
   // cancel other stream requests here. otherwise on_stream_close() would
   // fail them with stream_reset
-  auto ecanceled = make_error_code(error::stream_aborted);
+  auto ecanceled = make_error_code(stream_error::aborted);
   if (sstate.accept_) {
     sstate.accept_->defer(ecanceled);
     sstate.accept_ = nullptr;
@@ -661,7 +659,7 @@ void engine_state::on_stream_close(stream_state& sstate)
   auto& connected = sstate.conn.connected_streams;
   connected.erase(connected.iterator_to(sstate));
 
-  const auto ec = make_error_code(error::stream_reset);
+  const auto ec = make_error_code(stream_error::reset);
   stream_cancel_read(sstate, ec);
   stream_cancel_write(sstate, ec);
 }
@@ -689,7 +687,7 @@ void engine_state::close(socket_state& socket)
     socket.incoming_connections.pop_front();
     ::lsquic_conn_close(conn);
   }
-  const auto ecanceled = make_error_code(error::connection_aborted);
+  const auto ecanceled = make_error_code(connection_error::aborted);
   // close connections on this socket
   while (!socket.connected.empty()) {
     auto& cstate = socket.connected.front();

@@ -4,7 +4,6 @@
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/connection.hpp>
 #include <nexus/quic/stream.hpp>
-#include <nexus/quic/tls_error.hpp>
 #include <nexus/global_init.hpp>
 
 #include "certificate.hpp"
@@ -206,22 +205,22 @@ class BadVerifyServer : public testing::Test {
 
 TEST_F(BadVerifyServer, stream_connect_during_handshake)
 {
-  auto expected = make_error_code(quic::error::connection_handshake_failed);
+  auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_connect_during_handshake(context, cconn, expected);
 }
 TEST_F(BadVerifyServer, stream_connect_after_handshake)
 {
-  auto expected = make_error_code(quic::error::connection_handshake_failed);
+  auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_connect_after_handshake(context, cconn, expected);
 }
 TEST_F(BadVerifyServer, stream_accept_during_handshake)
 {
-  auto expected = make_error_code(quic::error::connection_handshake_failed);
+  auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_accept_during_handshake(context, cconn, expected);
 }
 TEST_F(BadVerifyServer, stream_accept_after_handshake)
 {
-  auto expected = make_error_code(quic::error::connection_handshake_failed);
+  auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_accept_after_handshake(context, cconn, expected);
 }
 

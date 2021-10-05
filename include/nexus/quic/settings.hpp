@@ -14,10 +14,10 @@ struct bad_setting : std::runtime_error {
 
 /// quic transport settings used to initialize a client or server
 struct settings {
-  /// handshake timeout, resulting in error::connection_timed_out
+  /// handshake timeout, resulting in connection_error::timed_out
   std::chrono::seconds handshake_timeout;
 
-  /// connection idle timeout, resulting in error::connection_timed_out
+  /// connection idle timeout, resulting in connection_error::timed_out
   std::chrono::seconds idle_timeout;
 
   /// number of concurrent streams a peer is allowed to open per connection

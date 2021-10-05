@@ -17,7 +17,7 @@ static void read_print_stream(nexus::h3::stream& stream,
 {
   stream.async_read_some(asio::buffer(buffer), [&] (error_code ec, size_t bytes) {
         if (ec) {
-          if (ec != nexus::quic::error::end_of_stream) {
+          if (ec != nexus::quic::stream_error::eof) {
             std::cerr << "async_read_some failed: " << ec.message() << std::endl;
           }
           client.close();

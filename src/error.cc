@@ -1,39 +1,72 @@
 #include <nexus/quic/error.hpp>
-#include <nexus/quic/transport_error.hpp>
 #include <nexus/h3/error.hpp>
 #include <openssl/ssl.h>
 
 namespace nexus {
 namespace quic {
 
-const error_category& quic_category()
+const error_category& connection_category()
 {
   struct category : public error_category {
     const char* name() const noexcept override {
-      return "nexus::quic";
+      return "nexus::quic::connection";
     }
 
     std::string message(int ev) const override {
-      switch (static_cast<error>(ev)) {
-        case error::connection_aborted:
+      switch (static_cast<connection_error>(ev)) {
+        case connection_error::aborted:
           return "connection aborted";
-        case error::connection_handshake_failed:
+        case connection_error::handshake_failed:
           return "connection handshake failed";
-        case error::connection_timed_out:
+        case connection_error::timed_out:
           return "connection timed out";
-        case error::connection_reset:
+        case connection_error::reset:
           return "connection reset by peer";
-        case error::connection_going_away:
+        case connection_error::going_away:
           return "connection is going away";
-        case error::peer_going_away:
+        case connection_error::peer_going_away:
           return "peer is going away";
-        case error::end_of_stream:
+        default:
+          return "unknown";
+      }
+    }
+
+    std::error_condition default_error_condition(int code) const noexcept override {
+      switch (static_cast<connection_error>(code)) {
+        case connection_error::aborted:
+          return errc::connection_aborted;
+
+        case connection_error::timed_out:
+          return errc::timed_out;
+
+        case connection_error::reset:
+          return errc::connection_reset;
+
+        default:
+          return {code, category()};
+      }
+    }
+  };
+  static category instance;
+  return instance;
+}
+
+const error_category& stream_category()
+{
+  struct category : public error_category {
+    const char* name() const noexcept override {
+      return "nexus::quic::stream";
+    }
+
+    std::string message(int ev) const override {
+      switch (static_cast<stream_error>(ev)) {
+        case stream_error::eof:
           return "end of stream";
-        case error::stream_busy:
+        case stream_error::busy:
           return "stream busy";
-        case error::stream_aborted:
+        case stream_error::aborted:
           return "stream aborted";
-        case error::stream_reset:
+        case stream_error::reset:
           return "stream reset by peer";
         default:
           return "unknown";
@@ -41,20 +74,15 @@ const error_category& quic_category()
     }
 
     std::error_condition default_error_condition(int code) const noexcept override {
-      switch (static_cast<error>(code)) {
-        case error::connection_aborted:
-        case error::stream_aborted:
+      switch (static_cast<stream_error>(code)) {
+        case stream_error::busy:
+          return errc::device_or_resource_busy;
+
+        case stream_error::aborted:
           return errc::connection_aborted;
 
-        case error::connection_timed_out:
-          return errc::timed_out;
-
-        case error::connection_reset:
-        case error::stream_reset:
+        case stream_error::reset:
           return errc::connection_reset;
-
-        case error::stream_busy:
-          return errc::device_or_resource_busy;
 
         default:
           return {code, category()};
@@ -71,7 +99,6 @@ const error_category& application_category()
     const char* name() const noexcept override {
       return "nexus::quic::application";
     }
-
     std::string message(int ev) const override {
       return "unknown";
     }
@@ -138,7 +165,6 @@ const error_category& tls_category()
     const char* name() const noexcept override {
       return "nexus::quic::tls";
     }
-
     std::string message(int ev) const override {
       return ::SSL_alert_desc_string_long(ev);
     }
