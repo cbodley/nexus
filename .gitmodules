@@ -10,3 +10,7 @@
 [submodule "dependency/asio"]
 	path = dependency/asio
 	url = https://github.com/chriskohlhoff/asio.git
+[submodule "docs"]
+	path = doc/html
+	url = git@github.com:cbodley/nexus.git
+	branch = githubpage
