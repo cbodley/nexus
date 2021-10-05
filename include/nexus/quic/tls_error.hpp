@@ -4,7 +4,7 @@
 
 namespace nexus::quic {
 
-// TLS alerts from https://www.rfc-editor.org/rfc/rfc8446#section-6
+/// tls alerts
 enum class tls_alert : uint8_t {
   close_notify = 0,
   unexpected_message = 10,

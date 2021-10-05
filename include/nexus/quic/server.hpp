@@ -70,8 +70,7 @@ class acceptor {
   /// accept an incoming connection whose TLS handshake has completed
   /// successfully
   void accept(connection& conn, error_code& ec);
-  /// accept an incoming connection whose TLS handshake has completed
-  /// successfully
+  /// \overload
   void accept(connection& conn);
 
   /// close the socket, along with any related connections

@@ -71,8 +71,7 @@ class acceptor {
   /// accept an incoming connection whose TLS handshake has completed
   /// successfully
   void accept(server_connection& conn, error_code& ec);
-  /// accept an incoming connection whose TLS handshake has completed
-  /// successfully
+  /// \overload
   void accept(server_connection& conn);
 
   /// close the socket, along with any related connections
@@ -108,14 +107,14 @@ class server_connection {
 
   /// accept an incoming stream
   void accept(stream& s, error_code& ec);
-  /// accept an incoming stream
+  /// \overload
   void accept(stream& s);
 
   // TODO: push stream
 
   /// close the connection, along with any related streams
   void close(error_code& ec);
-  /// close the connection, along with any related streams
+  /// \overload
   void close();
 };
 

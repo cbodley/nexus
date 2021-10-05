@@ -49,7 +49,7 @@ class client {
 
   /// close the socket, along with any related connections
   void close(error_code& ec);
-  /// close the socket, along with any related connections
+  /// \overload
   void close();
 };
 

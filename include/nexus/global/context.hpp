@@ -6,10 +6,7 @@
 
 namespace nexus::global {
 
-/// a context object representing the global initialization of the nexus
-/// QUIC/HTTP library, and its consequent global cleanup on destruction
 class context;
-
 
 namespace detail {
 
@@ -17,6 +14,8 @@ context init(int flags, error_code& ec);
 
 } // namespace detail
 
+/// a context object representing the global initialization of the nexus
+/// QUIC/HTTP library, and its consequent global cleanup on destruction
 class context {
   friend context detail::init(int flags, error_code& ec);
   using cleanup_fn = void (*)();

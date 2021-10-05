@@ -48,7 +48,7 @@ class client {
 
   /// close the socket, along with any related connections
   void close(error_code& ec);
-  /// close the socket, along with any related connections
+  /// \overload
   void close();
 };
 
@@ -88,12 +88,12 @@ class client_connection {
 
   /// open an outgoing stream
   void connect(stream& s, error_code& ec);
-  /// open an outgoing stream
+  /// \overload
   void connect(stream& s);
 
   /// close the connection, along with any related streams
   void close(error_code& ec);
-  /// close the connection, along with any related streams
+  /// \overload
   void close();
 };
 

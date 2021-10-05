@@ -2,12 +2,10 @@
 
 #include <nexus/error_code.hpp>
 
-namespace nexus {
+namespace nexus::global {
 
 /// global error category
 const error_category& global_category();
-
-namespace global {
 
 /// global error codes
 enum class error {
@@ -24,5 +22,4 @@ inline error_condition make_error_condition(error e)
   return {static_cast<int>(e), global_category()};
 }
 
-} // namespace global
-} // namespace nexus
+} // namespace nexus::global

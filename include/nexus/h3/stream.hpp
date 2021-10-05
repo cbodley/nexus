@@ -15,41 +15,26 @@ class stream : public quic::stream {
   friend class client_connection;
   friend class server_connection;
  public:
-  /// read headers from the stream. this must either be called before reading
-  /// body via read_some()/async_read_some(), or after reading returns an
-  /// end_of_stream error to read the optional trailer section
+  /// read headers from the stream
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_read_headers(fields& f, CompletionToken&& token) {
     return state->async_read_headers(f, std::forward<CompletionToken>(token));
   }
 
-  /// read headers from the stream. this must either be called before reading
-  /// body via read_some()/async_read_some(), or after reading returns an
-  /// end_of_stream error to read the optional trailer section
+  /// read headers from the stream
   void read_headers(fields& f, error_code& ec);
-  /// read headers from the stream. this must either be called before reading
-  /// body via read_some()/async_read_some(), or after reading returns an
-  /// end_of_stream error to read the optional trailer section
+  /// \overload
   void read_headers(fields& f);
 
-  /// write headers to the stream. if this is called after another call to
-  /// write_headers()/async_write_headers() or after writing body via
-  /// write_some()/async_write_some(), this represents the trailer section
-  /// and implies the end of the message body
+  /// write headers to the stream
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_write_headers(const fields& f, CompletionToken&& token) {
     return state->async_write_headers(f, std::forward<CompletionToken>(token));
   }
 
-  /// write headers to the stream. if this is called after another call to
-  /// write_headers()/async_write_headers() or after writing body via
-  /// write_some()/async_write_some(), this represents the trailer section
-  /// and implies the end of the message body
+  /// write headers to the stream
   void write_headers(const fields& f, error_code& ec);
-  /// write headers to the stream. if this is called after another call to
-  /// write_headers()/async_write_headers() or after writing body via
-  /// write_some()/async_write_some(), this represents the trailer section
-  /// and implies the end of the message body
+  /// \overload
   void write_headers(const fields& f);
 };
 

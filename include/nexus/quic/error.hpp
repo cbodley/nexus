@@ -4,19 +4,28 @@
 
 namespace nexus::quic {
 
+/// generic quic errors
 enum class error {
-// generic errors
-  operation_aborted = 1,
-// connection errors
-  connection_aborted,
+  /// this end of the connection was closed
+  connection_aborted = 1,
+  /// the connection's tls handshake failed
   connection_handshake_failed,
+  /// the connection or handshake timed out
   connection_timed_out,
+  /// connection reset by peer
   connection_reset,
+  /// sent GOAWAY to peer
   connection_going_away,
-// stream errors
+  /// peer sent GOAWAY
+  peer_going_away,
+
+  /// no bytes can be read because the peer closed the stream for writing
   end_of_stream,
+  /// stream cannot process more than one read or more than one write at a time
   stream_busy,
+  /// this end of the stream was closed
   stream_aborted,
+  /// stream reset by peer
   stream_reset,
 };
 

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <lsquic.h>
 
-namespace nexus {
+namespace nexus::global {
 
 const error_category& global_category()
 {
@@ -23,8 +23,6 @@ const error_category& global_category()
   static category instance;
   return instance;
 }
-
-namespace global {
 
 namespace detail {
 
@@ -94,5 +92,4 @@ context init_client_server()
   return ctx;
 }
 
-} // namespace global
-} // namespace nexus
+} // namespace nexus::global

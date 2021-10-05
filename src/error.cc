@@ -15,8 +15,6 @@ const error_category& quic_category()
 
     std::string message(int ev) const override {
       switch (static_cast<error>(ev)) {
-        case error::operation_aborted:
-          return "operation aborted";
         case error::connection_aborted:
           return "connection aborted";
         case error::connection_handshake_failed:
@@ -26,6 +24,8 @@ const error_category& quic_category()
         case error::connection_reset:
           return "connection reset by peer";
         case error::connection_going_away:
+          return "connection is going away";
+        case error::peer_going_away:
           return "peer is going away";
         case error::end_of_stream:
           return "end of stream";

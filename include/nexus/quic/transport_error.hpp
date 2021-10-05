@@ -4,7 +4,7 @@
 
 namespace nexus::quic {
 
-/// transport error codes sent in CONNECTION_CLOSE frames
+/// quic transport error codes sent in CONNECTION_CLOSE frames
 enum class transport_error {
   no_error = 0x0,
   internal_error = 0x1,

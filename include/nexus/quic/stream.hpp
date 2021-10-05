@@ -47,7 +47,7 @@ class stream {
   size_t read_some(const MutableBufferSequence& buffers, error_code& ec) {
     return state->read_some(buffers, ec);
   }
-  /// read some bytes into the given buffer sequence
+  /// \overload
   template <typename MutableBufferSequence>
   size_t read_some(const MutableBufferSequence& buffers) {
     error_code ec;
@@ -73,8 +73,7 @@ class stream {
   size_t write_some(const ConstBufferSequence& buffers, error_code& ec) {
     return state->write_some(buffers, ec);
   }
-  /// write some bytes from the given buffer sequence. written bytes may be
-  /// buffered until they fill an outgoing packet
+  /// \overload
   template <typename ConstBufferSequence>
   size_t write_some(const ConstBufferSequence& buffers) {
     error_code ec;
@@ -88,8 +87,7 @@ class stream {
   /// flush any bytes that were buffered by write_some()/async_write_some() but
   /// not yet delivered
   void flush(error_code& ec);
-  /// flush any bytes that were buffered by write_some()/async_write_some() but
-  /// not yet delivered
+  /// \overload
   void flush();
 
   /// shut down a stream for reads (0), writes (1), or both (2). shutting down
@@ -97,15 +95,12 @@ class stream {
   /// write side will flush any buffered data, and cancel any pending write
   /// operations. once shut down for both sides, the stream will close itself
   void shutdown(int how, error_code& ec);
-  /// shut down a stream for reads (0), writes (1), or both (2). shutting down
-  /// the read side will cancel any pending read operations. shutting down the
-  /// write side will flush any buffered data, and cancel any pending write
-  /// operations. once shut down for both sides, the stream will close itself
+  /// \overload
   void shutdown(int how);
 
   /// close the stream, canceling any pending operations
   void close(error_code& ec);
-  /// close the stream, canceling any pending operations
+  /// \overload
   void close();
 };
 

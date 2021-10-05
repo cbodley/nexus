@@ -4,6 +4,7 @@
 
 namespace nexus::h3 {
 
+/// http3-specific transport error codes
 enum class error {
   no_error = 0x100,
   general_protocol_error = 0x101,

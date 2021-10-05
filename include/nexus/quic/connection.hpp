@@ -46,7 +46,7 @@ class connection {
 
   /// open an outgoing stream
   void connect(stream& s, error_code& ec);
-  /// open an outgoing stream
+  /// \overload
   void connect(stream& s);
 
   /// accept an incoming stream
@@ -57,12 +57,12 @@ class connection {
 
   /// accept an incoming stream
   void accept(stream& s, error_code& ec);
-  /// accept an incoming stream
+  /// \overload
   void accept(stream& s);
 
   /// close the connection, along with any related streams
   void close(error_code& ec);
-  /// close the connection, along with any related streams
+  /// \overload
   void close();
 };
 
