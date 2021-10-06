@@ -153,6 +153,7 @@ class fields {
 
   bool empty() const { return list.empty(); }
 
+  using value_type = field;
   using iterator = list_type::iterator;
   using const_iterator = list_type::const_iterator;
 

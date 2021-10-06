@@ -1,4 +1,4 @@
-# Nexus HTTP/3
+# Tutorial
 
 Nexus provides two sets of interfaces: one in namespace nexus::quic for generic QUIC clients and servers, and another in namespace nexus::h3 for HTTP/3 clients and servers.
 
@@ -102,9 +102,9 @@ For reads and writes, nexus::quic::stream models the asio concepts AsyncReadStre
 	char request[16]; // read 16 bytes from the stream
 	auto bytes = asio::read(stream, asio::buffer(data));
 
-The stream can be closed in one or both directions with nexus::quic::stream::shutdown().
+The stream can be closed in one or both directions with nexus::quic::stream::shutdown() and nexus::quic::stream::close().
 
-Writes may be buffered by the stream due to a preference to send full packets. Buffered stream data can be flushed, either by calling flush() manually or by shutting down the stream for write.
+Writes may be buffered by the stream due to a preference to send full packets. Buffered stream data can be flushed, either by calling nexus::quic::stream::flush() manually or by shutting down the stream for write.
 
 ## Synchronous and Asynchronous
 
