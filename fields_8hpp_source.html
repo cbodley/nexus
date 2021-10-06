@@ -211,126 +211,127 @@ $(function() {
 <div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160; </div>
 <div class="line"><a name="l00154"></a><span class="lineno">  154</span>&#160;  <span class="keywordtype">bool</span> empty()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.empty(); }</div>
 <div class="line"><a name="l00155"></a><span class="lineno">  155</span>&#160; </div>
-<div class="line"><a name="l00156"></a><span class="lineno">  156</span>&#160;  <span class="keyword">using</span> iterator = list_type::iterator;</div>
-<div class="line"><a name="l00157"></a><span class="lineno">  157</span>&#160;  <span class="keyword">using</span> const_iterator = list_type::const_iterator;</div>
-<div class="line"><a name="l00158"></a><span class="lineno">  158</span>&#160; </div>
-<div class="line"><a name="l00159"></a><span class="lineno">  159</span>&#160;  iterator begin() { <span class="keywordflow">return</span> list.begin(); }</div>
-<div class="line"><a name="l00160"></a><span class="lineno">  160</span>&#160;  const_iterator begin()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.begin(); }</div>
-<div class="line"><a name="l00161"></a><span class="lineno">  161</span>&#160;  const_iterator cbegin()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.cbegin(); }</div>
-<div class="line"><a name="l00162"></a><span class="lineno">  162</span>&#160; </div>
-<div class="line"><a name="l00163"></a><span class="lineno">  163</span>&#160;  iterator end() { <span class="keywordflow">return</span> list.end(); }</div>
-<div class="line"><a name="l00164"></a><span class="lineno">  164</span>&#160;  const_iterator end()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.end(); }</div>
-<div class="line"><a name="l00165"></a><span class="lineno">  165</span>&#160;  const_iterator cend()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.cend(); }</div>
-<div class="line"><a name="l00166"></a><span class="lineno">  166</span>&#160; </div>
-<div class="line"><a name="l00168"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#ada660fbadd431f89783cee6f8b44d058">  168</a></span>&#160;  size_type <a class="code" href="classnexus_1_1h3_1_1fields.html#ada660fbadd431f89783cee6f8b44d058">count</a>(std::string_view name)<span class="keyword"> const </span>{</div>
-<div class="line"><a name="l00169"></a><span class="lineno">  169</span>&#160;    <span class="keywordflow">return</span> set.count(name);</div>
-<div class="line"><a name="l00170"></a><span class="lineno">  170</span>&#160;  }</div>
-<div class="line"><a name="l00171"></a><span class="lineno">  171</span>&#160; </div>
-<div class="line"><a name="l00173"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#aa68d63d6574e22e3c57f10839540c93b">  173</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#aa68d63d6574e22e3c57f10839540c93b">find</a>(std::string_view name) {</div>
-<div class="line"><a name="l00174"></a><span class="lineno">  174</span>&#160;    <span class="keywordflow">if</span> (<span class="keyword">auto</span> i = set.find(name); i != set.end()) {</div>
-<div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160;      <span class="keywordflow">return</span> list.iterator_to(*i);</div>
-<div class="line"><a name="l00176"></a><span class="lineno">  176</span>&#160;    }</div>
-<div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;    <span class="keywordflow">return</span> list.end();</div>
-<div class="line"><a name="l00178"></a><span class="lineno">  178</span>&#160;  }</div>
-<div class="line"><a name="l00179"></a><span class="lineno">  179</span>&#160; </div>
-<div class="line"><a name="l00181"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a92fb0a77d6025cbed989ff9e1d20d9d4">  181</a></span>&#160;  const_iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#a92fb0a77d6025cbed989ff9e1d20d9d4">find</a>(std::string_view name)<span class="keyword"> const </span>{</div>
-<div class="line"><a name="l00182"></a><span class="lineno">  182</span>&#160;    <span class="keywordflow">if</span> (<span class="keyword">auto</span> i = set.find(name); i != set.end()) {</div>
-<div class="line"><a name="l00183"></a><span class="lineno">  183</span>&#160;      <span class="keywordflow">return</span> list.iterator_to(*i);</div>
-<div class="line"><a name="l00184"></a><span class="lineno">  184</span>&#160;    }</div>
-<div class="line"><a name="l00185"></a><span class="lineno">  185</span>&#160;    <span class="keywordflow">return</span> list.end();</div>
-<div class="line"><a name="l00186"></a><span class="lineno">  186</span>&#160;  }</div>
-<div class="line"><a name="l00187"></a><span class="lineno">  187</span>&#160; </div>
-<div class="line"><a name="l00190"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148">  190</a></span>&#160;  <span class="keyword">auto</span> <a class="code" href="classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148">equal_range</a>(std::string_view name)</div>
-<div class="line"><a name="l00191"></a><span class="lineno">  191</span>&#160;      -&gt; std::pair&lt;iterator, iterator&gt;</div>
-<div class="line"><a name="l00192"></a><span class="lineno">  192</span>&#160;  {</div>
-<div class="line"><a name="l00193"></a><span class="lineno">  193</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
-<div class="line"><a name="l00194"></a><span class="lineno">  194</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
-<div class="line"><a name="l00195"></a><span class="lineno">  195</span>&#160;      <span class="keywordflow">return</span> {list.end(), list.end()};</div>
-<div class="line"><a name="l00196"></a><span class="lineno">  196</span>&#160;    }</div>
-<div class="line"><a name="l00197"></a><span class="lineno">  197</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
-<div class="line"><a name="l00198"></a><span class="lineno">  198</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
-<div class="line"><a name="l00199"></a><span class="lineno">  199</span>&#160;    <span class="keywordflow">return</span> {list.iterator_to(*lower), list_upper};</div>
-<div class="line"><a name="l00200"></a><span class="lineno">  200</span>&#160;  }</div>
-<div class="line"><a name="l00201"></a><span class="lineno">  201</span>&#160; </div>
-<div class="line"><a name="l00204"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450">  204</a></span>&#160;  <span class="keyword">auto</span> <a class="code" href="classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450">equal_range</a>(std::string_view name) <span class="keyword">const</span></div>
-<div class="line"><a name="l00205"></a><span class="lineno">  205</span>&#160;      -&gt; std::pair&lt;const_iterator, const_iterator&gt;</div>
-<div class="line"><a name="l00206"></a><span class="lineno">  206</span>&#160;  {</div>
-<div class="line"><a name="l00207"></a><span class="lineno">  207</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
-<div class="line"><a name="l00208"></a><span class="lineno">  208</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
-<div class="line"><a name="l00209"></a><span class="lineno">  209</span>&#160;      <span class="keywordflow">return</span> {list.end(), list.end()};</div>
-<div class="line"><a name="l00210"></a><span class="lineno">  210</span>&#160;    }</div>
-<div class="line"><a name="l00211"></a><span class="lineno">  211</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
-<div class="line"><a name="l00212"></a><span class="lineno">  212</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
-<div class="line"><a name="l00213"></a><span class="lineno">  213</span>&#160;    <span class="keywordflow">return</span> {list.iterator_to(*lower), list_upper};</div>
-<div class="line"><a name="l00214"></a><span class="lineno">  214</span>&#160;  }</div>
-<div class="line"><a name="l00215"></a><span class="lineno">  215</span>&#160; </div>
-<div class="line"><a name="l00218"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a7f19110bd8995f7bb2f8da3355e8f4eb">  218</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#a7f19110bd8995f7bb2f8da3355e8f4eb">insert</a>(std::string_view name, std::string_view value,</div>
-<div class="line"><a name="l00219"></a><span class="lineno">  219</span>&#160;                  <span class="keywordtype">bool</span> never_index = <span class="keyword">false</span>)</div>
-<div class="line"><a name="l00220"></a><span class="lineno">  220</span>&#160;  {</div>
-<div class="line"><a name="l00221"></a><span class="lineno">  221</span>&#160;    <span class="keyword">auto</span> ptr = field::create(name, value, never_index);</div>
-<div class="line"><a name="l00222"></a><span class="lineno">  222</span>&#160; </div>
-<div class="line"><a name="l00223"></a><span class="lineno">  223</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
-<div class="line"><a name="l00224"></a><span class="lineno">  224</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
-<div class="line"><a name="l00225"></a><span class="lineno">  225</span>&#160;      set.insert(set.end(), *ptr);</div>
-<div class="line"><a name="l00226"></a><span class="lineno">  226</span>&#160;      <span class="keywordflow">return</span> list.insert(list.end(), *ptr.release());</div>
-<div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160;    }</div>
-<div class="line"><a name="l00228"></a><span class="lineno">  228</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
-<div class="line"><a name="l00229"></a><span class="lineno">  229</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
-<div class="line"><a name="l00230"></a><span class="lineno">  230</span>&#160;    set.insert(upper, *ptr);</div>
-<div class="line"><a name="l00231"></a><span class="lineno">  231</span>&#160;    <span class="keywordflow">return</span> list.insert(list_upper, *ptr.release());</div>
-<div class="line"><a name="l00232"></a><span class="lineno">  232</span>&#160;  }</div>
-<div class="line"><a name="l00233"></a><span class="lineno">  233</span>&#160; </div>
-<div class="line"><a name="l00236"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60">  236</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60">assign</a>(std::string_view name, std::string_view value,</div>
-<div class="line"><a name="l00237"></a><span class="lineno">  237</span>&#160;                  <span class="keywordtype">bool</span> never_index = <span class="keyword">false</span>)</div>
-<div class="line"><a name="l00238"></a><span class="lineno">  238</span>&#160;  {</div>
-<div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;    <span class="keyword">auto</span> ptr = field::create(name, value, never_index);</div>
-<div class="line"><a name="l00240"></a><span class="lineno">  240</span>&#160; </div>
-<div class="line"><a name="l00241"></a><span class="lineno">  241</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
-<div class="line"><a name="l00242"></a><span class="lineno">  242</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
-<div class="line"><a name="l00243"></a><span class="lineno">  243</span>&#160;      set.insert(set.end(), *ptr);</div>
-<div class="line"><a name="l00244"></a><span class="lineno">  244</span>&#160;      <span class="keywordflow">return</span> list.insert(list.end(), *ptr.release());</div>
-<div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;    }</div>
-<div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
-<div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;    <span class="keyword">auto</span> list_lower = list.iterator_to(*lower);</div>
-<div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
-<div class="line"><a name="l00249"></a><span class="lineno">  249</span>&#160;    set.erase(lower, upper);</div>
-<div class="line"><a name="l00250"></a><span class="lineno">  250</span>&#160;    list.erase_and_dispose(list_lower, list_upper, field::deleter{});</div>
-<div class="line"><a name="l00251"></a><span class="lineno">  251</span>&#160; </div>
-<div class="line"><a name="l00252"></a><span class="lineno">  252</span>&#160;    set.insert(set.end(), *ptr);</div>
-<div class="line"><a name="l00253"></a><span class="lineno">  253</span>&#160;    <span class="keywordflow">return</span> list.insert(list.end(), *ptr.release());</div>
-<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;  }</div>
-<div class="line"><a name="l00255"></a><span class="lineno">  255</span>&#160; </div>
-<div class="line"><a name="l00257"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d">  257</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d">erase</a>(iterator p) {</div>
-<div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;    set.erase(set.iterator_to(*p));</div>
-<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;    <span class="keywordflow">return</span> list.erase_and_dispose(p, field::deleter{});</div>
-<div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;  }</div>
-<div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160; </div>
-<div class="line"><a name="l00263"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a">  263</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a">erase</a>(iterator begin, iterator end) {</div>
-<div class="line"><a name="l00264"></a><span class="lineno">  264</span>&#160;    set.erase(set.iterator_to(*begin),</div>
-<div class="line"><a name="l00265"></a><span class="lineno">  265</span>&#160;              std::next(set.iterator_to(*std::prev(end))));</div>
-<div class="line"><a name="l00266"></a><span class="lineno">  266</span>&#160;    <span class="keywordflow">return</span> list.erase_and_dispose(begin, end, field::deleter{});</div>
-<div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;  }</div>
-<div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160; </div>
-<div class="line"><a name="l00270"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a316580ead51b09f243322a7411af18f7">  270</a></span>&#160;  <span class="keywordtype">void</span> <a class="code" href="classnexus_1_1h3_1_1fields.html#a316580ead51b09f243322a7411af18f7">clear</a>() {</div>
-<div class="line"><a name="l00271"></a><span class="lineno">  271</span>&#160;    set.clear();</div>
-<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;    list.clear_and_dispose(field::deleter{});</div>
-<div class="line"><a name="l00273"></a><span class="lineno">  273</span>&#160;  }</div>
-<div class="line"><a name="l00274"></a><span class="lineno">  274</span>&#160;};</div>
-<div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160; </div>
-<div class="line"><a name="l00276"></a><span class="lineno">  276</span>&#160;} <span class="comment">// namespace nexus::h3</span></div>
+<div class="line"><a name="l00156"></a><span class="lineno">  156</span>&#160;  <span class="keyword">using</span> value_type = field;</div>
+<div class="line"><a name="l00157"></a><span class="lineno">  157</span>&#160;  <span class="keyword">using</span> iterator = list_type::iterator;</div>
+<div class="line"><a name="l00158"></a><span class="lineno">  158</span>&#160;  <span class="keyword">using</span> const_iterator = list_type::const_iterator;</div>
+<div class="line"><a name="l00159"></a><span class="lineno">  159</span>&#160; </div>
+<div class="line"><a name="l00160"></a><span class="lineno">  160</span>&#160;  iterator begin() { <span class="keywordflow">return</span> list.begin(); }</div>
+<div class="line"><a name="l00161"></a><span class="lineno">  161</span>&#160;  const_iterator begin()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.begin(); }</div>
+<div class="line"><a name="l00162"></a><span class="lineno">  162</span>&#160;  const_iterator cbegin()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.cbegin(); }</div>
+<div class="line"><a name="l00163"></a><span class="lineno">  163</span>&#160; </div>
+<div class="line"><a name="l00164"></a><span class="lineno">  164</span>&#160;  iterator end() { <span class="keywordflow">return</span> list.end(); }</div>
+<div class="line"><a name="l00165"></a><span class="lineno">  165</span>&#160;  const_iterator end()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.end(); }</div>
+<div class="line"><a name="l00166"></a><span class="lineno">  166</span>&#160;  const_iterator cend()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> list.cend(); }</div>
+<div class="line"><a name="l00167"></a><span class="lineno">  167</span>&#160; </div>
+<div class="line"><a name="l00169"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#ada660fbadd431f89783cee6f8b44d058">  169</a></span>&#160;  size_type <a class="code" href="classnexus_1_1h3_1_1fields.html#ada660fbadd431f89783cee6f8b44d058">count</a>(std::string_view name)<span class="keyword"> const </span>{</div>
+<div class="line"><a name="l00170"></a><span class="lineno">  170</span>&#160;    <span class="keywordflow">return</span> set.count(name);</div>
+<div class="line"><a name="l00171"></a><span class="lineno">  171</span>&#160;  }</div>
+<div class="line"><a name="l00172"></a><span class="lineno">  172</span>&#160; </div>
+<div class="line"><a name="l00174"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#aa68d63d6574e22e3c57f10839540c93b">  174</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#aa68d63d6574e22e3c57f10839540c93b">find</a>(std::string_view name) {</div>
+<div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160;    <span class="keywordflow">if</span> (<span class="keyword">auto</span> i = set.find(name); i != set.end()) {</div>
+<div class="line"><a name="l00176"></a><span class="lineno">  176</span>&#160;      <span class="keywordflow">return</span> list.iterator_to(*i);</div>
+<div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;    }</div>
+<div class="line"><a name="l00178"></a><span class="lineno">  178</span>&#160;    <span class="keywordflow">return</span> list.end();</div>
+<div class="line"><a name="l00179"></a><span class="lineno">  179</span>&#160;  }</div>
+<div class="line"><a name="l00180"></a><span class="lineno">  180</span>&#160; </div>
+<div class="line"><a name="l00182"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a92fb0a77d6025cbed989ff9e1d20d9d4">  182</a></span>&#160;  const_iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#a92fb0a77d6025cbed989ff9e1d20d9d4">find</a>(std::string_view name)<span class="keyword"> const </span>{</div>
+<div class="line"><a name="l00183"></a><span class="lineno">  183</span>&#160;    <span class="keywordflow">if</span> (<span class="keyword">auto</span> i = set.find(name); i != set.end()) {</div>
+<div class="line"><a name="l00184"></a><span class="lineno">  184</span>&#160;      <span class="keywordflow">return</span> list.iterator_to(*i);</div>
+<div class="line"><a name="l00185"></a><span class="lineno">  185</span>&#160;    }</div>
+<div class="line"><a name="l00186"></a><span class="lineno">  186</span>&#160;    <span class="keywordflow">return</span> list.end();</div>
+<div class="line"><a name="l00187"></a><span class="lineno">  187</span>&#160;  }</div>
+<div class="line"><a name="l00188"></a><span class="lineno">  188</span>&#160; </div>
+<div class="line"><a name="l00191"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148">  191</a></span>&#160;  <span class="keyword">auto</span> <a class="code" href="classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148">equal_range</a>(std::string_view name)</div>
+<div class="line"><a name="l00192"></a><span class="lineno">  192</span>&#160;      -&gt; std::pair&lt;iterator, iterator&gt;</div>
+<div class="line"><a name="l00193"></a><span class="lineno">  193</span>&#160;  {</div>
+<div class="line"><a name="l00194"></a><span class="lineno">  194</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
+<div class="line"><a name="l00195"></a><span class="lineno">  195</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
+<div class="line"><a name="l00196"></a><span class="lineno">  196</span>&#160;      <span class="keywordflow">return</span> {list.end(), list.end()};</div>
+<div class="line"><a name="l00197"></a><span class="lineno">  197</span>&#160;    }</div>
+<div class="line"><a name="l00198"></a><span class="lineno">  198</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
+<div class="line"><a name="l00199"></a><span class="lineno">  199</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
+<div class="line"><a name="l00200"></a><span class="lineno">  200</span>&#160;    <span class="keywordflow">return</span> {list.iterator_to(*lower), list_upper};</div>
+<div class="line"><a name="l00201"></a><span class="lineno">  201</span>&#160;  }</div>
+<div class="line"><a name="l00202"></a><span class="lineno">  202</span>&#160; </div>
+<div class="line"><a name="l00205"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450">  205</a></span>&#160;  <span class="keyword">auto</span> <a class="code" href="classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450">equal_range</a>(std::string_view name) <span class="keyword">const</span></div>
+<div class="line"><a name="l00206"></a><span class="lineno">  206</span>&#160;      -&gt; std::pair&lt;const_iterator, const_iterator&gt;</div>
+<div class="line"><a name="l00207"></a><span class="lineno">  207</span>&#160;  {</div>
+<div class="line"><a name="l00208"></a><span class="lineno">  208</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
+<div class="line"><a name="l00209"></a><span class="lineno">  209</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
+<div class="line"><a name="l00210"></a><span class="lineno">  210</span>&#160;      <span class="keywordflow">return</span> {list.end(), list.end()};</div>
+<div class="line"><a name="l00211"></a><span class="lineno">  211</span>&#160;    }</div>
+<div class="line"><a name="l00212"></a><span class="lineno">  212</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
+<div class="line"><a name="l00213"></a><span class="lineno">  213</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
+<div class="line"><a name="l00214"></a><span class="lineno">  214</span>&#160;    <span class="keywordflow">return</span> {list.iterator_to(*lower), list_upper};</div>
+<div class="line"><a name="l00215"></a><span class="lineno">  215</span>&#160;  }</div>
+<div class="line"><a name="l00216"></a><span class="lineno">  216</span>&#160; </div>
+<div class="line"><a name="l00219"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a7f19110bd8995f7bb2f8da3355e8f4eb">  219</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#a7f19110bd8995f7bb2f8da3355e8f4eb">insert</a>(std::string_view name, std::string_view value,</div>
+<div class="line"><a name="l00220"></a><span class="lineno">  220</span>&#160;                  <span class="keywordtype">bool</span> never_index = <span class="keyword">false</span>)</div>
+<div class="line"><a name="l00221"></a><span class="lineno">  221</span>&#160;  {</div>
+<div class="line"><a name="l00222"></a><span class="lineno">  222</span>&#160;    <span class="keyword">auto</span> ptr = field::create(name, value, never_index);</div>
+<div class="line"><a name="l00223"></a><span class="lineno">  223</span>&#160; </div>
+<div class="line"><a name="l00224"></a><span class="lineno">  224</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
+<div class="line"><a name="l00225"></a><span class="lineno">  225</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
+<div class="line"><a name="l00226"></a><span class="lineno">  226</span>&#160;      set.insert(set.end(), *ptr);</div>
+<div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160;      <span class="keywordflow">return</span> list.insert(list.end(), *ptr.release());</div>
+<div class="line"><a name="l00228"></a><span class="lineno">  228</span>&#160;    }</div>
+<div class="line"><a name="l00229"></a><span class="lineno">  229</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
+<div class="line"><a name="l00230"></a><span class="lineno">  230</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
+<div class="line"><a name="l00231"></a><span class="lineno">  231</span>&#160;    set.insert(upper, *ptr);</div>
+<div class="line"><a name="l00232"></a><span class="lineno">  232</span>&#160;    <span class="keywordflow">return</span> list.insert(list_upper, *ptr.release());</div>
+<div class="line"><a name="l00233"></a><span class="lineno">  233</span>&#160;  }</div>
+<div class="line"><a name="l00234"></a><span class="lineno">  234</span>&#160; </div>
+<div class="line"><a name="l00237"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60">  237</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60">assign</a>(std::string_view name, std::string_view value,</div>
+<div class="line"><a name="l00238"></a><span class="lineno">  238</span>&#160;                  <span class="keywordtype">bool</span> never_index = <span class="keyword">false</span>)</div>
+<div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;  {</div>
+<div class="line"><a name="l00240"></a><span class="lineno">  240</span>&#160;    <span class="keyword">auto</span> ptr = field::create(name, value, never_index);</div>
+<div class="line"><a name="l00241"></a><span class="lineno">  241</span>&#160; </div>
+<div class="line"><a name="l00242"></a><span class="lineno">  242</span>&#160;    <span class="keyword">auto</span> lower = set.lower_bound(name);</div>
+<div class="line"><a name="l00243"></a><span class="lineno">  243</span>&#160;    <span class="keywordflow">if</span> (lower == set.end()) {</div>
+<div class="line"><a name="l00244"></a><span class="lineno">  244</span>&#160;      set.insert(set.end(), *ptr);</div>
+<div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;      <span class="keywordflow">return</span> list.insert(list.end(), *ptr.release());</div>
+<div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;    }</div>
+<div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;    <span class="keyword">auto</span> upper = set.upper_bound(name);</div>
+<div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160;    <span class="keyword">auto</span> list_lower = list.iterator_to(*lower);</div>
+<div class="line"><a name="l00249"></a><span class="lineno">  249</span>&#160;    <span class="keyword">auto</span> list_upper = std::next(list.iterator_to(*std::prev(upper)));</div>
+<div class="line"><a name="l00250"></a><span class="lineno">  250</span>&#160;    set.erase(lower, upper);</div>
+<div class="line"><a name="l00251"></a><span class="lineno">  251</span>&#160;    list.erase_and_dispose(list_lower, list_upper, field::deleter{});</div>
+<div class="line"><a name="l00252"></a><span class="lineno">  252</span>&#160; </div>
+<div class="line"><a name="l00253"></a><span class="lineno">  253</span>&#160;    set.insert(set.end(), *ptr);</div>
+<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;    <span class="keywordflow">return</span> list.insert(list.end(), *ptr.release());</div>
+<div class="line"><a name="l00255"></a><span class="lineno">  255</span>&#160;  }</div>
+<div class="line"><a name="l00256"></a><span class="lineno">  256</span>&#160; </div>
+<div class="line"><a name="l00258"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d">  258</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d">erase</a>(iterator p) {</div>
+<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;    set.erase(set.iterator_to(*p));</div>
+<div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;    <span class="keywordflow">return</span> list.erase_and_dispose(p, field::deleter{});</div>
+<div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160;  }</div>
+<div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160; </div>
+<div class="line"><a name="l00264"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a">  264</a></span>&#160;  iterator <a class="code" href="classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a">erase</a>(iterator begin, iterator end) {</div>
+<div class="line"><a name="l00265"></a><span class="lineno">  265</span>&#160;    set.erase(set.iterator_to(*begin),</div>
+<div class="line"><a name="l00266"></a><span class="lineno">  266</span>&#160;              std::next(set.iterator_to(*std::prev(end))));</div>
+<div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;    <span class="keywordflow">return</span> list.erase_and_dispose(begin, end, field::deleter{});</div>
+<div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160;  }</div>
+<div class="line"><a name="l00269"></a><span class="lineno">  269</span>&#160; </div>
+<div class="line"><a name="l00271"></a><span class="lineno"><a class="line" href="classnexus_1_1h3_1_1fields.html#a316580ead51b09f243322a7411af18f7">  271</a></span>&#160;  <span class="keywordtype">void</span> <a class="code" href="classnexus_1_1h3_1_1fields.html#a316580ead51b09f243322a7411af18f7">clear</a>() {</div>
+<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;    set.clear();</div>
+<div class="line"><a name="l00273"></a><span class="lineno">  273</span>&#160;    list.clear_and_dispose(field::deleter{});</div>
+<div class="line"><a name="l00274"></a><span class="lineno">  274</span>&#160;  }</div>
+<div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160;};</div>
+<div class="line"><a name="l00276"></a><span class="lineno">  276</span>&#160; </div>
+<div class="line"><a name="l00277"></a><span class="lineno">  277</span>&#160;} <span class="comment">// namespace nexus::h3</span></div>
 </div><!-- fragment --></div><!-- contents -->
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_af8b31cf5ec662dc392838c05b4c57d60"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60">nexus::h3::fields::assign</a></div><div class="ttdeci">iterator assign(std::string_view name, std::string_view value, bool never_index=false)</div><div class="ttdoc">insert the given field at the end of the list, erasing any existing fields with a matching name</div><div class="ttdef"><b>Definition:</b> fields.hpp:236</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_ada660fbadd431f89783cee6f8b44d058"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#ada660fbadd431f89783cee6f8b44d058">nexus::h3::fields::count</a></div><div class="ttdeci">size_type count(std::string_view name) const</div><div class="ttdoc">return the number of fields that match the given name</div><div class="ttdef"><b>Definition:</b> fields.hpp:168</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_ac68051d0f36929ed04813c8ed8bf0450"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450">nexus::h3::fields::equal_range</a></div><div class="ttdeci">auto equal_range(std::string_view name) const -&gt; std::pair&lt; const_iterator, const_iterator &gt;</div><div class="ttdoc">return an iterator pair corresponding to the range of fields that match the given name (the first mat...</div><div class="ttdef"><b>Definition:</b> fields.hpp:204</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_af8b31cf5ec662dc392838c05b4c57d60"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60">nexus::h3::fields::assign</a></div><div class="ttdeci">iterator assign(std::string_view name, std::string_view value, bool never_index=false)</div><div class="ttdoc">insert the given field at the end of the list, erasing any existing fields with a matching name</div><div class="ttdef"><b>Definition:</b> fields.hpp:237</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_ada660fbadd431f89783cee6f8b44d058"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#ada660fbadd431f89783cee6f8b44d058">nexus::h3::fields::count</a></div><div class="ttdeci">size_type count(std::string_view name) const</div><div class="ttdoc">return the number of fields that match the given name</div><div class="ttdef"><b>Definition:</b> fields.hpp:169</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_ac68051d0f36929ed04813c8ed8bf0450"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450">nexus::h3::fields::equal_range</a></div><div class="ttdeci">auto equal_range(std::string_view name) const -&gt; std::pair&lt; const_iterator, const_iterator &gt;</div><div class="ttdoc">return an iterator pair corresponding to the range of fields that match the given name (the first mat...</div><div class="ttdef"><b>Definition:</b> fields.hpp:205</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html_aafec1ca45e988a12ba91b619c73a9b68"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html#aafec1ca45e988a12ba91b619c73a9b68">nexus::h3::field::data</a></div><div class="ttdeci">const char * data() const</div><div class="ttdoc">return a null-terminated string of the form &quot;&lt;name&gt;: &lt;value&gt;&quot;</div><div class="ttdef"><b>Definition:</b> fields.hpp:55</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_aa68d63d6574e22e3c57f10839540c93b"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#aa68d63d6574e22e3c57f10839540c93b">nexus::h3::fields::find</a></div><div class="ttdeci">iterator find(std::string_view name)</div><div class="ttdoc">return an iterator to the first field that matches the given name</div><div class="ttdef"><b>Definition:</b> fields.hpp:173</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_aa68d63d6574e22e3c57f10839540c93b"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#aa68d63d6574e22e3c57f10839540c93b">nexus::h3::fields::find</a></div><div class="ttdeci">iterator find(std::string_view name)</div><div class="ttdoc">return an iterator to the first field that matches the given name</div><div class="ttdef"><b>Definition:</b> fields.hpp:174</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html_a28da5c74733863be20547f8bbc76e2c6"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html#a28da5c74733863be20547f8bbc76e2c6">nexus::h3::field::name</a></div><div class="ttdeci">std::string_view name() const</div><div class="ttdoc">return a view of the field name</div><div class="ttdef"><b>Definition:</b> fields.hpp:39</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html_ae2a4230a80a1faddad53f5979eb41268"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html#ae2a4230a80a1faddad53f5979eb41268">nexus::h3::field::never_index</a></div><div class="ttdeci">bool never_index() const</div><div class="ttdoc">return whether or not this field can be cached for header compression</div><div class="ttdef"><b>Definition:</b> fields.hpp:50</div></div>
 <div class="ttc" id="anamespacenexus_1_1h3_html"><div class="ttname"><a href="namespacenexus_1_1h3.html">nexus::h3</a></div><div class="ttdoc">HTTP/3 library.</div><div class="ttdef"><b>Definition:</b> client.hpp:6</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a26585bfbf173293cee2a822524732d12"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a26585bfbf173293cee2a822524732d12">nexus::h3::fields::fields</a></div><div class="ttdeci">fields(fields &amp;&amp;o)=default</div><div class="ttdoc">move-construct the fields, leaving o empty</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_ab71267948d114e2fa5241e2905322d7d"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d">nexus::h3::fields::erase</a></div><div class="ttdeci">iterator erase(iterator p)</div><div class="ttdoc">erase the field at the given position</div><div class="ttdef"><b>Definition:</b> fields.hpp:257</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a316580ead51b09f243322a7411af18f7"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a316580ead51b09f243322a7411af18f7">nexus::h3::fields::clear</a></div><div class="ttdeci">void clear()</div><div class="ttdoc">erase all fields</div><div class="ttdef"><b>Definition:</b> fields.hpp:270</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_afc4cb8fcbcc4b5c5f6b73fe9d332fb9a"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a">nexus::h3::fields::erase</a></div><div class="ttdeci">iterator erase(iterator begin, iterator end)</div><div class="ttdoc">erase all fields in the range [begin,end)</div><div class="ttdef"><b>Definition:</b> fields.hpp:263</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_ab71267948d114e2fa5241e2905322d7d"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d">nexus::h3::fields::erase</a></div><div class="ttdeci">iterator erase(iterator p)</div><div class="ttdoc">erase the field at the given position</div><div class="ttdef"><b>Definition:</b> fields.hpp:258</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a316580ead51b09f243322a7411af18f7"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a316580ead51b09f243322a7411af18f7">nexus::h3::fields::clear</a></div><div class="ttdeci">void clear()</div><div class="ttdoc">erase all fields</div><div class="ttdef"><b>Definition:</b> fields.hpp:271</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_afc4cb8fcbcc4b5c5f6b73fe9d332fb9a"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a">nexus::h3::fields::erase</a></div><div class="ttdeci">iterator erase(iterator begin, iterator end)</div><div class="ttdoc">erase all fields in the range [begin,end)</div><div class="ttdef"><b>Definition:</b> fields.hpp:264</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html_a75c836fbf16efb469f61bfa58067fc35"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html#a75c836fbf16efb469f61bfa58067fc35">nexus::h3::field::c_str</a></div><div class="ttdeci">const char * c_str() const</div><div class="ttdoc">return a null-terminated string of the form &quot;&lt;name&gt;: &lt;value&gt;&quot;</div><div class="ttdef"><b>Definition:</b> fields.hpp:53</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1fields_html"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html">nexus::h3::fields</a></div><div class="ttdoc">an ordered list of headers for an http request or response. all field name comparisons are case-insen...</div><div class="ttdef"><b>Definition:</b> fields.hpp:130</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a6a6b8d909044e55b9e9f717cdb7984b0"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a6a6b8d909044e55b9e9f717cdb7984b0">nexus::h3::fields::operator=</a></div><div class="ttdeci">fields &amp; operator=(fields &amp;&amp;o)</div><div class="ttdoc">move-assign the fields, leaving o empty</div><div class="ttdef"><b>Definition:</b> fields.hpp:142</div></div>
@@ -338,11 +339,11 @@ $(function() {
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html_accbc838a92274f2393c472b8ea879626"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html#accbc838a92274f2393c472b8ea879626">nexus::h3::field::never_index</a></div><div class="ttdeci">void never_index(bool value)</div><div class="ttdoc">enable or disable the caching of this field for header compression</div><div class="ttdef"><b>Definition:</b> fields.hpp:48</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html">nexus::h3::field</a></div><div class="ttdoc">an immutable key/value pair to represent a single header</div><div class="ttdef"><b>Definition:</b> fields.hpp:15</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_aaae1480e563e304ef35bd2fe2b14bad8"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#aaae1480e563e304ef35bd2fe2b14bad8">nexus::h3::fields::fields</a></div><div class="ttdeci">fields()=default</div><div class="ttdoc">construct an empty list of fields</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a7f19110bd8995f7bb2f8da3355e8f4eb"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a7f19110bd8995f7bb2f8da3355e8f4eb">nexus::h3::fields::insert</a></div><div class="ttdeci">iterator insert(std::string_view name, std::string_view value, bool never_index=false)</div><div class="ttdoc">insert the given field after the last field that matches its name, or at the end of the list</div><div class="ttdef"><b>Definition:</b> fields.hpp:218</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a7f19110bd8995f7bb2f8da3355e8f4eb"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a7f19110bd8995f7bb2f8da3355e8f4eb">nexus::h3::fields::insert</a></div><div class="ttdeci">iterator insert(std::string_view name, std::string_view value, bool never_index=false)</div><div class="ttdoc">insert the given field after the last field that matches its name, or at the end of the list</div><div class="ttdef"><b>Definition:</b> fields.hpp:219</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1field_html_aeeb8a113b4d125677cba089eb83b193c"><div class="ttname"><a href="classnexus_1_1h3_1_1field.html#aeeb8a113b4d125677cba089eb83b193c">nexus::h3::field::value</a></div><div class="ttdeci">std::string_view value() const</div><div class="ttdoc">return a view of the field value</div><div class="ttdef"><b>Definition:</b> fields.hpp:43</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a92fb0a77d6025cbed989ff9e1d20d9d4"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a92fb0a77d6025cbed989ff9e1d20d9d4">nexus::h3::fields::find</a></div><div class="ttdeci">const_iterator find(std::string_view name) const</div><div class="ttdoc">return an iterator to the first field that matches the given name</div><div class="ttdef"><b>Definition:</b> fields.hpp:181</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a92fb0a77d6025cbed989ff9e1d20d9d4"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a92fb0a77d6025cbed989ff9e1d20d9d4">nexus::h3::fields::find</a></div><div class="ttdeci">const_iterator find(std::string_view name) const</div><div class="ttdoc">return an iterator to the first field that matches the given name</div><div class="ttdef"><b>Definition:</b> fields.hpp:182</div></div>
 <div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_adde2e84376a5733bea8b381995d8256d"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#adde2e84376a5733bea8b381995d8256d">nexus::h3::fields::size</a></div><div class="ttdeci">size_type size() const</div><div class="ttdoc">return the total number of fields in the list</div><div class="ttdef"><b>Definition:</b> fields.hpp:152</div></div>
-<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a0c529030f69130ac8f27466b2fa1e148"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148">nexus::h3::fields::equal_range</a></div><div class="ttdeci">auto equal_range(std::string_view name) -&gt; std::pair&lt; iterator, iterator &gt;</div><div class="ttdoc">return an iterator pair corresponding to the range of fields that match the given name (the first mat...</div><div class="ttdef"><b>Definition:</b> fields.hpp:190</div></div>
+<div class="ttc" id="aclassnexus_1_1h3_1_1fields_html_a0c529030f69130ac8f27466b2fa1e148"><div class="ttname"><a href="classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148">nexus::h3::fields::equal_range</a></div><div class="ttdeci">auto equal_range(std::string_view name) -&gt; std::pair&lt; iterator, iterator &gt;</div><div class="ttdoc">return an iterator pair corresponding to the range of fields that match the given name (the first mat...</div><div class="ttdef"><b>Definition:</b> fields.hpp:191</div></div>
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by&#160;<a href="http://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.8.20
