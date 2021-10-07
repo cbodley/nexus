@@ -104,7 +104,10 @@ class engine_state {
   void stream_flush(stream_state& sstate, error_code& ec);
   void stream_shutdown(stream_state& sstate, int how, error_code& ec);
 
-  void stream_close(stream_state& sstate, error_code& ec);
+  bool try_stream_reset(stream_state& sstate);
+  void stream_reset(stream_state& sstate);
+
+  void stream_close(stream_state& sstate, stream_close_operation& op);
   void on_stream_close(stream_state& sstate);
 
   int send_packets(const lsquic_out_spec *specs, unsigned n_specs);

@@ -575,27 +575,23 @@ void engine_state::stream_shutdown(stream_state& sstate,
   process(lock);
 }
 
-void engine_state::stream_close(stream_state& sstate, error_code& ec)
+bool engine_state::try_stream_reset(stream_state& sstate)
 {
-  auto lock = std::unique_lock{mutex};
-  // cancel other stream requests here. otherwise on_stream_close() would
-  // fail them with stream_reset
-  auto ecanceled = make_error_code(stream_error::aborted);
+  auto ec = make_error_code(stream_error::aborted);
   if (sstate.accept_) {
-    sstate.accept_->defer(ecanceled);
+    sstate.accept_->defer(ec);
     sstate.accept_ = nullptr;
     auto& accepting = sstate.conn.accepting_streams;
     accepting.erase(accepting.iterator_to(sstate));
   }
   if (sstate.connect_) {
-    sstate.connect_->defer(ecanceled);
+    sstate.connect_->defer(ec);
     sstate.connect_ = nullptr;
     auto& connecting = sstate.conn.connecting_streams;
     connecting.erase(connecting.iterator_to(sstate));
   }
-  if (!sstate.handle) {
-    ec = make_error_code(errc::not_connected);
-    return;
+  if (!sstate.handle) { // not connected
+    return false;
   }
   ::lsquic_stream_close(sstate.handle);
   sstate.handle = nullptr;
@@ -604,8 +600,36 @@ void engine_state::stream_close(stream_state& sstate, error_code& ec)
   auto& connected = sstate.conn.connected_streams;
   connected.erase(connected.iterator_to(sstate));
 
-  stream_cancel_read(sstate, ecanceled);
-  stream_cancel_write(sstate, ecanceled);
+  stream_cancel_read(sstate, ec);
+  stream_cancel_write(sstate, ec);
+  return true;
+}
+
+void engine_state::stream_reset(stream_state& sstate)
+{
+  auto lock = std::unique_lock{mutex};
+  if (sstate.close_) {
+    sstate.close_->defer(make_error_code(stream_error::aborted));
+    sstate.close_ = nullptr;
+  }
+  try_stream_reset(sstate);
+  process(lock);
+}
+
+void engine_state::stream_close(stream_state& sstate,
+                                stream_close_operation& op)
+{
+  auto lock = std::unique_lock{mutex};
+  if (sstate.close_) { // already waiting on close
+    op.post(make_error_code(stream_error::busy));
+    return;
+  }
+  if (!try_stream_reset(sstate)) {
+    op.post(error_code{});
+    return;
+  }
+  assert(!sstate.close_);
+  sstate.close_ = &op;
   process(lock);
 }
 
@@ -643,6 +667,10 @@ int engine_state::stream_cancel_write(stream_state& sstate, error_code ec)
 
 void engine_state::on_stream_close(stream_state& sstate)
 {
+  if (sstate.close_) {
+    auto op = std::exchange(sstate.close_, nullptr);
+    op->defer(error_code{});
+  }
   if (!sstate.handle) {
     return; // already closed
   }
@@ -997,6 +1025,7 @@ engine_state::engine_state(const asio::any_io_executor& ex,
   if (r == -1) {
     throw bad_setting(errbuf);
   }
+  es.es_delay_onclose = 1;
   api.ea_settings = &es;
 
   handle.reset(::lsquic_engine_new(flags, &api));

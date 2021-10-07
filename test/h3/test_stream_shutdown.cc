@@ -326,7 +326,8 @@ TEST_F(Stream, remote_shutdown_before_write_headers)
 
 TEST_F(Stream, shutdown_after_close)
 {
-  cstream.close();
+  std::optional<error_code> close_ec;
+  cstream.async_close(capture(close_ec));
 
   error_code shutdown_ec;
   cstream.shutdown(0, shutdown_ec);
@@ -347,7 +348,8 @@ TEST_F(Stream, shutdown_after_remote_shutdown)
 
 TEST_F(Stream, shutdown_after_remote_close)
 {
-  sstream.close();
+  std::optional<error_code> close_ec;
+  sstream.async_close(capture(close_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());

@@ -46,9 +46,14 @@ void stream_state::shutdown(int how, error_code& ec)
   conn.socket.engine.stream_shutdown(*this, how, ec);
 }
 
-void stream_state::close(error_code& ec)
+void stream_state::close(stream_close_operation& op)
 {
-  conn.socket.engine.stream_close(*this, ec);
+  conn.socket.engine.stream_close(*this, op);
+}
+
+void stream_state::reset()
+{
+  conn.socket.engine.stream_reset(*this);
 }
 
 } // namespace detail
@@ -56,8 +61,7 @@ void stream_state::close(error_code& ec)
 stream::~stream()
 {
   if (state) {
-    error_code ec_ignored;
-    state->close(ec_ignored);
+    state->reset();
   }
 }
 
@@ -96,13 +100,16 @@ void stream::shutdown(int how)
 
 void stream::close(error_code& ec)
 {
-  state->close(ec);
+  detail::stream_close_sync op;
+  state->close(op);
+  op.wait();
+  ec = *op.ec;
 }
 
 void stream::close()
 {
   error_code ec;
-  state->close(ec);
+  close(ec);
   if (ec) {
     throw system_error(ec);
   }

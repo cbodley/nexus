@@ -28,8 +28,11 @@ class stream {
   /// default-construct an empty stream
   stream() = default;
 
-  /// close the stream on destruction
+  /// reset the stream on destruction
   ~stream();
+
+  stream(stream&&) = default;
+  stream& operator=(stream&&) = default;
 
   /// return the associated io executor
   executor_type get_executor() const;
@@ -93,15 +96,25 @@ class stream {
   /// shut down a stream for reads (0), writes (1), or both (2). shutting down
   /// the read side will cancel any pending read operations. shutting down the
   /// write side will flush any buffered data, and cancel any pending write
-  /// operations. once shut down for both sides, the stream will close itself
+  /// operations
   void shutdown(int how, error_code& ec);
   /// \overload
   void shutdown(int how);
 
-  /// close the stream, canceling any pending operations
+  /// close the stream gracefully, blocking until all written data is
+  /// acknowledged by the peer
+  template <typename CompletionToken> // void(error_code)
+  decltype(auto) async_close(CompletionToken&& token) {
+    return state->async_close(std::forward<CompletionToken>(token));
+  }
+  /// \overload
   void close(error_code& ec);
   /// \overload
   void close();
+
+  /// reset the stream immediately in both directions, canceling any pending
+  /// operations and discarding any unsent data
+  void reset();
 };
 
 } // namespace nexus::quic

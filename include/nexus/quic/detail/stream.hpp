@@ -32,6 +32,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
 
   stream_connect_operation* connect_ = nullptr;
   stream_accept_operation* accept_ = nullptr;
+  stream_close_operation* close_ = nullptr;
 
   template <typename BufferSequence>
   static void init_op(const BufferSequence& buffers,
@@ -144,7 +145,23 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
 
   void flush(error_code& ec);
   void shutdown(int how, error_code& ec);
-  void close(error_code& ec);
+
+  void close(stream_close_operation& op);
+
+  template <typename CompletionToken>
+  decltype(auto) async_close(CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_close_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+          close(*op);
+          op.release(); // release ownership
+        }, token);
+  }
+
+  void reset();
 };
 
 } // namespace quic::detail
