@@ -29,6 +29,7 @@ void connection::connect(stream& s, error_code& ec)
 {
   auto op = detail::stream_connect_sync{s.state};
   state.connect(op);
+  op.wait();
   ec = *op.ec;
 }
 
@@ -45,6 +46,7 @@ void connection::accept(stream& s, error_code& ec)
 {
   auto op = detail::stream_accept_sync{s.state};
   state.accept(op);
+  op.wait();
   ec = *op.ec;
 }
 

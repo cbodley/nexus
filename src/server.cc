@@ -48,6 +48,7 @@ void acceptor::accept(connection& conn, error_code& ec)
 {
   detail::accept_sync op;
   state.accept(conn.state, op);
+  op.wait();
   ec = *op.ec;
 }
 
@@ -110,6 +111,7 @@ void acceptor::accept(server_connection& conn, error_code& ec)
 {
   quic::detail::accept_sync op;
   state.accept(conn.state, op);
+  op.wait();
   ec = *op.ec;
 }
 
@@ -136,6 +138,7 @@ void server_connection::accept(stream& s, error_code& ec)
 {
   auto op = quic::detail::stream_accept_sync{s.state};
   state.accept(op);
+  op.wait();
   ec = *op.ec;
 }
 

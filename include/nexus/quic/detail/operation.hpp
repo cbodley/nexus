@@ -22,11 +22,8 @@ struct operation : boost::intrusive::list_base_hook<> {
                                error_code, size_t);
   complete_fn complete_;
 
-  using wait_fn = void (*)(operation*, std::unique_lock<std::mutex>&);
-  wait_fn wait_;
-
-  operation(complete_fn complete, wait_fn wait) noexcept
-      : complete_(complete), wait_(wait) {}
+  operation(complete_fn complete) noexcept
+      : complete_(complete) {}
 
   void post(error_code ec, size_t bytes = 0) {
     complete_(completion_type::post, this, ec, bytes);
@@ -40,36 +37,33 @@ struct operation : boost::intrusive::list_base_hook<> {
   void destroy() {
     complete_(completion_type::destroy, this, {}, 0);
   }
-  void wait(std::unique_lock<std::mutex>& lock) {
-    if (wait_) {
-      wait_(this, lock);
-    }
-  }
 };
 
 template <typename Operation>
 struct sync_operation : Operation {
   using completion_type = typename Operation::completion_type;
+  std::mutex mutex;
   std::condition_variable cond;
   std::optional<error_code> ec;
   size_t bytes_transferred = 0;
 
   template <typename ...Args>
   explicit sync_operation(Args&& ...args)
-      : Operation(do_complete, do_wait, std::forward<Args>(args)...) {}
+      : Operation(do_complete, std::forward<Args>(args)...) {}
 
   static void do_complete(completion_type type, operation* op,
                           error_code ec, size_t bytes) {
     auto self = static_cast<sync_operation*>(op);
     if (type != completion_type::destroy) {
+      auto lock = std::scoped_lock{self->mutex};
       self->ec = ec;
       self->bytes_transferred = bytes;
       self->cond.notify_one();
     }
   }
-  static void do_wait(operation* op, std::unique_lock<std::mutex>& lock) {
-    auto self = static_cast<sync_operation*>(op);
-    self->cond.wait(lock, [self] { return self->ec; });
+  void wait() {
+    auto lock = std::unique_lock{mutex};
+    cond.wait(lock, [this] { return ec; });
   }
 };
 
@@ -87,7 +81,7 @@ struct async_operation : Operation {
 
   template <typename ...Args>
   async_operation(Handler&& handler, const IoExecutor& io_ex, Args&& ...args)
-      : Operation(do_complete, nullptr, std::forward<Args>(args)...),
+      : Operation(do_complete, std::forward<Args>(args)...),
         handler(std::move(handler)),
         ex(asio::prefer(get_associated_executor(this->handler, io_ex),
                         asio::execution::outstanding_work.tracked),
@@ -139,13 +133,15 @@ struct async_operation : Operation {
                          asio::execution::allocator(alloc)),
             std::move(f));
         break;
+      case completion_type::destroy: // handled above
+        break;
     }
   }
 };
 
 struct accept_operation : operation {
-  accept_operation(complete_fn complete, wait_fn wait) noexcept
-      : operation(complete, wait) {}
+  accept_operation(complete_fn complete) noexcept
+      : operation(complete) {}
 };
 struct accept_sync : sync_operation<accept_operation> {
 };
@@ -162,9 +158,9 @@ struct accept_async :
 struct stream_connect_operation : operation {
   std::unique_ptr<stream_state>& stream;
 
-  stream_connect_operation(complete_fn complete, wait_fn wait,
+  stream_connect_operation(complete_fn complete,
                            std::unique_ptr<stream_state>& stream) noexcept
-      : operation(complete, wait), stream(stream)
+      : operation(complete), stream(stream)
   {}
 };
 struct stream_connect_sync : sync_operation<stream_connect_operation> {
@@ -185,9 +181,9 @@ struct stream_connect_async :
 struct stream_accept_operation : operation {
   std::unique_ptr<stream_state>& stream;
 
-  stream_accept_operation(complete_fn complete, wait_fn wait,
+  stream_accept_operation(complete_fn complete,
                           std::unique_ptr<stream_state>& stream) noexcept
-      : operation(complete, wait), stream(stream)
+      : operation(complete), stream(stream)
   {}
 };
 struct stream_accept_sync : sync_operation<stream_accept_operation> {
@@ -211,8 +207,8 @@ struct stream_data_operation : operation {
   uint16_t num_iovs = 0;
   size_t bytes_transferred = 0;
 
-  stream_data_operation(complete_fn complete, wait_fn wait) noexcept
-      : operation(complete, wait) {}
+  stream_data_operation(complete_fn complete) noexcept
+      : operation(complete) {}
 };
 struct stream_data_sync : sync_operation<stream_data_operation> {
 };
@@ -229,9 +225,9 @@ struct stream_data_async :
 struct stream_header_read_operation : operation {
   h3::fields& fields;
 
-  stream_header_read_operation(complete_fn complete, wait_fn wait,
+  stream_header_read_operation(complete_fn complete,
                                h3::fields& fields) noexcept
-      : operation(complete, wait), fields(fields)
+      : operation(complete), fields(fields)
   {}
 };
 struct stream_header_read_sync : sync_operation<stream_header_read_operation> {
@@ -253,9 +249,9 @@ struct stream_header_read_async :
 struct stream_header_write_operation : operation {
   const h3::fields& fields;
 
-  stream_header_write_operation(complete_fn complete, wait_fn wait,
+  stream_header_write_operation(complete_fn complete,
                                 const h3::fields& fields) noexcept
-      : operation(complete, wait), fields(fields)
+      : operation(complete), fields(fields)
   {}
 };
 struct stream_header_write_sync : sync_operation<stream_header_write_operation> {

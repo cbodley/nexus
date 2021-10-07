@@ -116,6 +116,7 @@ void stream::read_headers(fields& f, error_code& ec)
 {
   auto op = quic::detail::stream_header_read_sync{f};
   state->read_headers(op);
+  op.wait();
   ec = *op.ec;
 }
 void stream::read_headers(fields& f)
@@ -131,6 +132,7 @@ void stream::write_headers(const fields& f, error_code& ec)
 {
   auto op = quic::detail::stream_header_write_sync{f};
   state->write_headers(op);
+  op.wait();
   ec = *op.ec;
 }
 void stream::write_headers(const fields& f)

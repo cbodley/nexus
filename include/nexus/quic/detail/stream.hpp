@@ -91,6 +91,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
     stream_data_sync op;
     init_op(buffers, op);
     read_some(op);
+    op.wait();
     ec = *op.ec;
     return op.bytes_transferred;
   }
@@ -136,6 +137,7 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
     stream_data_sync op;
     init_op(buffers, op);
     write_some(op);
+    op.wait();
     ec = *op.ec;
     return op.bytes_transferred;
   }

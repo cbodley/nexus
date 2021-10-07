@@ -87,7 +87,6 @@ void engine_state::accept(connection_state& cstate, accept_operation& op)
   cstate.accept_ = &op;
   cstate.socket.accepting_connections.push_back(cstate);
   process(lock);
-  op.wait(lock);
 }
 
 connection_state* engine_state::on_accept(lsquic_conn_t* conn)
@@ -274,7 +273,6 @@ void engine_state::stream_connect(connection_state& cstate,
   cstate.connecting_streams.push_back(sstate);
   ::lsquic_conn_make_stream(cstate.handle);
   process(lock);
-  op.wait(lock);
 }
 
 stream_state* engine_state::on_stream_connect(connection_state& cstate,
@@ -318,7 +316,6 @@ void engine_state::stream_accept(connection_state& cstate,
   auto& sstate = *op.stream;
   sstate.accept_ = &op;
   cstate.accepting_streams.push_back(sstate);
-  op.wait(lock);
 }
 
 stream_state* engine_state::on_stream_accept(connection_state& cstate,
@@ -377,7 +374,6 @@ void engine_state::stream_read(stream_state& sstate, stream_data_operation& op)
   }
   sstate.in.data = &op;
   process(lock);
-  op.wait(lock);
 }
 
 void engine_state::stream_read_headers(stream_state& sstate,
@@ -402,7 +398,6 @@ void engine_state::stream_read_headers(stream_state& sstate,
   }
   sstate.in.header = &op;
   process(lock);
-  op.wait(lock);
 }
 
 struct recv_header_set {
@@ -463,7 +458,6 @@ void engine_state::stream_write(stream_state& sstate, stream_data_operation& op)
   }
   sstate.out.data = &op;
   process(lock);
-  op.wait(lock);
 }
 
 void engine_state::stream_write_headers(stream_state& sstate,
@@ -488,7 +482,6 @@ void engine_state::stream_write_headers(stream_state& sstate,
   }
   sstate.out.header = &op;
   process(lock);
-  op.wait(lock);
 }
 
 static void do_write_headers(lsquic_stream_t* stream,

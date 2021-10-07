@@ -126,6 +126,7 @@ void client_connection::connect(stream& s, error_code& ec)
 {
   auto op = quic::detail::stream_connect_sync{s.state};
   state.connect(op);
+  op.wait();
   ec = *op.ec;
 }
 
