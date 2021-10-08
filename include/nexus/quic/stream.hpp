@@ -102,7 +102,8 @@ class stream {
   void shutdown(int how);
 
   /// close the stream gracefully, blocking until all written data is
-  /// acknowledged by the peer
+  /// acknowledged by the peer. the associated connection must remain open until
+  /// this graceful shutdown completes
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_close(CompletionToken&& token) {
     return state->async_close(std::forward<CompletionToken>(token));
@@ -113,7 +114,7 @@ class stream {
   void close();
 
   /// reset the stream immediately in both directions, canceling any pending
-  /// operations and discarding any unsent data
+  /// operations and discarding any unacked data
   void reset();
 };
 

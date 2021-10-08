@@ -97,14 +97,18 @@ When a connection closes, all related streams are closed and any pending operati
 
 Once a generic QUIC stream (class nexus::quic::stream) has been connected or accepted, it provides bidirectional, reliable ordered delivery of data.
 
-For reads and writes, nexus::quic::stream models the asio concepts AsyncReadStream, AsyncWriteStream, SyncReadStream and SyncWriteStream, so can be used with the same read and write algorithms as `asio::ip::tcp::socket`:
+For reads and writes, nexus::quic::stream models the asio concepts `AsyncReadStream`, `AsyncWriteStream`, `SyncReadStream` and `SyncWriteStream`, so can be used with the same read and write algorithms as `asio::ip::tcp::socket`:
 
 	char request[16]; // read 16 bytes from the stream
 	auto bytes = asio::read(stream, asio::buffer(data));
 
 The stream can be closed in one or both directions with nexus::quic::stream::shutdown() and nexus::quic::stream::close().
 
-Writes may be buffered by the stream due to a preference to send full packets. Buffered stream data can be flushed, either by calling nexus::quic::stream::flush() manually or by shutting down the stream for write.
+Writes may be buffered by the stream due to a preference to send full packets, similar to Nagle's algorithm for TCP. Buffered stream data can be flushed, either by calling nexus::quic::stream::flush() manually, shutting down the stream for write, or closing the stream.
+
+Graceful shutdown of a QUIC stream differs from normal TCP sockets, which can be closed immediately even if there is unsent or unacked data, and the kernel will continue to (re)transmit data in the background until everything is acked. Because this transmission in QUIC depends on an open connection, the application must not close the associated nexus::quic::connection until the stream shutdown completes. To support this graceful shutdown, the behavior of nexus::quic::stream::close() matches that of the socket option `SO_LINGER`, where the close does not complete until all stream data has been successfully acked. nexus::quic::stream::async_close() is provided for asynchronous graceful shutdown.
+
+A separate function nexus::quic::stream::reset() is provided for immediate shutdown, and the nexus::quic::stream::~stream() destructor calls nexus::quic::stream::reset() instead of nexus::quic::stream::close().
 
 ## Synchronous and Asynchronous
 
