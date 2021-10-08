@@ -11,49 +11,91 @@ namespace nexus {
 namespace quic {
 namespace detail {
 
-stream_state::executor_type stream_state::get_executor() const
-{
-  return conn.get_executor();
-}
-
 void stream_state::read_headers(stream_header_read_operation& op)
 {
-  conn.socket.engine.stream_read_headers(*this, op);
+  if (conn) {
+    conn->socket.engine.stream_read_headers(*this, op);
+  } else if (conn_err) {
+    op.post(std::exchange(conn_err, {}));
+  } else {
+    op.post(make_error_code(errc::bad_file_descriptor));
+  }
 }
 
 void stream_state::read_some(stream_data_operation& op)
 {
-  conn.socket.engine.stream_read(*this, op);
+  if (conn) {
+    conn->socket.engine.stream_read(*this, op);
+  } else if (conn_err) {
+    op.post(std::exchange(conn_err, {}));
+  } else {
+    op.post(make_error_code(errc::bad_file_descriptor));
+  }
 }
 
 void stream_state::write_some(stream_data_operation& op)
 {
-  conn.socket.engine.stream_write(*this, op);
+  if (conn) {
+    conn->socket.engine.stream_write(*this, op);
+  } else if (conn_err) {
+    op.post(std::exchange(conn_err, {}));
+  } else {
+    op.post(make_error_code(errc::bad_file_descriptor));
+  }
 }
 
 void stream_state::write_headers(stream_header_write_operation& op)
 {
-  conn.socket.engine.stream_write_headers(*this, op);
+  if (conn) {
+    conn->socket.engine.stream_write_headers(*this, op);
+  } else if (conn_err) {
+    op.post(std::exchange(conn_err, {}));
+  } else {
+    op.post(make_error_code(errc::bad_file_descriptor));
+  }
 }
 
 void stream_state::flush(error_code& ec)
 {
-  conn.socket.engine.stream_flush(*this, ec);
+  if (conn) {
+    conn->socket.engine.stream_flush(*this, ec);
+  } else if (conn_err) {
+    ec = std::exchange(conn_err, {});
+  } else {
+    ec = make_error_code(errc::bad_file_descriptor);
+  }
 }
 
 void stream_state::shutdown(int how, error_code& ec)
 {
-  conn.socket.engine.stream_shutdown(*this, how, ec);
+  if (conn) {
+    conn->socket.engine.stream_shutdown(*this, how, ec);
+  } else if (conn_err) {
+    ec = std::exchange(conn_err, {});
+  } else {
+    ec = make_error_code(errc::bad_file_descriptor);
+  }
 }
 
 void stream_state::close(stream_close_operation& op)
 {
-  conn.socket.engine.stream_close(*this, op);
+  if (conn) {
+    conn->socket.engine.stream_close(*this, op);
+  } else if (conn_err) {
+    op.post(std::exchange(conn_err, {}));
+  } else {
+    op.post(error_code{}); // already closed
+  }
 }
 
 void stream_state::reset()
 {
-  conn.socket.engine.stream_reset(*this);
+  if (conn) {
+    conn->socket.engine.stream_reset(*this);
+  } else if (close_) {
+    auto op = std::exchange(close_, nullptr);
+    op->dispatch(make_error_code(stream_error::aborted));
+  }
 }
 
 } // namespace detail

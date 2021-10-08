@@ -1,5 +1,6 @@
 #include <nexus/quic/error.hpp>
 #include <nexus/h3/error.hpp>
+#include <asio.hpp>
 #include <openssl/ssl.h>
 
 namespace nexus {

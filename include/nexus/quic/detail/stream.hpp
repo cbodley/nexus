@@ -4,6 +4,7 @@
 #include <asio/buffers_iterator.hpp>
 
 #include <nexus/quic/detail/operation.hpp>
+#include <nexus/quic/detail/service.hpp>
 #include <nexus/quic/error.hpp>
 #include <nexus/h3/fields.hpp>
 
@@ -24,8 +25,14 @@ struct stream_write_state {
   stream_header_write_operation* header = nullptr;
 };
 
-struct stream_state : public boost::intrusive::list_base_hook<> {
-  connection_state& conn;
+struct stream_state : public boost::intrusive::list_base_hook<>,
+                      public service_list_base_hook {
+  using executor_type = asio::any_io_executor;
+  service<stream_state>& svc;
+  executor_type ex;
+  connection_state* conn;
+  // make sure that connection errors get delivered to the application
+  error_code conn_err;
   lsquic_stream* handle = nullptr;
   stream_read_state in;
   stream_write_state out;
@@ -46,10 +53,45 @@ struct stream_state : public boost::intrusive::list_base_hook<> {
     }
   }
 
-  explicit stream_state(connection_state& conn) : conn(conn) {}
+  stream_state(const executor_type& ex, connection_state* conn)
+      : svc(asio::use_service<service<stream_state>>(ex.context())),
+        ex(ex), conn(conn)
+  {
+    // register for service_shutdown() notifications
+    svc.add(*this);
+  }
+  ~stream_state()
+  {
+    svc.remove(*this);
+  }
 
-  using executor_type = asio::any_io_executor;
-  executor_type get_executor() const;
+  void service_shutdown()
+  {
+    // destroy any pending operations
+    if (auto op = std::exchange(in.data, nullptr); op) {
+      op->destroy();
+    }
+    if (auto op = std::exchange(in.header, nullptr); op) {
+      op->destroy();
+    }
+    if (auto op = std::exchange(out.data, nullptr); op) {
+      op->destroy();
+    }
+    if (auto op = std::exchange(out.header, nullptr); op) {
+      op->destroy();
+    }
+    if (auto op = std::exchange(connect_, nullptr); op) {
+      op->destroy();
+    }
+    if (auto op = std::exchange(accept_, nullptr); op) {
+      op->destroy();
+    }
+    if (auto op = std::exchange(close_, nullptr); op) {
+      op->destroy();
+    }
+  }
+
+  executor_type get_executor() const { return ex; }
 
   void read_headers(stream_header_read_operation& op);
 

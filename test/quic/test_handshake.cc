@@ -279,7 +279,7 @@ TEST_F(BadVerifyClient, stream_connect_during_handshake)
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(write2_ec);
-  EXPECT_EQ(errc::not_connected, *write2_ec);
+  EXPECT_EQ(errc::bad_file_descriptor, *write2_ec);
 }
 TEST_F(BadVerifyClient, stream_connect_after_handshake)
 {
