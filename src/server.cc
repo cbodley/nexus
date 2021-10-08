@@ -20,6 +20,11 @@ server::executor_type server::get_executor() const
   return state.get_executor();
 }
 
+void server::close()
+{
+  state.close();
+}
+
 acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
     : state(s.state, std::move(socket), ctx)
 {}

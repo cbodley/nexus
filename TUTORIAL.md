@@ -53,7 +53,7 @@ The client and server constructors take an optional `nexus::quic::settings` argu
 
 The generic QUIC client (`class nexus::quic::client`) takes control of a bound `asio::ip::udp::socket` and `asio::ssl::context` to initiate secure connections (`class nexus::quic::connection`) to QUIC servers.
 
-	auto client = nexus::quic::client{ex, udp::endpoint{}, ssl};
+	auto client = nexus::quic::client{ex, bind_endpoint, ssl};
 
 Initiating a client connection is instantaneous, and does not wait for the connection handshake to complete. This allows the application to start opening streams and staging data in the meantime. If the handshake does fail, the relevant error code will be delivered to any pending stream operations.
 

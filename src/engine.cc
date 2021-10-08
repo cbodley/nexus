@@ -198,6 +198,15 @@ int engine_state::cancel(connection_state& cstate, error_code ec)
     }
     canceled += count;
   }
+  // cancel closing streams
+  while (!cstate.closing_streams.empty()) {
+    auto& sstate = cstate.closing_streams.front();
+    cstate.closing_streams.pop_front();
+    assert(sstate.close_);
+    auto op = std::exchange(sstate.close_, nullptr);
+    op->defer(ec);
+    canceled++;
+  }
   return canceled;
 }
 
@@ -618,7 +627,6 @@ bool engine_state::try_stream_reset(stream_state& sstate)
   assert(sstate.conn);
   auto& connected = sstate.conn->connected_streams;
   connected.erase(connected.iterator_to(sstate));
-  sstate.conn = nullptr;
 
   stream_cancel_read(sstate, ec);
   stream_cancel_write(sstate, ec);
@@ -628,11 +636,15 @@ bool engine_state::try_stream_reset(stream_state& sstate)
 void engine_state::stream_reset(stream_state& sstate)
 {
   auto lock = std::unique_lock{mutex};
+  assert(sstate.conn);
   if (sstate.close_) {
+    auto& closing = sstate.conn->closing_streams;
+    closing.erase(closing.iterator_to(sstate));
     sstate.close_->defer(make_error_code(stream_error::aborted));
     sstate.close_ = nullptr;
   }
   try_stream_reset(sstate);
+  sstate.conn = nullptr;
   process(lock);
 }
 
@@ -648,6 +660,8 @@ void engine_state::stream_close(stream_state& sstate,
     op.post(error_code{});
     return;
   }
+  assert(sstate.conn);
+  sstate.conn->closing_streams.push_back(sstate);
   assert(!sstate.close_);
   sstate.close_ = &op;
   process(lock);
@@ -687,7 +701,10 @@ int engine_state::stream_cancel_write(stream_state& sstate, error_code ec)
 
 void engine_state::on_stream_close(stream_state& sstate)
 {
+  assert(sstate.conn);
   if (sstate.close_) {
+    auto& closing = sstate.conn->closing_streams;
+    closing.erase(closing.iterator_to(sstate));
     auto op = std::exchange(sstate.close_, nullptr);
     op->defer(error_code{});
   }
@@ -696,7 +713,6 @@ void engine_state::on_stream_close(stream_state& sstate)
   }
   sstate.handle = nullptr;
 
-  assert(sstate.conn);
   auto& connected = sstate.conn->connected_streams;
   connected.erase(connected.iterator_to(sstate));
 

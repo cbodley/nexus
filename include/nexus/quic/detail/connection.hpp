@@ -28,6 +28,7 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   boost::intrusive::list<stream_state> connecting_streams;
   boost::intrusive::list<stream_state> accepting_streams;
   boost::intrusive::list<stream_state> connected_streams;
+  boost::intrusive::list<stream_state> closing_streams;
 
   explicit connection_state(socket_state& socket) : socket(socket) {}
   ~connection_state() {

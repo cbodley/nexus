@@ -157,6 +157,11 @@ void stream::close()
   }
 }
 
+void stream::reset()
+{
+  state->reset();
+}
+
 } // namespace quic
 
 namespace h3 {
