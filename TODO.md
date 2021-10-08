@@ -12,10 +12,20 @@
 
 ## connection
 
+* make connection moveable
+* make connect()/accept() return a connection instead of taking an existing one by reference
 * going_away() for h3 connections
 * expose connection::close() vs. abort()? maybe just use abort() in destructor?
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
+
+## stream
+
+* make connect()/accept() return a stream instead of taking an existing one by reference
+
+## client
+
+* stop polling socket and cancel timers when no connections are open, so io_context.run() can return
 
 ## UDP
 
