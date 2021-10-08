@@ -1,10 +1,10 @@
 # Tutorial
 
-Nexus provides two sets of interfaces: one in namespace nexus::quic for generic QUIC clients and servers, and another in namespace nexus::h3 for HTTP/3 clients and servers.
+Nexus provides two sets of interfaces: one in `namespace nexus::quic` for generic QUIC clients and servers, and another in `namespace nexus::h3` for HTTP/3 clients and servers.
 
 ## Global Initialization
 
-The library must be initialized before use, and this is accomplished by creating a nexus::global::context with one of its factory functions:
+The library must be initialized before use, and this is accomplished by creating a `nexus::global::context` with one of its factory functions:
 
 	{
 	  auto global = nexus::global::init_client();
@@ -43,32 +43,32 @@ The negotiated protocol can be queried on either side with `SSL_get0_alpn_select
 
 ### Settings
 
-As part of the connection handshake, the client and server exchange their QUIC [Transport Parameters](https://www.rfc-editor.org/rfc/rfc9000.html#transport-parameter-definitions). Some of the transport parameters we send, such as flow control limits and timeouts, can be configured with class nexus::quic::settings.
+As part of the connection handshake, the client and server exchange their QUIC [Transport Parameters](https://www.rfc-editor.org/rfc/rfc9000.html#transport-parameter-definitions). Some of the transport parameters we send, such as flow control limits and timeouts, can be configured with `class nexus::quic::settings`.
 
 Nexus also receives the peer's transport parameters, and will automatically respect the limits they impose. For example, once we've opened the maximum number of outgoing streams on the connection, requests to initiate a new outgoing stream will block until another stream closes. And once we reach a stream or connection flow control limit, requests to write more data will block until the peer reads some and adjusts the window.
 
-The client and server constructors take an optional nexus::quic::settings argument and, once constructed, these settings cannot be changed.
+The client and server constructors take an optional `nexus::quic::settings` argument and, once constructed, these settings cannot be changed.
 
 ### Client
 
-The generic QUIC client (class nexus::quic::client) takes control of a bound `asio::ip::udp::socket` and `asio::ssl::context` to initiate secure connections (class nexus::quic::connection) to QUIC servers.
+The generic QUIC client (`class nexus::quic::client`) takes control of a bound `asio::ip::udp::socket` and `asio::ssl::context` to initiate secure connections (`class nexus::quic::connection`) to QUIC servers.
 
 	auto client = nexus::quic::client{ex, udp::endpoint{}, ssl};
 
 Initiating a client connection is instantaneous, and does not wait for the connection handshake to complete. This allows the application to start opening streams and staging data in the meantime. If the handshake does fail, the relevant error code will be delivered to any pending stream operations.
 
-A client initiates a connection either by calling nexus::quic::client::connect():
+A client initiates a connection either by calling `nexus::quic::client::connect()`:
 
 	auto conn = nexus::quic::connection{client};
 	client.connect(conn, endpoint, hostname);
 
-Or by providing the remote endpoint and hostname arguments to the nexus::quic::connection constructor:
+Or by providing the remote endpoint and hostname arguments to the `nexus::quic::connection` constructor:
 
 	auto conn = nexus::quic::connection{client, endpoint, hostname};
 
 ### Server
 
-The generic QUIC server (class nexus::quic::server) listens on one or more UDP sockets (using class nexus::quic::acceptor) to accept secure connections from QUIC clients.
+The generic QUIC server (`class nexus::quic::server`) listens on one or more UDP sockets (using `class nexus::quic::acceptor`) to accept secure connections from QUIC clients.
 
 	auto server = nexus::quic::server{ex};
 	auto acceptor = nexus::quic::acceptor{server, bind_endpoint, ssl};
@@ -77,11 +77,11 @@ The generic QUIC server (class nexus::quic::server) listens on one or more UDP s
 	auto conn = nexus::quic::connection{acceptor};
 	acceptor.accept(conn);
 
-Unlike nexus::quic::client::connect() which returns immediately without waiting for the connection handshake, accept() only completes once the handshake is successful.
+Unlike `nexus::quic::client::connect()` which returns immediately without waiting for the connection handshake, `nexus::quic::acceptor::accept()` only completes once the handshake is successful.
 
 ### Connection
 
-Once a generic QUIC connection (class nexus::quic::connection) has been connected or accepted, it can be used both to initiate outgoing streams with connect():
+Once a generic QUIC connection (`class nexus::quic::connection`) has been connected or accepted, it can be used both to initiate outgoing streams with `nexus::quic::connection::connect()`:
 
 	auto stream = nexus::quic:stream{};
 	conn.connect(stream);
@@ -95,20 +95,20 @@ When a connection closes, all related streams are closed and any pending operati
 
 ### Stream
 
-Once a generic QUIC stream (class nexus::quic::stream) has been connected or accepted, it provides bidirectional, reliable ordered delivery of data.
+Once a generic QUIC stream (`class nexus::quic::stream`) has been connected or accepted, it provides bidirectional, reliable ordered delivery of data.
 
-For reads and writes, nexus::quic::stream models the asio concepts `AsyncReadStream`, `AsyncWriteStream`, `SyncReadStream` and `SyncWriteStream`, so can be used with the same read and write algorithms as `asio::ip::tcp::socket`:
+For reads and writes, `nexus::quic::stream` models the asio concepts `AsyncReadStream`, `AsyncWriteStream`, `SyncReadStream` and `SyncWriteStream`, so can be used with the same read and write algorithms as `asio::ip::tcp::socket`:
 
 	char request[16]; // read 16 bytes from the stream
 	auto bytes = asio::read(stream, asio::buffer(data));
 
-The stream can be closed in one or both directions with nexus::quic::stream::shutdown() and nexus::quic::stream::close().
+The stream can be closed in one or both directions with `nexus::quic::stream::shutdown()` and `nexus::quic::stream::close()`.
 
-Writes may be buffered by the stream due to a preference to send full packets, similar to Nagle's algorithm for TCP. Buffered stream data can be flushed, either by calling nexus::quic::stream::flush() manually, shutting down the stream for write, or closing the stream.
+Writes may be buffered by the stream due to a preference to send full packets, similar to Nagle's algorithm for TCP. Buffered stream data can be flushed, either by calling `nexus::quic::stream::flush()` manually, shutting down the stream for write, or closing the stream.
 
-Graceful shutdown of a QUIC stream differs from normal TCP sockets, which can be closed immediately even if there is unsent or unacked data, and the kernel will continue to (re)transmit data in the background until everything is acked. Because this transmission in QUIC depends on an open connection, the application must not close the associated nexus::quic::connection until the stream shutdown completes. To support this graceful shutdown, the behavior of nexus::quic::stream::close() matches that of the socket option `SO_LINGER`, where the close does not complete until all stream data has been successfully acked. nexus::quic::stream::async_close() is provided for asynchronous graceful shutdown.
+Graceful shutdown of a QUIC stream differs from normal TCP sockets, which can be closed immediately even if there is unsent or unacked data, and the kernel will continue to (re)transmit data in the background until everything is acked. Because this transmission in QUIC depends on an open connection, the application must not close the associated `nexus::quic::connection` until the stream shutdown completes. To support this graceful shutdown, the behavior of `nexus::quic::stream::close()` matches that of the socket option `SO_LINGER`, where the close does not complete until all stream data has been successfully acked. `nexus::quic::stream::async_close()` is provided for asynchronous graceful shutdown.
 
-A separate function nexus::quic::stream::reset() is provided for immediate shutdown, and the nexus::quic::stream::~stream() destructor calls nexus::quic::stream::reset() instead of nexus::quic::stream::close().
+A separate function `nexus::quic::stream::reset()` is provided for immediate shutdown, and the `nexus::quic::stream::~stream()` destructor calls `nexus::quic::stream::reset()` instead of `nexus::quic::stream::close()`.
 
 ## Synchronous and Asynchronous
 
