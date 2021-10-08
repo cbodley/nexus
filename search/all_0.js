@@ -6,9 +6,10 @@ var searchData=
   ['application_5fcategory_3',['application_category',['../namespacenexus_1_1quic.html#a456b6193f72338827026b59656279557',1,'nexus::quic']]],
   ['assign_4',['assign',['../classnexus_1_1h3_1_1fields.html#af8b31cf5ec662dc392838c05b4c57d60',1,'nexus::h3::fields']]],
   ['async_5faccept_5',['async_accept',['../classnexus_1_1h3_1_1acceptor.html#aa0fd7e868457577aab7e2b368ec58df6',1,'nexus::h3::acceptor::async_accept()'],['../classnexus_1_1h3_1_1server__connection.html#a696a6e21b9dcaa3d9653d2be30e9ba5c',1,'nexus::h3::server_connection::async_accept()'],['../classnexus_1_1quic_1_1connection.html#a165bccce2646e6952dbf513c4f4b9ec1',1,'nexus::quic::connection::async_accept()'],['../classnexus_1_1quic_1_1acceptor.html#a6f3aec8dab0b8c4c1bde4f1fd03afcf2',1,'nexus::quic::acceptor::async_accept()']]],
-  ['async_5fconnect_6',['async_connect',['../classnexus_1_1h3_1_1client__connection.html#aecc24420d25775254e11017ba079cd44',1,'nexus::h3::client_connection::async_connect()'],['../classnexus_1_1quic_1_1connection.html#a0112b065d1fe0d45176dc25a7cdeed74',1,'nexus::quic::connection::async_connect()']]],
-  ['async_5fread_5fheaders_7',['async_read_headers',['../classnexus_1_1h3_1_1stream.html#af45bfe3a00f0d9d866eaf255e33eaeb0',1,'nexus::h3::stream']]],
-  ['async_5fread_5fsome_8',['async_read_some',['../classnexus_1_1quic_1_1stream.html#af7853806fe85440976e0be15858a622f',1,'nexus::quic::stream']]],
-  ['async_5fwrite_5fheaders_9',['async_write_headers',['../classnexus_1_1h3_1_1stream.html#ae108ee917a403e665f5c4e50217d9aed',1,'nexus::h3::stream']]],
-  ['async_5fwrite_5fsome_10',['async_write_some',['../classnexus_1_1quic_1_1stream.html#ab162147edeb94612bb4fee8eb346fe84',1,'nexus::quic::stream']]]
+  ['async_5fclose_6',['async_close',['../classnexus_1_1quic_1_1stream.html#a6319d8ab5a8c1fc0c976333fe58964ef',1,'nexus::quic::stream']]],
+  ['async_5fconnect_7',['async_connect',['../classnexus_1_1h3_1_1client__connection.html#aecc24420d25775254e11017ba079cd44',1,'nexus::h3::client_connection::async_connect()'],['../classnexus_1_1quic_1_1connection.html#a0112b065d1fe0d45176dc25a7cdeed74',1,'nexus::quic::connection::async_connect()']]],
+  ['async_5fread_5fheaders_8',['async_read_headers',['../classnexus_1_1h3_1_1stream.html#af45bfe3a00f0d9d866eaf255e33eaeb0',1,'nexus::h3::stream']]],
+  ['async_5fread_5fsome_9',['async_read_some',['../classnexus_1_1quic_1_1stream.html#af7853806fe85440976e0be15858a622f',1,'nexus::quic::stream']]],
+  ['async_5fwrite_5fheaders_10',['async_write_headers',['../classnexus_1_1h3_1_1stream.html#ae108ee917a403e665f5c4e50217d9aed',1,'nexus::h3::stream']]],
+  ['async_5fwrite_5fsome_11',['async_write_some',['../classnexus_1_1quic_1_1stream.html#ab162147edeb94612bb4fee8eb346fe84',1,'nexus::quic::stream']]]
 ];

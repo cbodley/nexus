@@ -105,8 +105,14 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a94bec66c0826441d4afe3ad4c04c3d3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a60e5740c05db32076c96117307dd7a86"><td class="memItemLeft" align="right" valign="top"><a id="a60e5740c05db32076c96117307dd7a86"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a60e5740c05db32076c96117307dd7a86">~stream</a> ()</td></tr>
-<tr class="memdesc:a60e5740c05db32076c96117307dd7a86"><td class="mdescLeft">&#160;</td><td class="mdescRight">close the stream on destruction <br /></td></tr>
+<tr class="memdesc:a60e5740c05db32076c96117307dd7a86"><td class="mdescLeft">&#160;</td><td class="mdescRight">reset the stream on destruction <br /></td></tr>
 <tr class="separator:a60e5740c05db32076c96117307dd7a86"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a71d2a52a36f3af863ed2ee5af0a91fe9"><td class="memItemLeft" align="right" valign="top"><a id="a71d2a52a36f3af863ed2ee5af0a91fe9"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>stream</b> (<a class="el" href="classnexus_1_1quic_1_1stream.html">stream</a> &amp;&amp;)=default</td></tr>
+<tr class="separator:a71d2a52a36f3af863ed2ee5af0a91fe9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3286b3ba6006c36d3ebec00e241615b6"><td class="memItemLeft" align="right" valign="top"><a id="a3286b3ba6006c36d3ebec00e241615b6"></a>
+<a class="el" href="classnexus_1_1quic_1_1stream.html">stream</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classnexus_1_1quic_1_1stream.html">stream</a> &amp;&amp;)=default</td></tr>
+<tr class="separator:a3286b3ba6006c36d3ebec00e241615b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0f85079b7c8792fcb44707e351602dea"><td class="memItemLeft" align="right" valign="top"><a id="a0f85079b7c8792fcb44707e351602dea"></a>
 <a class="el" href="classnexus_1_1quic_1_1stream.html#a967adc029f573796efa545d6f846e483">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a0f85079b7c8792fcb44707e351602dea">get_executor</a> () const</td></tr>
 <tr class="memdesc:a0f85079b7c8792fcb44707e351602dea"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the associated io executor <br /></td></tr>
@@ -151,20 +157,29 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="separator:a072931593deae276645944bddc3a5832"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aef1e003616a961e0c60ff80ed1b67cac"><td class="memItemLeft" align="right" valign="top"><a id="aef1e003616a961e0c60ff80ed1b67cac"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#aef1e003616a961e0c60ff80ed1b67cac">shutdown</a> (int how, error_code &amp;ec)</td></tr>
-<tr class="memdesc:aef1e003616a961e0c60ff80ed1b67cac"><td class="mdescLeft">&#160;</td><td class="mdescRight">shut down a stream for reads (0), writes (1), or both (2). shutting down the read side will cancel any pending read operations. shutting down the write side will flush any buffered data, and cancel any pending write operations. once shut down for both sides, the stream will close itself <br /></td></tr>
+<tr class="memdesc:aef1e003616a961e0c60ff80ed1b67cac"><td class="mdescLeft">&#160;</td><td class="mdescRight">shut down a stream for reads (0), writes (1), or both (2). shutting down the read side will cancel any pending read operations. shutting down the write side will flush any buffered data, and cancel any pending write operations <br /></td></tr>
 <tr class="separator:aef1e003616a961e0c60ff80ed1b67cac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad238ef4dacfd3074fcbae6a4109788f8"><td class="memItemLeft" align="right" valign="top"><a id="ad238ef4dacfd3074fcbae6a4109788f8"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#ad238ef4dacfd3074fcbae6a4109788f8">shutdown</a> (int how)</td></tr>
 <tr class="memdesc:ad238ef4dacfd3074fcbae6a4109788f8"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
 <tr class="separator:ad238ef4dacfd3074fcbae6a4109788f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6319d8ab5a8c1fc0c976333fe58964ef"><td class="memTemplParams" colspan="2"><a id="a6319d8ab5a8c1fc0c976333fe58964ef"></a>
+template&lt;typename CompletionToken &gt; </td></tr>
+<tr class="memitem:a6319d8ab5a8c1fc0c976333fe58964ef"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a6319d8ab5a8c1fc0c976333fe58964ef">async_close</a> (CompletionToken &amp;&amp;token)</td></tr>
+<tr class="memdesc:a6319d8ab5a8c1fc0c976333fe58964ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">close the stream gracefully, blocking until all written data is acknowledged by the peer. the associated connection must remain open until this graceful shutdown completes <br /></td></tr>
+<tr class="separator:a6319d8ab5a8c1fc0c976333fe58964ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac4a79ff5685d946a9a6e423ce695c9a6"><td class="memItemLeft" align="right" valign="top"><a id="ac4a79ff5685d946a9a6e423ce695c9a6"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#ac4a79ff5685d946a9a6e423ce695c9a6">close</a> (error_code &amp;ec)</td></tr>
-<tr class="memdesc:ac4a79ff5685d946a9a6e423ce695c9a6"><td class="mdescLeft">&#160;</td><td class="mdescRight">close the stream, canceling any pending operations <br /></td></tr>
+<tr class="memdesc:ac4a79ff5685d946a9a6e423ce695c9a6"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
 <tr class="separator:ac4a79ff5685d946a9a6e423ce695c9a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a07ff93f517e5d0baa5f6e0ff25128feb"><td class="memItemLeft" align="right" valign="top"><a id="a07ff93f517e5d0baa5f6e0ff25128feb"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a07ff93f517e5d0baa5f6e0ff25128feb">close</a> ()</td></tr>
 <tr class="memdesc:a07ff93f517e5d0baa5f6e0ff25128feb"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
 <tr class="separator:a07ff93f517e5d0baa5f6e0ff25128feb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac3deb3777ddf26e824a42b0f016821c5"><td class="memItemLeft" align="right" valign="top"><a id="ac3deb3777ddf26e824a42b0f016821c5"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#ac3deb3777ddf26e824a42b0f016821c5">reset</a> ()</td></tr>
+<tr class="memdesc:ac3deb3777ddf26e824a42b0f016821c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">reset the stream immediately in both directions, canceling any pending operations and discarding any unacked data <br /></td></tr>
+<tr class="separator:ac3deb3777ddf26e824a42b0f016821c5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
