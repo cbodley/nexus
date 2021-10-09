@@ -15,4 +15,4 @@ target_link_libraries(lsquic PUBLIC ssl crypto decrepit ZLIB::ZLIB)
 
 add_library(asio INTERFACE)
 target_include_directories(asio INTERFACE asio/asio/include)
-target_compile_definitions(asio INTERFACE -DASIO_STANDALONE)
+target_compile_definitions(asio INTERFACE -DASIO_STANDALONE -DASIO_NO_TS_EXECUTORS)

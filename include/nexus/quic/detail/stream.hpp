@@ -54,7 +54,8 @@ struct stream_state : public boost::intrusive::list_base_hook<>,
   }
 
   stream_state(const executor_type& ex, connection_state* conn)
-      : svc(asio::use_service<service<stream_state>>(ex.context())),
+      : svc(asio::use_service<service<stream_state>>(
+              asio::query(ex, asio::execution::context))),
         ex(ex), conn(conn)
   {
     // register for service_shutdown() notifications
