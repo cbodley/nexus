@@ -9,6 +9,8 @@ namespace nexus::quic::detail {
 
 struct stream_state;
 
+/// generic Stream factory calls private unique_ptr<stream_state> constructors,
+/// so must be friended by the Stream type
 template <typename Stream>
 struct stream_factory {
   static Stream create(std::unique_ptr<stream_state> sstate) { return sstate; }

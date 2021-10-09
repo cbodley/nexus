@@ -16,11 +16,16 @@ struct stream_state;
 
 enum class completion_type { post, defer, dispatch, destroy };
 
+/// polymorphic operation base class with completion signature void(Args...)
 template <typename ...Args>
 struct operation {
   using operation_type = operation<Args...>;
   using tuple_type = std::tuple<Args...>;
 
+  /// use a single function pointer, which takes one of the 4 completion_type
+  /// options along with our 'this' pointer. derived classes provide this
+  /// function pointer, and can cast 'this' to their derived type to mimic
+  /// virtual functions
   using complete_fn = void (*)(completion_type, operation_type*, tuple_type&&);
   complete_fn complete_;
 
@@ -49,6 +54,10 @@ struct operation {
   }
 };
 
+/// synchronous operations live on the stack. after submission, they wait on a
+/// condition variable until another thread signals their completion. the caller
+/// can inspect the results in the optional<tuple> member, which is empty until
+/// completion
 template <typename Operation>
 struct sync_operation : Operation {
   std::mutex mutex;
@@ -76,19 +85,27 @@ struct sync_operation : Operation {
   }
 };
 
+/// async operations use the execution library to arrange for completions to run
+/// on the specified execution context. these operations are allocated by their
+/// completion handler's associated allocator, and must be freed before that
+/// handler is submitted for exection
 template <typename Operation, typename Handler, typename IoExecutor>
 struct async_operation : Operation {
   using operation_type = typename Operation::operation_type;
   using tuple_type = typename Operation::tuple_type;
 
   using Executor = asio::associated_executor_t<Handler, IoExecutor>;
+  /// maintain work on the completion handler's associated executor
   using Work = typename asio::prefer_result<Executor,
         asio::execution::outstanding_work_t::tracked_t>::type;
+  /// maintain work on the io object's default executor
   using IoWork = typename asio::prefer_result<IoExecutor,
         asio::execution::outstanding_work_t::tracked_t>::type;
   Handler handler;
   std::pair<Work, IoWork> ex;
 
+  /// construct the async operation, taking ownership of the completion handler.
+  /// additional arguments are forwarded to the wrapped Operation
   template <typename ...Args>
   async_operation(Handler&& handler, const IoExecutor& io_ex, Args&& ...args)
       : Operation(do_complete, std::forward<Args>(args)...),
