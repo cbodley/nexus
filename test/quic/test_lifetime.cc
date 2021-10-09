@@ -38,7 +38,6 @@ class Lifetime : public testing::Test {
   asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
-  quic::connection cconn{client, acceptor.local_endpoint(), "host"};
 
   void SetUp() override {
     //global.log_to_stderr("debug");
@@ -46,8 +45,22 @@ class Lifetime : public testing::Test {
   }
 };
 
+TEST_F(Lifetime, connection_in_accept_handler)
+{
+  // allocate a server connection and move it into the accept handler
+  auto sconn = std::make_unique<quic::connection>(acceptor);
+  auto &ref = *sconn;
+  std::optional<error_code> accept_ec;
+  acceptor.async_accept(ref, [&accept_ec, c=std::move(sconn)] (error_code ec) {
+      accept_ec = ec;
+    });
+  ASSERT_FALSE(accept_ec);
+}
+
 TEST_F(Lifetime, stream_in_connect_handler)
 {
+  quic::connection cconn{client, acceptor.local_endpoint(), "host"};
+
   std::optional<error_code> connect_ec;
   quic::stream stream;
   cconn.async_connect(capture(connect_ec, stream));
@@ -57,6 +70,8 @@ TEST_F(Lifetime, stream_in_connect_handler)
 
 TEST_F(Lifetime, stream_in_read_handler)
 {
+  quic::connection cconn{client, acceptor.local_endpoint(), "host"};
+
   std::optional<error_code> connect_ec;
   quic::stream stream;
   cconn.async_connect(capture(connect_ec, stream));
