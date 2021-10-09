@@ -167,81 +167,66 @@ struct async_operation : Operation {
   }
 };
 
+
+// connection accept
 struct accept_operation : operation<error_code> {
   explicit accept_operation(complete_fn complete) noexcept
       : operation(complete) {}
 };
-struct accept_sync : sync_operation<accept_operation> {
-};
+using accept_sync = sync_operation<accept_operation>;
+
 template <typename Handler, typename IoExecutor>
-struct accept_async :
-    async_operation<accept_operation, Handler, IoExecutor> {
+using accept_async = async_operation<accept_operation, Handler, IoExecutor>;
 
-  accept_async(Handler&& handler, const IoExecutor& io_ex)
-      : async_operation<accept_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
-  {}
-};
 
+// stream connection
 struct stream_connect_operation :
     operation<error_code, std::unique_ptr<stream_state>> {
 
-  stream_connect_operation(complete_fn complete) noexcept
+  explicit stream_connect_operation(complete_fn complete) noexcept
       : operation(complete)
   {}
 };
-struct stream_connect_sync : sync_operation<stream_connect_operation> {
-};
+using stream_connect_sync = sync_operation<stream_connect_operation>;
+
 template <typename Handler, typename IoExecutor>
-struct stream_connect_async :
-    async_operation<stream_connect_operation, Handler, IoExecutor> {
+using stream_connect_async = async_operation<
+    stream_connect_operation, Handler, IoExecutor>;
 
-  stream_connect_async(Handler&& handler, const IoExecutor& io_ex)
-      : async_operation<stream_connect_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
-  {}
-};
 
+// stream accept
 struct stream_accept_operation :
     operation<error_code, std::unique_ptr<stream_state>> {
 
-  stream_accept_operation(complete_fn complete) noexcept
+  explicit stream_accept_operation(complete_fn complete) noexcept
       : operation(complete)
   {}
 };
-struct stream_accept_sync : sync_operation<stream_accept_operation> {
-};
+using stream_accept_sync = sync_operation<stream_accept_operation>;
+
 template <typename Handler, typename IoExecutor>
-struct stream_accept_async :
-    async_operation<stream_accept_operation, Handler, IoExecutor> {
+using stream_accept_async = async_operation<
+    stream_accept_operation, Handler, IoExecutor>;
 
-  stream_accept_async(Handler&& handler, const IoExecutor& io_ex)
-      : async_operation<stream_accept_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
-  {}
-};
 
+// stream reads and writes
 struct stream_data_operation : operation<error_code, size_t> {
   static constexpr uint16_t max_iovs = 128;
   iovec iovs[max_iovs];
   uint16_t num_iovs = 0;
   size_t bytes_transferred = 0;
 
-  stream_data_operation(complete_fn complete) noexcept
+  explicit stream_data_operation(complete_fn complete) noexcept
       : operation(complete) {}
 };
-struct stream_data_sync : sync_operation<stream_data_operation> {
-};
+using stream_data_sync = sync_operation<stream_data_operation>;
+
 template <typename Handler, typename IoExecutor>
-struct stream_data_async :
-    async_operation<stream_data_operation, Handler, IoExecutor> {
+using stream_data_async = async_operation<
+    stream_data_operation, Handler, IoExecutor>;
 
-  stream_data_async(Handler&& handler, const IoExecutor& io_ex)
-      : async_operation<stream_data_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
-  {}
-};
 
+// stream header reads
 struct stream_header_read_operation : operation<error_code> {
   h3::fields& fields;
 
@@ -250,22 +235,14 @@ struct stream_header_read_operation : operation<error_code> {
       : operation(complete), fields(fields)
   {}
 };
-struct stream_header_read_sync : sync_operation<stream_header_read_operation> {
-  explicit stream_header_read_sync(h3::fields& fields) noexcept
-      : sync_operation<stream_header_read_operation>(fields)
-  {}
-};
+using stream_header_read_sync = sync_operation<stream_header_read_operation>;
+
 template <typename Handler, typename IoExecutor>
-struct stream_header_read_async :
-    async_operation<stream_header_read_operation, Handler, IoExecutor> {
+using stream_header_read_async = async_operation<
+    stream_header_read_operation, Handler, IoExecutor>;
 
-  stream_header_read_async(Handler&& handler, const IoExecutor& io_ex,
-                           h3::fields& fields)
-      : async_operation<stream_header_read_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex, fields)
-  {}
-};
 
+// stream header writes
 struct stream_header_write_operation : operation<error_code> {
   const h3::fields& fields;
 
@@ -274,36 +251,24 @@ struct stream_header_write_operation : operation<error_code> {
       : operation(complete), fields(fields)
   {}
 };
-struct stream_header_write_sync : sync_operation<stream_header_write_operation> {
-  explicit stream_header_write_sync(const h3::fields& fields) noexcept
-      : sync_operation<stream_header_write_operation>(fields)
-  {}
-};
+
+using stream_header_write_sync = sync_operation<stream_header_write_operation>;
+
 template <typename Handler, typename IoExecutor>
-struct stream_header_write_async :
-    async_operation<stream_header_write_operation, Handler, IoExecutor> {
+using stream_header_write_async = async_operation<
+    stream_header_write_operation, Handler, IoExecutor>;
 
-  stream_header_write_async(Handler&& handler, const IoExecutor& io_ex,
-                            const h3::fields& fields)
-      : async_operation<stream_header_write_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex, fields)
-  {}
-};
 
+// stream close
 struct stream_close_operation : operation<error_code> {
   explicit stream_close_operation(complete_fn complete) noexcept
       : operation(complete) {}
 };
-struct stream_close_sync : sync_operation<stream_close_operation> {
-};
-template <typename Handler, typename IoExecutor>
-struct stream_close_async :
-    async_operation<stream_close_operation, Handler, IoExecutor> {
 
-  stream_close_async(Handler&& handler, const IoExecutor& io_ex)
-      : async_operation<stream_close_operation, Handler, IoExecutor>(
-          std::move(handler), io_ex)
-  {}
-};
+using stream_close_sync = sync_operation<stream_close_operation>;
+
+template <typename Handler, typename IoExecutor>
+using stream_close_async = async_operation<
+    stream_close_operation, Handler, IoExecutor>;
 
 } // namespace nexus::quic::detail
