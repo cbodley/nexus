@@ -114,21 +114,28 @@ udp::endpoint client_connection::remote_endpoint()
   return state.remote_endpoint();
 }
 
-void client_connection::connect(stream& s, error_code& ec)
+bool client_connection::is_open() const
 {
-  auto op = quic::detail::stream_connect_sync{s.state};
-  state.connect(op);
-  op.wait();
-  ec = *op.ec;
+  return state.is_open();
 }
 
-void client_connection::connect(stream& s)
+stream client_connection::connect(error_code& ec)
+{
+  quic::detail::stream_connect_sync op;
+  state.connect(op);
+  op.wait();
+  ec = std::get<0>(*op.result);
+  return std::get<1>(std::move(*op.result));
+}
+
+stream client_connection::connect()
 {
   error_code ec;
-  connect(s, ec);
+  auto s = connect(ec);
   if (ec) {
     throw system_error(ec);
   }
+  return s;
 }
 
 void client_connection::close(error_code& ec)

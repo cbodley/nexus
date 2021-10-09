@@ -25,38 +25,47 @@ udp::endpoint connection::remote_endpoint()
   return state.remote_endpoint();
 }
 
-void connection::connect(stream& s, error_code& ec)
+bool connection::is_open() const
 {
-  auto op = detail::stream_connect_sync{s.state};
+  return state.is_open();
+}
+
+stream connection::connect(error_code& ec)
+{
+  detail::stream_connect_sync op;
   state.connect(op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
+  return std::get<1>(std::move(*op.result));
 }
 
-void connection::connect(stream& s)
+stream connection::connect()
 {
   error_code ec;
-  connect(s, ec);
+  auto s = connect(ec);
   if (ec) {
     throw system_error(ec);
   }
+  return s;
 }
 
-void connection::accept(stream& s, error_code& ec)
+stream connection::accept(error_code& ec)
 {
-  auto op = detail::stream_accept_sync{s.state};
+  detail::stream_accept_sync op;
   state.accept(op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
+  return std::get<1>(std::move(*op.result));
 }
 
-void connection::accept(stream& s)
+stream connection::accept()
 {
   error_code ec;
-  accept(s, ec);
+  auto s = accept(ec);
   if (ec) {
     throw system_error(ec);
   }
+  return s;
 }
 
 void connection::close(error_code& ec)
@@ -93,6 +102,11 @@ void connection_state::connect(stream_connect_operation& op)
 void connection_state::accept(stream_accept_operation& op)
 {
   socket.engine.stream_accept(*this, op);
+}
+
+bool connection_state::is_open() const
+{
+  return socket.engine.is_open(*this);
 }
 
 void connection_state::close(error_code& ec)

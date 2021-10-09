@@ -14,7 +14,8 @@ static void read_print_stream(nexus::h3::stream& stream,
                               nexus::h3::client_connection& conn,
                               body_buffer& buffer)
 {
-  stream.async_read_some(asio::buffer(buffer), [&] (error_code ec, size_t bytes) {
+  stream.async_read_some(asio::buffer(buffer),
+      [&] (error_code ec, size_t bytes) mutable {
         if (ec) {
           if (ec != nexus::quic::stream_error::eof) {
             std::cerr << "async_read_some failed: " << ec.message() << std::endl;
@@ -65,12 +66,13 @@ int main(int argc, char** argv) {
   auto response = nexus::h3::fields{};
   auto buffer = body_buffer{};
 
-  conn.async_connect(stream, [&] (error_code ec) {
+  conn.async_connect([&] (error_code ec, nexus::h3::stream s) {
     if (ec) {
       std::cerr << "async_connect failed: " << ec.message() << std::endl;
       client.close();
       return;
     }
+    stream = std::move(s);
     stream.async_write_headers(request, [&] (error_code ec) {
       if (ec) {
         std::cerr << "async_write_headers failed: " << ec.message() << std::endl;

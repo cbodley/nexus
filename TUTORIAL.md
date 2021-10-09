@@ -83,13 +83,11 @@ Unlike `nexus::quic::client::connect()` which returns immediately without waitin
 
 Once a generic QUIC connection (`class nexus::quic::connection`) has been connected or accepted, it can be used both to initiate outgoing streams with `nexus::quic::connection::connect()`:
 
-	auto stream = nexus::quic:stream{};
-	conn.connect(stream);
+	nexus::quic::stream stream = conn.connect();
 
 And to accept() incoming streams:
 
-	auto stream = nexus::quic:stream{};
-	conn.accept(stream);
+	nexus::quic::stream stream = conn.accept();
 
 When a connection closes, all related streams are closed and any pending operations are canceled with a connection error.
 

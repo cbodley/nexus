@@ -27,7 +27,7 @@ struct engine_deleter { void operator()(lsquic_engine* e) const; };
 using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 
 class engine_state {
-  std::mutex mutex;
+  mutable std::mutex mutex;
   asio::any_io_executor ex;
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
@@ -69,6 +69,8 @@ class engine_state {
   void accept(connection_state& cstate, accept_operation& op);
   connection_state* on_accept(lsquic_conn* conn);
 
+  bool is_open(const connection_state& cstate) const;
+
   void close(connection_state& cstate, error_code& ec);
   void on_close(connection_state& cstate, lsquic_conn* conn);
 
@@ -88,6 +90,8 @@ class engine_state {
                                  lsquic_stream* stream);
   stream_state* on_new_stream(connection_state& cstate,
                               lsquic_stream* stream);
+
+  bool is_open(const stream_state& sstate) const;
 
   void stream_read(stream_state& sstate, stream_data_operation& op);
   void stream_read_headers(stream_state& sstate,

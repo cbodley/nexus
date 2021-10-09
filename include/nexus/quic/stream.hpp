@@ -10,6 +10,8 @@ namespace detail {
 
 struct connection_state;
 
+template <typename Stream> struct stream_factory;
+
 } // namespace detail
 
 class connection;
@@ -20,7 +22,10 @@ class stream {
  protected:
   friend class connection;
   friend class detail::connection_state;
+  friend class detail::stream_factory<stream>;
   std::unique_ptr<detail::stream_state> state;
+  stream(std::unique_ptr<detail::stream_state>&& state)
+      : state(std::move(state)) {}
  public:
   /// the polymorphic executor type, asio::any_io_executor
   using executor_type = detail::stream_state::executor_type;
@@ -36,6 +41,9 @@ class stream {
 
   /// return the associated io executor
   executor_type get_executor() const;
+
+  /// determine whether the stream is open
+  bool is_open() const;
 
   /// read some bytes into the given buffer sequence
   template <typename MutableBufferSequence,

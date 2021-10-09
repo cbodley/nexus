@@ -2,6 +2,7 @@
 
 #include <boost/intrusive/list.hpp>
 #include <nexus/quic/detail/stream.hpp>
+#include <nexus/quic/detail/stream_open_handler.hpp>
 #include <nexus/udp.hpp>
 
 struct lsquic_conn;
@@ -21,12 +22,12 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   lsquic_conn* handle = nullptr;
   accept_operation* accept_ = nullptr;
 
-  // incoming streams ready to accept. the connection maintains ownership of
-  // these until they're accepted
+  // maintain ownership of incoming/connecting/accepting streams
   boost::intrusive::list<stream_state> incoming_streams;
-
   boost::intrusive::list<stream_state> connecting_streams;
   boost::intrusive::list<stream_state> accepting_streams;
+
+  // connected/closing streams are owned by a quic::stream or h3::stream
   boost::intrusive::list<stream_state> connected_streams;
   boost::intrusive::list<stream_state> closing_streams;
 
@@ -44,15 +45,15 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   void connect(stream_connect_operation& op);
 
   template <typename Stream, typename CompletionToken>
-  decltype(auto) async_connect(Stream& s, CompletionToken&& token) {
-    auto& sstate = s.state;
-    return asio::async_initiate<CompletionToken, void(error_code)>(
-        [this, &sstate] (auto h) {
-          using Handler = std::decay_t<decltype(h)>;
-          using op_type = stream_connect_async<Handler, executor_type>;
-          auto p = handler_allocate<op_type>(h, std::move(h),
-                                             get_executor(), sstate);
-          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+  decltype(auto) async_connect(CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code, Stream)>(
+        [this] (auto handler) {
+          using Handler = std::decay_t<decltype(handler)>;
+          using StreamHandler = stream_open_handler<Stream, Handler>;
+          auto h = StreamHandler{std::move(handler)};
+          using op_type = stream_connect_async<StreamHandler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, StreamHandler>{p, &p->handler};
           connect(*op);
           op.release(); // release ownership
         }, token);
@@ -61,19 +62,21 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   void accept(stream_accept_operation& op);
 
   template <typename Stream, typename CompletionToken>
-  decltype(auto) async_accept(Stream& s, CompletionToken&& token) {
-    auto& sstate = s.state;
-    return asio::async_initiate<CompletionToken, void(error_code)>(
-        [this, &sstate] (auto h) {
-          using Handler = std::decay_t<decltype(h)>;
-          using op_type = stream_accept_async<Handler, executor_type>;
-          auto p = handler_allocate<op_type>(h, std::move(h),
-                                             get_executor(), sstate);
-          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
+  decltype(auto) async_accept(CompletionToken&& token) {
+    return asio::async_initiate<CompletionToken, void(error_code, Stream)>(
+        [this] (auto handler) {
+          using Handler = std::decay_t<decltype(handler)>;
+          using StreamHandler = stream_open_handler<Stream, Handler>;
+          auto h = StreamHandler{std::move(handler)};
+          using op_type = stream_accept_async<StreamHandler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
+          auto op = handler_ptr<op_type, StreamHandler>{p, &p->handler};
           accept(*op);
           op.release(); // release ownership
         }, token);
   }
+
+  bool is_open() const;
 
   void close(error_code& ec);
 };

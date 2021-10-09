@@ -14,6 +14,8 @@ class server_connection;
 class stream : public quic::stream {
   friend class client_connection;
   friend class server_connection;
+  friend class quic::detail::stream_factory<stream>;
+  using quic::stream::stream;
  public:
   /// read headers from the stream
   template <typename CompletionToken> // void(error_code)

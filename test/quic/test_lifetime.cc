@@ -17,6 +17,12 @@ const error_code ok;
 auto capture(std::optional<error_code>& ec) {
   return [&] (error_code e, size_t = 0) { ec = e; };
 }
+auto capture(std::optional<error_code>& ec, quic::stream& stream) {
+  return [&] (error_code e, quic::stream&& s) {
+    ec = e;
+    stream = std::move(s);
+  };
+}
 
 } // anonymous namespace
 
@@ -40,36 +46,36 @@ class Lifetime : public testing::Test {
   }
 };
 
-TEST_F(Lifetime, stream_in_accept_handler)
+TEST_F(Lifetime, stream_in_connect_handler)
 {
-  // allocate a stream and transfer ownership to the accept handler
-  auto stream = std::make_unique<quic::stream>();
-  auto &ref = *stream;
-  std::optional<error_code> accept_ec;
-  cconn.async_accept(ref, [&accept_ec, s=std::move(stream)] (error_code ec) {
-      accept_ec = ec;
-    });
+  std::optional<error_code> connect_ec;
+  quic::stream stream;
+  cconn.async_connect(capture(connect_ec, stream));
+  ASSERT_FALSE(connect_ec);
+  // don't run the completion handler
 }
 
 TEST_F(Lifetime, stream_in_read_handler)
 {
-  // allocate a stream and transfer ownership to the accept handler
-  auto stream = std::make_unique<quic::stream>();
-  auto &ref = *stream;
   std::optional<error_code> connect_ec;
-  cconn.async_connect(ref, capture(connect_ec));
+  quic::stream stream;
+  cconn.async_connect(capture(connect_ec, stream));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(connect_ec);
   EXPECT_EQ(ok, *connect_ec);
 
+  // move the stream into a unique_ptr and transfer it into the read handler
+  auto pstream = std::make_unique<quic::stream>(std::move(stream));
+  auto &ref = *pstream;
   auto data = std::array<char, 16>{};
   std::optional<error_code> read_ec;
   ref.async_read_some(asio::buffer(data),
-    [&read_ec, s=std::move(stream)] (error_code ec, size_t) {
+    [&read_ec, s=std::move(pstream)] (error_code ec, size_t) {
       read_ec = ec;
     });
+  ASSERT_FALSE(read_ec);
 }
 
 } // namespace nexus

@@ -19,10 +19,6 @@
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
 
-## stream
-
-* make connect()/accept() return a stream instead of taking an existing one by reference
-
 ## UDP
 
 * send packets with IP_PKTINFO

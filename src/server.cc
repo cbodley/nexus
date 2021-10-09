@@ -54,7 +54,7 @@ void acceptor::accept(connection& conn, error_code& ec)
   detail::accept_sync op;
   state.accept(conn.state, op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
 }
 
 void acceptor::accept(connection& conn)
@@ -117,7 +117,7 @@ void acceptor::accept(server_connection& conn, error_code& ec)
   quic::detail::accept_sync op;
   state.accept(conn.state, op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
 }
 
 void acceptor::accept(server_connection& conn)
@@ -139,21 +139,28 @@ udp::endpoint server_connection::remote_endpoint()
   return state.remote_endpoint();
 }
 
-void server_connection::accept(stream& s, error_code& ec)
+bool server_connection::is_open() const
 {
-  auto op = quic::detail::stream_accept_sync{s.state};
-  state.accept(op);
-  op.wait();
-  ec = *op.ec;
+  return state.is_open();
 }
 
-void server_connection::accept(stream& s)
+stream server_connection::accept(error_code& ec)
+{
+  quic::detail::stream_accept_sync op;
+  state.accept(op);
+  op.wait();
+  ec = std::get<0>(*op.result);
+  return {std::get<1>(std::move(*op.result))};
+}
+
+stream server_connection::accept()
 {
   error_code ec;
-  accept(s, ec);
+  auto s = accept(ec);
   if (ec) {
     throw system_error(ec);
   }
+  return s;
 }
 
 void server_connection::close(error_code& ec)

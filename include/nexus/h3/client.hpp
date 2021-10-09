@@ -80,16 +80,18 @@ class client_connection {
   /// successfully been accepted or connected
   udp::endpoint remote_endpoint();
 
-  /// open an outgoing stream
-  template <typename CompletionToken> // void(error_code)
-  decltype(auto) async_connect(stream& s, CompletionToken&& token) {
-    return state.async_connect(s, std::forward<CompletionToken>(token));
-  }
+  /// determine whether the connection is open
+  bool is_open() const;
 
   /// open an outgoing stream
-  void connect(stream& s, error_code& ec);
+  template <typename CompletionToken> // void(error_code, stream)
+  decltype(auto) async_connect(CompletionToken&& token) {
+    return state.async_connect<stream>(std::forward<CompletionToken>(token));
+  }
   /// \overload
-  void connect(stream& s);
+  stream connect(error_code& ec);
+  /// \overload
+  stream connect();
 
   /// close the connection, along with any related streams
   void close(error_code& ec);

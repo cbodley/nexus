@@ -87,8 +87,8 @@ struct echo_stream {
   nexus::quic::stream stream;
   std::array<char, 1024> buffer;
 
-  explicit echo_stream(connection_ptr conn)
-      : conn(std::move(conn)) {}
+  explicit echo_stream(connection_ptr conn, nexus::quic::stream&& stream)
+      : conn(std::move(conn)), stream(std::move(stream)) {}
 };
 
 void on_stream_write(std::unique_ptr<echo_stream> stream,
@@ -140,11 +140,9 @@ void on_stream_write(std::unique_ptr<echo_stream> stream,
 
 void accept_streams(connection_ptr conn)
 {
-  auto stream = std::make_unique<echo_stream>(conn);
   auto& c = conn->conn;
-  auto& s = stream->stream;
-  c.async_accept(s,
-    [conn=std::move(conn), stream=std::move(stream)] (error_code ec) mutable {
+  c.async_accept(
+    [conn=std::move(conn)] (error_code ec, nexus::quic::stream s) {
       if (ec) {
         std::cerr << "stream accept failed with " << ec.message() << '\n';
         return;
@@ -153,9 +151,10 @@ void accept_streams(connection_ptr conn)
       accept_streams(conn);
       // start reading from stream
       std::cerr << "new stream\n";
-      auto& s = stream->stream;
+      auto stream = std::make_unique<echo_stream>(conn, std::move(s));
+      auto& t = stream->stream;
       auto& data = stream->buffer;
-      s.async_read_some(asio::buffer(data),
+      t.async_read_some(asio::buffer(data),
         [stream=std::move(stream)] (error_code ec, size_t bytes) mutable {
           on_stream_read(std::move(stream), ec, bytes);
         });

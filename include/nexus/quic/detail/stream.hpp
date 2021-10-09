@@ -68,30 +68,33 @@ struct stream_state : public boost::intrusive::list_base_hook<>,
   void service_shutdown()
   {
     // destroy any pending operations
+    const error_code ec; // fake error code
     if (auto op = std::exchange(in.data, nullptr); op) {
-      op->destroy();
+      op->destroy(ec, 0);
     }
     if (auto op = std::exchange(in.header, nullptr); op) {
-      op->destroy();
+      op->destroy(ec);
     }
     if (auto op = std::exchange(out.data, nullptr); op) {
-      op->destroy();
+      op->destroy(ec, 0);
     }
     if (auto op = std::exchange(out.header, nullptr); op) {
-      op->destroy();
+      op->destroy(ec);
     }
     if (auto op = std::exchange(connect_, nullptr); op) {
-      op->destroy();
+      op->destroy(ec, nullptr);
     }
     if (auto op = std::exchange(accept_, nullptr); op) {
-      op->destroy();
+      op->destroy(ec, nullptr);
     }
     if (auto op = std::exchange(close_, nullptr); op) {
-      op->destroy();
+      op->destroy(ec);
     }
   }
 
   executor_type get_executor() const { return ex; }
+
+  bool is_open() const;
 
   void read_headers(stream_header_read_operation& op);
 
@@ -135,8 +138,8 @@ struct stream_state : public boost::intrusive::list_base_hook<>,
     init_op(buffers, op);
     read_some(op);
     op.wait();
-    ec = *op.ec;
-    return op.bytes_transferred;
+    ec = std::get<0>(*op.result);
+    return std::get<1>(*op.result);
   }
 
   void write_headers(stream_header_write_operation& op);
@@ -181,8 +184,8 @@ struct stream_state : public boost::intrusive::list_base_hook<>,
     init_op(buffers, op);
     write_some(op);
     op.wait();
-    ec = *op.ec;
-    return op.bytes_transferred;
+    ec = std::get<0>(*op.result);
+    return std::get<1>(*op.result);
   }
 
   void flush(error_code& ec);

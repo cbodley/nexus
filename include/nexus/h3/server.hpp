@@ -99,16 +99,18 @@ class server_connection {
   /// successfully been accepted
   udp::endpoint remote_endpoint();
 
-  /// accept an incoming stream
-  template <typename CompletionToken> // void(error_code)
-  decltype(auto) async_accept(stream& s, CompletionToken&& token) {
-    return state.async_accept(s, std::forward<CompletionToken>(token));
-  }
+  /// determine whether the connection is open
+  bool is_open() const;
 
   /// accept an incoming stream
-  void accept(stream& s, error_code& ec);
+  template <typename CompletionToken> // void(error_code, stream)
+  decltype(auto) async_accept(CompletionToken&& token) {
+    return state.async_accept<stream>(std::forward<CompletionToken>(token));
+  }
   /// \overload
-  void accept(stream& s);
+  stream accept(error_code& ec);
+  /// \overload
+  stream accept();
 
   // TODO: push stream
 

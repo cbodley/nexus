@@ -69,9 +69,10 @@ struct echo_stream : ref_counter<echo_stream> {
   std::ostream& output;
   buffer_type readbuf;
   buffer_type writebuf;
-
-  echo_stream(connection_ptr conn, const char* filename, std::ostream& output)
-      : conn(std::move(conn)), input(filename), output(output)
+  echo_stream(connection_ptr conn, nexus::quic::stream&& stream,
+              const char* filename, std::ostream& output)
+      : conn(std::move(conn)), stream(std::move(stream)),
+        input(filename), output(output)
   {}
 };
 using stream_ptr = boost::intrusive_ptr<echo_stream>;
@@ -142,10 +143,9 @@ int main(int argc, char** argv)
 
   // connect a stream for each input file
   for (auto f = cfg.files_begin; f != cfg.files_end; ++f) {
-    auto stream = stream_ptr{new echo_stream(conn, *f, std::cout)};
-    auto& c = conn->conn;
-    auto& s = stream->stream;
-    c.async_connect(s, [stream=std::move(stream)] (error_code ec) {
+    conn->conn.async_connect([conn, f] (error_code ec, nexus::quic::stream s) {
+        auto stream = stream_ptr{new echo_stream(conn, std::move(s),
+                                                 *f, std::cout)};
         if (ec) {
           std::cerr << "async_connect failed with " << ec.message() << '\n';
           return;

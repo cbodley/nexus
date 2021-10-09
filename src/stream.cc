@@ -11,6 +11,11 @@ namespace nexus {
 namespace quic {
 namespace detail {
 
+bool stream_state::is_open() const
+{
+  return conn && conn->socket.engine.is_open(*this);
+}
+
 void stream_state::read_headers(stream_header_read_operation& op)
 {
   if (conn) {
@@ -27,9 +32,9 @@ void stream_state::read_some(stream_data_operation& op)
   if (conn) {
     conn->socket.engine.stream_read(*this, op);
   } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}));
+    op.post(std::exchange(conn_err, {}), 0);
   } else {
-    op.post(make_error_code(errc::bad_file_descriptor));
+    op.post(make_error_code(errc::bad_file_descriptor), 0);
   }
 }
 
@@ -38,9 +43,9 @@ void stream_state::write_some(stream_data_operation& op)
   if (conn) {
     conn->socket.engine.stream_write(*this, op);
   } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}));
+    op.post(std::exchange(conn_err, {}), 0);
   } else {
-    op.post(make_error_code(errc::bad_file_descriptor));
+    op.post(make_error_code(errc::bad_file_descriptor), 0);
   }
 }
 
@@ -112,6 +117,11 @@ stream::executor_type stream::get_executor() const
   return state->get_executor();
 }
 
+bool stream::is_open() const
+{
+  return state && state->is_open();
+}
+
 void stream::flush(error_code& ec)
 {
   state->flush(ec);
@@ -145,7 +155,7 @@ void stream::close(error_code& ec)
   detail::stream_close_sync op;
   state->close(op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
 }
 
 void stream::close()
@@ -171,7 +181,7 @@ void stream::read_headers(fields& f, error_code& ec)
   auto op = quic::detail::stream_header_read_sync{f};
   state->read_headers(op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
 }
 void stream::read_headers(fields& f)
 {
@@ -187,7 +197,7 @@ void stream::write_headers(const fields& f, error_code& ec)
   auto op = quic::detail::stream_header_write_sync{f};
   state->write_headers(op);
   op.wait();
-  ec = *op.ec;
+  ec = std::get<0>(*op.result);
 }
 void stream::write_headers(const fields& f)
 {
