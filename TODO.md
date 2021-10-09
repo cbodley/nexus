@@ -23,10 +23,6 @@
 
 * make connect()/accept() return a stream instead of taking an existing one by reference
 
-## client
-
-* stop polling socket and cancel timers when no connections are open, so io_context.run() can return
-
 ## UDP
 
 * send packets with IP_PKTINFO

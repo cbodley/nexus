@@ -11,7 +11,7 @@ using nexus::error_code;
 using body_buffer = std::array<char, 4096>;
 
 static void read_print_stream(nexus::h3::stream& stream,
-                              nexus::h3::client& client,
+                              nexus::h3::client_connection& conn,
                               body_buffer& buffer)
 {
   stream.async_read_some(asio::buffer(buffer), [&] (error_code ec, size_t bytes) {
@@ -19,11 +19,11 @@ static void read_print_stream(nexus::h3::stream& stream,
           if (ec != nexus::quic::stream_error::eof) {
             std::cerr << "async_read_some failed: " << ec.message() << std::endl;
           }
-          client.close();
+          conn.close();
           return;
         }
         std::cout.write(buffer.data(), bytes);
-        read_print_stream(stream, client, buffer);
+        read_print_stream(stream, conn, buffer);
       });
 }
 
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
           std::cout << f.c_str() << "\r\n";
         }
         std::cout << "\r\n";
-        read_print_stream(stream, client, buffer);
+        read_print_stream(stream, conn, buffer);
       });
     });
   });

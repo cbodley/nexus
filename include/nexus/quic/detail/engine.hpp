@@ -31,7 +31,8 @@ class engine_state {
   asio::any_io_executor ex;
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
-  bool is_server;
+  // pointer to client socket or null if server
+  socket_state* client;
 
   void process(std::unique_lock<std::mutex>& lock);
   void reschedule(std::unique_lock<std::mutex>& lock);
@@ -42,7 +43,7 @@ class engine_state {
   void on_writeable(socket_state& socket);
 
  public:
-  engine_state(const asio::any_io_executor& ex,
+  engine_state(const asio::any_io_executor& ex, socket_state* client,
                const settings* s, unsigned flags);
   ~engine_state();
 

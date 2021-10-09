@@ -50,6 +50,9 @@ void engine_state::connect(connection_state& cstate,
       hostname, 0, nullptr, 0, nullptr, 0);
   assert(cstate.handle); // lsquic_engine_connect() calls on_connect()
   process(lock);
+  if (client) { // make sure we're listening
+    start_recv(*client);
+  }
 }
 
 void engine_state::on_connect(connection_state& cstate, lsquic_conn_t* conn)
@@ -366,7 +369,7 @@ stream_state* engine_state::on_new_stream(connection_state& cstate,
 {
   // XXX: any way to decide between connect/accept without stream id?
   const auto id = ::lsquic_stream_id(stream);
-  const int server = !!is_server;
+  const int server = !client;
   if ((id & 1) == server) { // self-initiated
     return on_stream_connect(cstate, stream);
   } else { // peer-initiated
@@ -774,6 +777,7 @@ void engine_state::close(socket_state& socket)
     cstate.accept_ = nullptr;
   }
   // XXX: cancel the async_wait for read, but don't close until ~socket_state()
+  socket.receiving = false;
   socket.socket.cancel();
 }
 
@@ -787,6 +791,12 @@ void engine_state::reschedule(std::unique_lock<std::mutex>& lock)
 {
   int micros = 0;
   if (!::lsquic_engine_earliest_adv_tick(handle.get(), &micros)) {
+    // no connections to process. servers should keep listening for packets,
+    // but clients can stop reading
+    if (client && client->receiving) {
+      client->receiving = false;
+      client->socket.cancel();
+    }
     timer.cancel();
     return;
   }
@@ -811,8 +821,13 @@ void engine_state::on_timer()
 
 void engine_state::start_recv(socket_state& socket)
 {
+  if (socket.receiving) {
+    return;
+  }
+  socket.receiving = true;
   socket.socket.async_wait(udp::socket::wait_read,
       [this, &socket] (error_code ec) {
+        socket.receiving = false;
         if (!ec) {
           on_readable(socket);
         } // XXX: else fatal? retry?
@@ -1045,8 +1060,9 @@ ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 }
 
 engine_state::engine_state(const asio::any_io_executor& ex,
-                           const settings* s, unsigned flags)
-  : ex(ex), timer(ex), is_server(flags & LSENG_SERVER)
+                           socket_state* client, const settings* s,
+                           unsigned flags)
+  : ex(ex), timer(ex), client(client)
 {
   lsquic_engine_api api = {};
   api.ea_packets_out = api_send_packets;
@@ -1067,6 +1083,7 @@ engine_state::engine_state(const asio::any_io_executor& ex,
   if (s) {
     write_settings(*s, es);
   }
+  es.es_versions = (1 << LSQVER_I001); // RFC version only
   char errbuf[256];
   int r = ::lsquic_engine_check_settings(&es, flags, errbuf, sizeof(errbuf));
   if (r == -1) {

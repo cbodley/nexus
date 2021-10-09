@@ -32,6 +32,7 @@ struct socket_state : boost::intrusive::list_base_hook<> {
   boost::circular_buffer<lsquic_conn*> incoming_connections;
   boost::intrusive::list<connection_state> accepting_connections;
   boost::intrusive::list<connection_state> connected;
+  bool receiving = false;
 
   socket_state(engine_state& engine, udp::socket&& socket,
                asio::ssl::context& ssl);

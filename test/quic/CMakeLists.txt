@@ -1,3 +1,6 @@
+add_unit_test(test_quic_client_work test_client_work.cc)
+target_link_libraries(test_quic_client_work test_base nexus)
+
 add_unit_test(test_quic_errors test_errors.cc)
 target_link_libraries(test_quic_errors test_base nexus)
 

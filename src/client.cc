@@ -8,32 +8,28 @@ namespace quic {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, nullptr, 0),
+    : state(ex, &socket, nullptr, 0),
       socket(state, endpoint, false, ctx)
 {
-  socket.listen(0);
 }
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx, const settings& s)
-    : state(ex, &s, 0),
+    : state(ex, &socket, &s, 0),
       socket(state, endpoint, false, ctx)
 {
-  socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), nullptr, 0),
+    : state(socket.get_executor(), &this->socket, nullptr, 0),
       socket(state, std::move(socket), ctx)
 {
-  this->socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx, const settings& s)
-    : state(socket.get_executor(), &s, 0),
+    : state(socket.get_executor(), &this->socket, &s, 0),
       socket(state, std::move(socket), ctx)
 {
-  this->socket.listen(0);
 }
 
 client::executor_type client::get_executor() const
@@ -65,33 +61,29 @@ namespace h3 {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, nullptr, LSENG_HTTP),
+    : state(ex, &socket, nullptr, LSENG_HTTP),
       socket(state, endpoint, false, ctx)
 {
-  socket.listen(0);
 }
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx, const quic::settings& s)
-    : state(ex, &s, LSENG_HTTP),
+    : state(ex, &socket, &s, LSENG_HTTP),
       socket(state, endpoint, false, ctx)
 {
-  socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), nullptr, LSENG_HTTP),
+    : state(socket.get_executor(), &this->socket, nullptr, LSENG_HTTP),
       socket(state, std::move(socket), ctx)
 {
-  this->socket.listen(0);
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx,
                const quic::settings& s)
-    : state(socket.get_executor(), &s, LSENG_HTTP),
+    : state(socket.get_executor(), &this->socket, &s, LSENG_HTTP),
       socket(state, std::move(socket), ctx)
 {
-  this->socket.listen(0);
 }
 
 client::executor_type client::get_executor() const
