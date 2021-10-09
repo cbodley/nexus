@@ -15,6 +15,8 @@ TEST(errors, connection)
             make_error_code(connection_error::reset));
   EXPECT_EQ(make_error_condition(errc::connection_aborted),
             make_error_code(connection_error::aborted));
+  EXPECT_EQ(make_error_condition(errc::timed_out),
+            make_error_code(connection_error::timed_out));
 }
 
 TEST(errors, stream)
