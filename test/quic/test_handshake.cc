@@ -143,6 +143,19 @@ void test_stream_accept_after_handshake(asio::io_context& context,
   EXPECT_EQ(errc::bad_file_descriptor, *accept2_ec);
 }
 
+void test_server_accept_not_ready(asio::io_context& context,
+                                  quic::acceptor& acceptor,
+                                  quic::connection& sconn)
+{
+  // test that async_accept() never sees this connection attempt
+  std::optional<error_code> accept_ec;
+  acceptor.async_accept(sconn, capture(accept_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_FALSE(accept_ec);
+}
+
 } // anonymous namespace
 
 // try to connect a client and server with incompatible protocol names
@@ -155,6 +168,7 @@ class BadALPN : public testing::Test {
   quic::server server = quic::server{context.get_executor()};
   asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
+  quic::connection sconn{acceptor};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
   quic::connection cconn{client, acceptor.local_endpoint(), "host"};
 
@@ -167,21 +181,25 @@ TEST_F(BadALPN, stream_connect_during_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::no_application_protocol);
   test_stream_connect_during_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadALPN, stream_connect_after_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::no_application_protocol);
   test_stream_connect_after_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadALPN, stream_accept_during_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::no_application_protocol);
   test_stream_accept_during_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadALPN, stream_accept_after_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::no_application_protocol);
   test_stream_accept_after_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 
 // try to connect a client with certificate verification to a server using a
@@ -201,6 +219,7 @@ class BadVerifyServer : public testing::Test {
   quic::server server = quic::server{context.get_executor()};
   asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
+  quic::connection sconn{acceptor};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
   quic::connection cconn{client, acceptor.local_endpoint(), "host"};
 
@@ -213,21 +232,25 @@ TEST_F(BadVerifyServer, stream_connect_during_handshake)
 {
   auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_connect_during_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadVerifyServer, stream_connect_after_handshake)
 {
   auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_connect_after_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadVerifyServer, stream_accept_during_handshake)
 {
   auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_accept_during_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadVerifyServer, stream_accept_after_handshake)
 {
   auto expected = make_error_code(quic::connection_error::handshake_failed);
   test_stream_accept_after_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 
 // try to connect a client to a server that wants to verify client
@@ -247,6 +270,7 @@ class BadVerifyClient : public testing::Test {
   quic::server server = quic::server{context.get_executor()};
   asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
+  quic::connection sconn{acceptor};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
   quic::connection cconn{client, acceptor.local_endpoint(), "host"};
 
@@ -286,21 +310,26 @@ TEST_F(BadVerifyClient, stream_connect_during_handshake)
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(write2_ec);
   EXPECT_EQ(errc::bad_file_descriptor, *write2_ec);
+
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadVerifyClient, stream_connect_after_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::certificate_required);
   test_stream_connect_after_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadVerifyClient, stream_accept_during_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::certificate_required);
   test_stream_accept_during_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 TEST_F(BadVerifyClient, stream_accept_after_handshake)
 {
   auto expected = make_error_code(quic::tls_alert::certificate_required);
   test_stream_accept_after_handshake(context, cconn, expected);
+  test_server_accept_not_ready(context, acceptor, sconn);
 }
 
 } // namespace nexus

@@ -133,17 +133,24 @@ bool engine_state::is_open(const connection_state& cstate) const
 void engine_state::close(connection_state& cstate, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
+  const auto aborted = make_error_code(connection_error::aborted);
+  if (cstate.accept_) {
+    assert(cstate.is_linked());
+    auto& accepting = cstate.socket.accepting_connections;
+    accepting.erase(accepting.iterator_to(cstate));
+    auto op = std::exchange(cstate.accept_, nullptr);
+    op->defer(aborted);
+  }
   if (!cstate.handle) {
     ec = make_error_code(errc::not_connected);
     return;
   }
 
-  cancel(cstate, make_error_code(connection_error::aborted));
+  cancel(cstate, aborted);
 
   ::lsquic_conn_close(cstate.handle);
   cstate.handle = nullptr;
 
-  assert(cstate.accept_ == nullptr);
   assert(cstate.is_linked());
   auto& connected = cstate.socket.connected;
   connected.erase(connected.iterator_to(cstate));
