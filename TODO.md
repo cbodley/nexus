@@ -7,15 +7,13 @@
 	- lsquic_stream_get_http_prio/lsquic_stream_set_http_prio for h3
 * session resumption
 * push promises
-* unidirectional streams?
 * connection migration
 
 ## connection
 
-* make connection moveable
-* make connect()/accept() return a connection instead of taking an existing one by reference
+* make connection moveable? this means dynamic allocation
+	- make connect()/accept() return a connection instead of taking an existing one by reference
 * going_away() for h3 connections
-* expose connection::close() vs. abort()? maybe just use abort() in destructor?
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
 
@@ -26,10 +24,23 @@
 
 ## Async
 
-* decide on object lifetime of stream/connection/engine state objects; is reference counting absolutely necessary?
 * maybe remove all synchronous interfaces and locking?
 
 ## Boost vs. Standalone Asio
 
 * add #define to choose (along with std:: vs. boost::system::error_code)
 * then go finish std::net so we can use that instead
+
+## test coverage
+
+* stream and connection is_open()
+* connection errors from stream interfaces
+* connection_state lifetime vs handlers
+* socket_state lifetime vs handlers
+
+## possibly-interesting stuff not supported by lsquic
+
+* sending application errors via RESET_STREAM or CONNECTION_CLOSE
+* receiving application errors from RESET_STREAM
+* generic unidirectional streams
+* getting a callback after shutdown(1) once all data is acked, so no async_shutdown(1). this only works for close via es_delay_onclose
