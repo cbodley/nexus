@@ -104,54 +104,55 @@ $(function() {
 <div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;  boost::circular_buffer&lt;lsquic_conn*&gt; incoming_connections;</div>
 <div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;  boost::intrusive::list&lt;connection_state&gt; accepting_connections;</div>
 <div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;  boost::intrusive::list&lt;connection_state&gt; connected;</div>
-<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160; </div>
-<div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;  socket_state(engine_state&amp; engine, udp::socket&amp;&amp; socket,</div>
-<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;               asio::ssl::context&amp; ssl);</div>
-<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;  socket_state(engine_state&amp; engine, <span class="keyword">const</span> udp::endpoint&amp; endpoint,</div>
-<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;               <span class="keywordtype">bool</span> is_server, asio::ssl::context&amp; ssl);</div>
-<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;  ~socket_state() {</div>
-<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;    close();</div>
-<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;  }</div>
-<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160; </div>
-<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;  <span class="keyword">using</span> executor_type = asio::any_io_executor;</div>
-<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;  executor_type get_executor() <span class="keyword">const</span>;</div>
-<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160; </div>
-<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;  udp::endpoint local_endpoint()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> local_addr; }</div>
-<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160; </div>
-<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;  <span class="keywordtype">void</span> listen(<span class="keywordtype">int</span> backlog);</div>
-<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160; </div>
-<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;  <span class="keywordtype">void</span> connect(connection_state&amp; cstate,</div>
-<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;               <span class="keyword">const</span> udp::endpoint&amp; endpoint,</div>
-<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;               <span class="keyword">const</span> <span class="keywordtype">char</span>* hostname);</div>
-<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160; </div>
-<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;  <span class="keywordtype">void</span> accept(connection_state&amp; cstate, accept_operation&amp; op);</div>
-<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160; </div>
-<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Connection, <span class="keyword">typename</span> CompletionToken&gt;</div>
-<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;  decltype(<span class="keyword">auto</span>) async_accept(Connection&amp; conn,</div>
-<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;                              CompletionToken&amp;&amp; token) {</div>
-<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;    <span class="keyword">auto</span>&amp; cstate = conn.state;</div>
-<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;    <span class="keywordflow">return</span> asio::async_initiate&lt;CompletionToken, void(error_code)&gt;(</div>
-<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;        [<span class="keyword">this</span>, &amp;cstate] (<span class="keyword">auto</span> h) {</div>
-<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;          <span class="keyword">using</span> Handler = std::decay_t&lt;decltype(h)&gt;;</div>
-<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;          <span class="keyword">using</span> op_type = accept_async&lt;Handler, executor_type&gt;;</div>
-<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;          <span class="keyword">auto</span> p = handler_allocate&lt;op_type&gt;(h, std::move(h), get_executor());</div>
-<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;          <span class="keyword">auto</span> op = handler_ptr&lt;op_type, Handler&gt;{p, &amp;p-&gt;handler};</div>
-<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;          accept(cstate, *op);</div>
-<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;          op.release(); <span class="comment">// release ownership</span></div>
-<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;        }, token);</div>
-<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;  }</div>
-<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160; </div>
-<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;  <span class="keywordtype">void</span> close();</div>
-<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160; </div>
-<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;  <span class="keyword">const</span> lsquic_out_spec* send_packets(<span class="keyword">const</span> lsquic_out_spec* begin,</div>
-<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;                                      <span class="keyword">const</span> lsquic_out_spec* end,</div>
-<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;                                      error_code&amp; ec);</div>
-<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160; </div>
-<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;  <span class="keywordtype">size_t</span> recv_packet(iovec iov, udp::endpoint&amp; peer, sockaddr_union&amp; <span class="keyword">self</span>,</div>
-<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;                     <span class="keywordtype">int</span>&amp; ecn, error_code&amp; ec);</div>
-<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;};</div>
-<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160; </div>
-<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;} <span class="comment">// namespace nexus::quic::detail</span></div>
+<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;  <span class="keywordtype">bool</span> receiving = <span class="keyword">false</span>;</div>
+<div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160; </div>
+<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;  socket_state(engine_state&amp; engine, udp::socket&amp;&amp; socket,</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;               asio::ssl::context&amp; ssl);</div>
+<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;  socket_state(engine_state&amp; engine, <span class="keyword">const</span> udp::endpoint&amp; endpoint,</div>
+<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;               <span class="keywordtype">bool</span> is_server, asio::ssl::context&amp; ssl);</div>
+<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;  ~socket_state() {</div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;    close();</div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;  }</div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160; </div>
+<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;  <span class="keyword">using</span> executor_type = asio::any_io_executor;</div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;  executor_type get_executor() <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160; </div>
+<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;  udp::endpoint local_endpoint()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> local_addr; }</div>
+<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160; </div>
+<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;  <span class="keywordtype">void</span> listen(<span class="keywordtype">int</span> backlog);</div>
+<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160; </div>
+<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;  <span class="keywordtype">void</span> connect(connection_state&amp; cstate,</div>
+<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;               <span class="keyword">const</span> udp::endpoint&amp; endpoint,</div>
+<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;               <span class="keyword">const</span> <span class="keywordtype">char</span>* hostname);</div>
+<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160; </div>
+<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;  <span class="keywordtype">void</span> accept(connection_state&amp; cstate, accept_operation&amp; op);</div>
+<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160; </div>
+<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Connection, <span class="keyword">typename</span> CompletionToken&gt;</div>
+<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;  decltype(<span class="keyword">auto</span>) async_accept(Connection&amp; conn,</div>
+<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;                              CompletionToken&amp;&amp; token) {</div>
+<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;    <span class="keyword">auto</span>&amp; cstate = conn.state;</div>
+<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;    <span class="keywordflow">return</span> asio::async_initiate&lt;CompletionToken, void(error_code)&gt;(</div>
+<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;        [<span class="keyword">this</span>, &amp;cstate] (<span class="keyword">auto</span> h) {</div>
+<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;          <span class="keyword">using</span> Handler = std::decay_t&lt;decltype(h)&gt;;</div>
+<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;          <span class="keyword">using</span> op_type = accept_async&lt;Handler, executor_type&gt;;</div>
+<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;          <span class="keyword">auto</span> p = handler_allocate&lt;op_type&gt;(h, std::move(h), get_executor());</div>
+<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;          <span class="keyword">auto</span> op = handler_ptr&lt;op_type, Handler&gt;{p, &amp;p-&gt;handler};</div>
+<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;          accept(cstate, *op);</div>
+<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;          op.release(); <span class="comment">// release ownership</span></div>
+<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;        }, token);</div>
+<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;  }</div>
+<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160; </div>
+<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;  <span class="keywordtype">void</span> close();</div>
+<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160; </div>
+<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;  <span class="keyword">const</span> lsquic_out_spec* send_packets(<span class="keyword">const</span> lsquic_out_spec* begin,</div>
+<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;                                      <span class="keyword">const</span> lsquic_out_spec* end,</div>
+<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;                                      error_code&amp; ec);</div>
+<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160; </div>
+<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;  <span class="keywordtype">size_t</span> recv_packet(iovec iov, udp::endpoint&amp; peer, sockaddr_union&amp; <span class="keyword">self</span>,</div>
+<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;                     <span class="keywordtype">int</span>&amp; ecn, error_code&amp; ec);</div>
+<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;};</div>
+<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160; </div>
+<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;} <span class="comment">// namespace nexus::quic::detail</span></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

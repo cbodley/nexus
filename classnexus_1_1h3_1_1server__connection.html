@@ -91,7 +91,7 @@ using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="cla
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a805f64359f912d4017e7a2677434aca0"><td class="memItemLeft" align="right" valign="top"><a id="a805f64359f912d4017e7a2677434aca0"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a805f64359f912d4017e7a2677434aca0">server_connection</a> (<a class="el" href="classnexus_1_1h3_1_1acceptor.html">acceptor</a> &amp;a)</td></tr>
-<tr class="memdesc:a805f64359f912d4017e7a2677434aca0"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct a server-side connection for use with <a class="el" href="classnexus_1_1h3_1_1server__connection.html#a35bfbbbdd3f199aaebd4a42a5442aa63" title="accept an incoming stream">accept()</a> <br /></td></tr>
+<tr class="memdesc:a805f64359f912d4017e7a2677434aca0"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct a server-side connection for use with <a class="el" href="classnexus_1_1h3_1_1server__connection.html#a7a0dd2313582729dab6a1ae9a0cea2b7" title="This is an overloaded member function, provided for convenience. It differs from the above function o...">accept()</a> <br /></td></tr>
 <tr class="separator:a805f64359f912d4017e7a2677434aca0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a033bc89d7f6820761500349065e314ed"><td class="memItemLeft" align="right" valign="top"><a id="a033bc89d7f6820761500349065e314ed"></a>
 <a class="el" href="classnexus_1_1h3_1_1server__connection.html#af83cbd76720dc3a4a41a7763ec5cca10">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a033bc89d7f6820761500349065e314ed">get_executor</a> () const</td></tr>
@@ -101,19 +101,23 @@ Public Member Functions</h2></td></tr>
 udp::endpoint&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#ab4781b20166d13aa8e6200b4fdb469a4">remote_endpoint</a> ()</td></tr>
 <tr class="memdesc:ab4781b20166d13aa8e6200b4fdb469a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the remote's address/port. requires that the connection has successfully been accepted <br /></td></tr>
 <tr class="separator:ab4781b20166d13aa8e6200b4fdb469a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a696a6e21b9dcaa3d9653d2be30e9ba5c"><td class="memTemplParams" colspan="2"><a id="a696a6e21b9dcaa3d9653d2be30e9ba5c"></a>
+<tr class="memitem:a805cda227c3a230040d27cda4cb0ac04"><td class="memItemLeft" align="right" valign="top"><a id="a805cda227c3a230040d27cda4cb0ac04"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a805cda227c3a230040d27cda4cb0ac04">is_open</a> () const</td></tr>
+<tr class="memdesc:a805cda227c3a230040d27cda4cb0ac04"><td class="mdescLeft">&#160;</td><td class="mdescRight">determine whether the connection is open <br /></td></tr>
+<tr class="separator:a805cda227c3a230040d27cda4cb0ac04"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af2a91aa958577c2c2a840a5214028e66"><td class="memTemplParams" colspan="2"><a id="af2a91aa958577c2c2a840a5214028e66"></a>
 template&lt;typename CompletionToken &gt; </td></tr>
-<tr class="memitem:a696a6e21b9dcaa3d9653d2be30e9ba5c"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a696a6e21b9dcaa3d9653d2be30e9ba5c">async_accept</a> (<a class="el" href="classnexus_1_1h3_1_1stream.html">stream</a> &amp;s, CompletionToken &amp;&amp;token)</td></tr>
-<tr class="memdesc:a696a6e21b9dcaa3d9653d2be30e9ba5c"><td class="mdescLeft">&#160;</td><td class="mdescRight">accept an incoming stream <br /></td></tr>
-<tr class="separator:a696a6e21b9dcaa3d9653d2be30e9ba5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a35bfbbbdd3f199aaebd4a42a5442aa63"><td class="memItemLeft" align="right" valign="top"><a id="a35bfbbbdd3f199aaebd4a42a5442aa63"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a35bfbbbdd3f199aaebd4a42a5442aa63">accept</a> (<a class="el" href="classnexus_1_1h3_1_1stream.html">stream</a> &amp;s, error_code &amp;ec)</td></tr>
-<tr class="memdesc:a35bfbbbdd3f199aaebd4a42a5442aa63"><td class="mdescLeft">&#160;</td><td class="mdescRight">accept an incoming stream <br /></td></tr>
-<tr class="separator:a35bfbbbdd3f199aaebd4a42a5442aa63"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9cd6700bcf4445629b4b7913c1cfd82d"><td class="memItemLeft" align="right" valign="top"><a id="a9cd6700bcf4445629b4b7913c1cfd82d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a9cd6700bcf4445629b4b7913c1cfd82d">accept</a> (<a class="el" href="classnexus_1_1h3_1_1stream.html">stream</a> &amp;s)</td></tr>
-<tr class="memdesc:a9cd6700bcf4445629b4b7913c1cfd82d"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
-<tr class="separator:a9cd6700bcf4445629b4b7913c1cfd82d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af2a91aa958577c2c2a840a5214028e66"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#af2a91aa958577c2c2a840a5214028e66">async_accept</a> (CompletionToken &amp;&amp;token)</td></tr>
+<tr class="memdesc:af2a91aa958577c2c2a840a5214028e66"><td class="mdescLeft">&#160;</td><td class="mdescRight">accept an incoming stream <br /></td></tr>
+<tr class="separator:af2a91aa958577c2c2a840a5214028e66"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9cb0247032c201f003467ffb92e8caa"><td class="memItemLeft" align="right" valign="top"><a id="ac9cb0247032c201f003467ffb92e8caa"></a>
+<a class="el" href="classnexus_1_1h3_1_1stream.html">stream</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#ac9cb0247032c201f003467ffb92e8caa">accept</a> (error_code &amp;ec)</td></tr>
+<tr class="memdesc:ac9cb0247032c201f003467ffb92e8caa"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:ac9cb0247032c201f003467ffb92e8caa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7a0dd2313582729dab6a1ae9a0cea2b7"><td class="memItemLeft" align="right" valign="top"><a id="a7a0dd2313582729dab6a1ae9a0cea2b7"></a>
+<a class="el" href="classnexus_1_1h3_1_1stream.html">stream</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a7a0dd2313582729dab6a1ae9a0cea2b7">accept</a> ()</td></tr>
+<tr class="memdesc:a7a0dd2313582729dab6a1ae9a0cea2b7"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:a7a0dd2313582729dab6a1ae9a0cea2b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a757c53a0af3426283e4f11f797f11d8a"><td class="memItemLeft" align="right" valign="top"><a id="a757c53a0af3426283e4f11f797f11d8a"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1server__connection.html#a757c53a0af3426283e4f11f797f11d8a">close</a> (error_code &amp;ec)</td></tr>
 <tr class="memdesc:a757c53a0af3426283e4f11f797f11d8a"><td class="mdescLeft">&#160;</td><td class="mdescRight">close the connection, along with any related streams <br /></td></tr>

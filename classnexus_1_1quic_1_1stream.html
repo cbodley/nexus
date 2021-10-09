@@ -69,6 +69,7 @@ $(function() {
   <div class="summary">
 <a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pro-methods">Protected Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
 <a href="classnexus_1_1quic_1_1stream-members.html">List of all members</a>  </div>
   <div class="headertitle">
@@ -117,6 +118,10 @@ Public Member Functions</h2></td></tr>
 <a class="el" href="classnexus_1_1quic_1_1stream.html#a967adc029f573796efa545d6f846e483">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a0f85079b7c8792fcb44707e351602dea">get_executor</a> () const</td></tr>
 <tr class="memdesc:a0f85079b7c8792fcb44707e351602dea"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the associated io executor <br /></td></tr>
 <tr class="separator:a0f85079b7c8792fcb44707e351602dea"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa45d81c0048e0889da7881a880f6b8ba"><td class="memItemLeft" align="right" valign="top"><a id="aa45d81c0048e0889da7881a880f6b8ba"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#aa45d81c0048e0889da7881a880f6b8ba">is_open</a> () const</td></tr>
+<tr class="memdesc:aa45d81c0048e0889da7881a880f6b8ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">determine whether the stream is open <br /></td></tr>
+<tr class="separator:aa45d81c0048e0889da7881a880f6b8ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af7853806fe85440976e0be15858a622f"><td class="memTemplParams" colspan="2"><a id="af7853806fe85440976e0be15858a622f"></a>
 template&lt;typename MutableBufferSequence , typename CompletionToken &gt; </td></tr>
 <tr class="memitem:af7853806fe85440976e0be15858a622f"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#af7853806fe85440976e0be15858a622f">async_read_some</a> (const MutableBufferSequence &amp;buffers, CompletionToken &amp;&amp;token)</td></tr>
@@ -180,6 +185,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#ac3deb3777ddf26e824a42b0f016821c5">reset</a> ()</td></tr>
 <tr class="memdesc:ac3deb3777ddf26e824a42b0f016821c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">reset the stream immediately in both directions, canceling any pending operations and discarding any unacked data <br /></td></tr>
 <tr class="separator:ac3deb3777ddf26e824a42b0f016821c5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
+Protected Member Functions</h2></td></tr>
+<tr class="memitem:a845c59ea7b7a72bcc270571e666d398c"><td class="memItemLeft" align="right" valign="top"><a id="a845c59ea7b7a72bcc270571e666d398c"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>stream</b> (std::unique_ptr&lt; detail::stream_state &gt; &amp;&amp;state)</td></tr>
+<tr class="separator:a845c59ea7b7a72bcc270571e666d398c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
