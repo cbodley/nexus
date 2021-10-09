@@ -125,7 +125,8 @@ stream client_connection::connect(error_code& ec)
   state.connect(op);
   op.wait();
   ec = std::get<0>(*op.result);
-  return std::get<1>(std::move(*op.result));
+  return quic::detail::stream_factory<stream>::create(
+      std::get<1>(std::move(*op.result)));
 }
 
 stream client_connection::connect()

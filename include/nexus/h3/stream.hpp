@@ -12,8 +12,6 @@ class server_connection;
 /// meets the type requirements of asio's AsyncRead/WriteStream and
 /// SyncRead/WriteStream for transferring the HTTP message body
 class stream : public quic::stream {
-  friend class client_connection;
-  friend class server_connection;
   friend class quic::detail::stream_factory<stream>;
   using quic::stream::stream;
  public:

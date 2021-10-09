@@ -150,7 +150,8 @@ stream server_connection::accept(error_code& ec)
   state.accept(op);
   op.wait();
   ec = std::get<0>(*op.result);
-  return {std::get<1>(std::move(*op.result))};
+  return quic::detail::stream_factory<stream>::create(
+      std::get<1>(std::move(*op.result)));
 }
 
 stream server_connection::accept()

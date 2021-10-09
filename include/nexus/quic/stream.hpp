@@ -20,8 +20,6 @@ class connection;
 /// asio's AsyncRead/WriteStream and SyncRead/WriteStream
 class stream {
  protected:
-  friend class connection;
-  friend class detail::connection_state;
   friend class detail::stream_factory<stream>;
   std::unique_ptr<detail::stream_state> state;
   stream(std::unique_ptr<detail::stream_state>&& state)
