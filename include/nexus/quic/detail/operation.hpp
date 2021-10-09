@@ -102,22 +102,27 @@ struct async_operation : Operation {
                           tuple_type&& args) {
     auto self = static_cast<async_operation*>(op);
     auto p = handler_ptr<async_operation, Handler>{self, &self->handler}; // take ownership
-    auto ex = std::move(self->ex);
+    // we're destroying 'self' here, so move the handler and executors out
     auto handler = std::move(self->handler); // may throw
     p.get_deleter().handler = &handler; // update deleter
-    p.reset(); // delete the op
-    if (type == completion_type::destroy) {
-      return;
-    }
+
     auto alloc = asio::get_associated_allocator(handler);
+    // move args into the lambda we'll submit for execution. do this before
+    // deleting 'self' in case any of these args reference that memory
     auto f = [handler=std::move(handler), args=std::move(args)] () mutable {
       std::apply(std::move(handler), std::move(args));
-    };
+    }; // may throw
+
+    // save the associated executor for f's submission
+    auto ex = std::move(self->ex.first);
+    // the io executor's work in self->ex.second can be destroyed with 'self'
+    p.reset(); // delete 'self'
+
     switch (type) {
       case completion_type::post:
         asio::execution::execute(
             asio::require(
-                asio::prefer(ex.first,
+                asio::prefer(ex,
                              asio::execution::relationship.fork,
                              asio::execution::allocator(alloc)),
                 asio::execution::blocking.never),
@@ -126,7 +131,7 @@ struct async_operation : Operation {
       case completion_type::defer:
         asio::execution::execute(
             asio::require(
-                asio::prefer(ex.first,
+                asio::prefer(ex,
                              asio::execution::relationship.continuation,
                              asio::execution::allocator(alloc)),
                 asio::execution::blocking.never),
@@ -134,7 +139,7 @@ struct async_operation : Operation {
         break;
       case completion_type::dispatch:
         asio::execution::execute(
-            asio::prefer(ex.first,
+            asio::prefer(ex,
                          asio::execution::blocking.possibly,
                          asio::execution::allocator(alloc)),
             std::move(f));
