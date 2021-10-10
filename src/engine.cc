@@ -791,9 +791,8 @@ void engine_state::close(socket_state& socket)
     cstate.accept_->defer(ecanceled);
     cstate.accept_ = nullptr;
   }
-  // XXX: cancel the async_wait for read, but don't close until ~socket_state()
   socket.receiving = false;
-  socket.socket.cancel();
+  socket.socket.close();
 }
 
 void engine_state::process(std::unique_lock<std::mutex>& lock)
