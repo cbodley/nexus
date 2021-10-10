@@ -92,6 +92,7 @@ auto socket_state::send_packets(const lsquic_out_spec* begin,
   msghdr msg;
   msg.msg_flags = 0;
 
+  // send until we encounter a packet with a different peer_ctx
   auto p = begin;
   for (; p < end && p->peer_ctx == begin->peer_ctx; ++p) {
     msg.msg_name = const_cast<void*>(static_cast<const void*>(p->dest_sa));

@@ -57,9 +57,13 @@ class engine_state {
 
   void close();
 
+  // sockets
   void listen(socket_state& socket, int backlog);
   void close(socket_state& socket);
 
+  int send_packets(const lsquic_out_spec *specs, unsigned n_specs);
+
+  // connections
   void connect(connection_state& cstate,
                const udp::endpoint& endpoint,
                const char* hostname);
@@ -79,6 +83,7 @@ class engine_state {
 
   int cancel(connection_state& cstate, error_code ec);
 
+  // streams
   void stream_connect(connection_state& cstate,
                       stream_connect_operation& op);
   stream_state* on_stream_connect(connection_state& cstate,
@@ -114,8 +119,6 @@ class engine_state {
 
   void stream_close(stream_state& sstate, stream_close_operation& op);
   void on_stream_close(stream_state& sstate);
-
-  int send_packets(const lsquic_out_spec *specs, unsigned n_specs);
 };
 
 } // namespace nexus::quic::detail

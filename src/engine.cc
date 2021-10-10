@@ -48,6 +48,8 @@ void engine_state::connect(connection_state& cstate,
   ::lsquic_engine_connect(handle.get(), N_LSQVER,
       cstate.socket.local_addr.data(), endpoint.data(), peer_ctx, cctx,
       hostname, 0, nullptr, 0, nullptr, 0);
+  // note, this assert triggers with some quic versions that don't allow
+  // multiple connections on the same address, see lquic's hash_conns_by_addr()
   assert(cstate.handle); // lsquic_engine_connect() calls on_connect()
   process(lock);
   if (client) { // make sure we're listening
@@ -68,6 +70,9 @@ void engine_state::on_handshake(connection_state& cstate, int s)
     case LSQ_HSK_FAIL:
     case LSQ_HSK_RESUMED_FAIL:
       if (!cstate.err) {
+        // set a generic connection handshake error. we may get a more specific
+        // error from CONNECTION_CLOSE before the on_conn_closed() callback
+        // delivers this error to the application
         cstate.err = make_error_code(connection_error::handshake_failed);
       }
       break;
@@ -116,9 +121,9 @@ connection_state* engine_state::on_accept(lsquic_conn_t* conn)
   auto& cstate = socket.accepting_connections.front();
   socket.accepting_connections.pop_front();
   socket.connected.push_back(cstate);
-  assert(cstate.accept_);
   assert(!cstate.handle);
   cstate.handle = conn;
+  assert(cstate.accept_);
   cstate.accept_->defer(error_code{}); // success
   cstate.accept_ = nullptr;
   return &cstate;
@@ -782,6 +787,7 @@ void engine_state::close(socket_state& socket)
 
     cancel(cstate, ecanceled);
   }
+  // send any CONNECTION_CLOSE frames before closing the socket
   process(lock);
   // cancel connections pending accept
   while (!socket.accepting_connections.empty()) {

@@ -13,18 +13,28 @@
 
 * make connection moveable? this means dynamic allocation
 	- make connect()/accept() return a connection instead of taking an existing one by reference
-* going_away() for h3 connections
+* reify connection state machine
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
+
+## stream
+
+* reify stream state machine
 
 ## UDP
 
 * send packets with IP_PKTINFO
 * use sendmmsg()/recvmmsg() to reduce the number of system calls
 
+## h3
+
+* going_away() for h3 connections
+* allocator support for fields
+
 ## Async
 
 * maybe remove all synchronous interfaces and locking?
+* template everything on Executor type? difficult because it requires a lot more of the implementation in header files, and lsquic dependency is hidden from headers
 
 ## Boost vs. Standalone Asio
 
