@@ -25,10 +25,10 @@ struct stream_write_state {
   stream_header_write_operation* header = nullptr;
 };
 
-struct stream_state : public boost::intrusive::list_base_hook<>,
-                      public service_list_base_hook {
+struct stream_impl : public boost::intrusive::list_base_hook<>,
+                     public service_list_base_hook {
   using executor_type = asio::any_io_executor;
-  service<stream_state>& svc;
+  service<stream_impl>& svc;
   executor_type ex;
   connection_state* conn;
   // make sure that connection errors get delivered to the application
@@ -53,15 +53,15 @@ struct stream_state : public boost::intrusive::list_base_hook<>,
     }
   }
 
-  stream_state(const executor_type& ex, connection_state* conn)
-      : svc(asio::use_service<service<stream_state>>(
+  stream_impl(const executor_type& ex, connection_state* conn)
+      : svc(asio::use_service<service<stream_impl>>(
               asio::query(ex, asio::execution::context))),
         ex(ex), conn(conn)
   {
     // register for service_shutdown() notifications
     svc.add(*this);
   }
-  ~stream_state()
+  ~stream_impl()
   {
     svc.remove(*this);
   }

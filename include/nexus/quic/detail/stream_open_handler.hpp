@@ -7,16 +7,16 @@
 
 namespace nexus::quic::detail {
 
-struct stream_state;
+struct stream_impl;
 
-/// generic Stream factory calls private unique_ptr<stream_state> constructors,
+/// generic Stream factory calls private unique_ptr<stream_impl> constructors,
 /// so must be friended by the Stream type
 template <typename Stream>
 struct stream_factory {
-  static Stream create(std::unique_ptr<stream_state> sstate) { return sstate; }
+  static Stream create(std::unique_ptr<stream_impl> s) { return s; }
 };
 
-/// the generic stream handler returns a unique_ptr<stream_state>. wrap that
+/// the generic stream handler returns a unique_ptr<stream_impl>. wrap that
 /// completion with one that returns a Stream constructed with that state
 template <typename Stream, typename Handler>
 struct stream_open_handler {
@@ -24,13 +24,13 @@ struct stream_open_handler {
   explicit stream_open_handler(Handler&& handler)
       : handler(std::move(handler))
   {}
-  void operator()(error_code ec, std::unique_ptr<stream_state> sstate) &
+  void operator()(error_code ec, std::unique_ptr<stream_impl> s) &
   {
-    handler(ec, stream_factory<Stream>::create(std::move(sstate)));
+    handler(ec, stream_factory<Stream>::create(std::move(s)));
   }
-  void operator()(error_code ec, std::unique_ptr<stream_state> sstate) &&
+  void operator()(error_code ec, std::unique_ptr<stream_impl> s) &&
   {
-    std::move(handler)(ec, stream_factory<Stream>::create(std::move(sstate)));
+    std::move(handler)(ec, stream_factory<Stream>::create(std::move(s)));
   }
 
   using allocator_type = asio::associated_allocator_t<Handler>;

@@ -12,7 +12,7 @@
 
 namespace nexus::quic::detail {
 
-struct stream_state;
+struct stream_impl;
 
 enum class completion_type { post, defer, dispatch, destroy };
 
@@ -181,7 +181,7 @@ using accept_async = async_operation<accept_operation, Handler, IoExecutor>;
 
 // stream connection
 struct stream_connect_operation :
-    operation<error_code, std::unique_ptr<stream_state>> {
+    operation<error_code, std::unique_ptr<stream_impl>> {
 
   explicit stream_connect_operation(complete_fn complete) noexcept
       : operation(complete)
@@ -196,7 +196,7 @@ using stream_connect_async = async_operation<
 
 // stream accept
 struct stream_accept_operation :
-    operation<error_code, std::unique_ptr<stream_state>> {
+    operation<error_code, std::unique_ptr<stream_impl>> {
 
   explicit stream_accept_operation(complete_fn complete) noexcept
       : operation(complete)

@@ -18,7 +18,7 @@ class stream : public quic::stream {
   /// read headers from the stream
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_read_headers(fields& f, CompletionToken&& token) {
-    return state->async_read_headers(f, std::forward<CompletionToken>(token));
+    return impl->async_read_headers(f, std::forward<CompletionToken>(token));
   }
 
   /// read headers from the stream
@@ -29,7 +29,7 @@ class stream : public quic::stream {
   /// write headers to the stream
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_write_headers(const fields& f, CompletionToken&& token) {
-    return state->async_write_headers(f, std::forward<CompletionToken>(token));
+    return impl->async_write_headers(f, std::forward<CompletionToken>(token));
   }
 
   /// write headers to the stream

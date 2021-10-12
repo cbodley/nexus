@@ -6,7 +6,7 @@
 #include <nexus/quic/detail/connection.hpp>
 #include <nexus/quic/detail/engine.hpp>
 #include <nexus/quic/detail/socket.hpp>
-#include <nexus/quic/detail/stream.hpp>
+#include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/socket.hpp>
 
 namespace nexus::quic::detail {
@@ -163,7 +163,7 @@ void engine_state::close(connection_state& cstate, error_code& ec)
   process(lock);
 }
 
-using stream_ptr = std::unique_ptr<stream_state>;
+using stream_ptr = std::unique_ptr<stream_impl>;
 
 int engine_state::cancel(connection_state& cstate, error_code ec)
 {
@@ -171,60 +171,60 @@ int engine_state::cancel(connection_state& cstate, error_code ec)
   // close incoming streams that we haven't accepted yet
   while (!cstate.incoming_streams.empty()) {
     // take ownership of the stream and free on scope exit
-    auto sstate = stream_ptr{&cstate.incoming_streams.front()};
+    auto s = stream_ptr{&cstate.incoming_streams.front()};
     cstate.incoming_streams.pop_front();
-    ::lsquic_stream_close(sstate->handle);
-    sstate->handle = nullptr;
-    sstate->conn = nullptr;
+    ::lsquic_stream_close(s->handle);
+    s->handle = nullptr;
+    s->conn = nullptr;
   }
   // cancel pending stream connect/accept
   while (!cstate.connecting_streams.empty()) {
-    auto sstate = stream_ptr{&cstate.connecting_streams.front()};
+    auto s = stream_ptr{&cstate.connecting_streams.front()};
     cstate.connecting_streams.pop_front();
-    assert(sstate->conn);
-    sstate->conn = nullptr;
-    assert(!sstate->handle);
-    assert(sstate->connect_);
-    auto op = std::exchange(sstate->connect_, nullptr);
+    assert(s->conn);
+    s->conn = nullptr;
+    assert(!s->handle);
+    assert(s->connect_);
+    auto op = std::exchange(s->connect_, nullptr);
     op->defer(ec, nullptr);
     canceled++;
   }
   while (!cstate.accepting_streams.empty()) {
-    auto sstate = stream_ptr{&cstate.accepting_streams.front()};
+    auto s = stream_ptr{&cstate.accepting_streams.front()};
     cstate.accepting_streams.pop_front();
-    assert(sstate->conn);
-    sstate->conn = nullptr;
-    assert(!sstate->handle);
-    assert(sstate->accept_);
-    auto op = std::exchange(sstate->accept_, nullptr);
+    assert(s->conn);
+    s->conn = nullptr;
+    assert(!s->handle);
+    assert(s->accept_);
+    auto op = std::exchange(s->accept_, nullptr);
     op->defer(ec, nullptr);
     canceled++;
   }
   // close connected streams
   while (!cstate.connected_streams.empty()) {
-    auto& sstate = cstate.connected_streams.front();
+    auto& s = cstate.connected_streams.front();
     cstate.connected_streams.pop_front();
-    assert(sstate.conn);
-    sstate.conn = nullptr;
+    assert(s.conn);
+    s.conn = nullptr;
 
-    assert(sstate.handle);
-    ::lsquic_stream_close(sstate.handle);
-    sstate.handle = nullptr;
+    assert(s.handle);
+    ::lsquic_stream_close(s.handle);
+    s.handle = nullptr;
 
     int count = 0;
-    count += stream_cancel_read(sstate, ec);
-    count += stream_cancel_write(sstate, ec);
+    count += stream_cancel_read(s, ec);
+    count += stream_cancel_write(s, ec);
     if (!count) {
-      sstate.conn_err = ec;
+      s.conn_err = ec;
     }
     canceled += count;
   }
   // cancel closing streams
   while (!cstate.closing_streams.empty()) {
-    auto& sstate = cstate.closing_streams.front();
+    auto& s = cstate.closing_streams.front();
     cstate.closing_streams.pop_front();
-    assert(sstate.close_);
-    auto op = std::exchange(sstate.close_, nullptr);
+    assert(s.close_);
+    auto op = std::exchange(s.close_, nullptr);
     op->defer(ec);
     canceled++;
   }
@@ -309,27 +309,27 @@ void engine_state::stream_connect(connection_state& cstate,
     op.post(make_error_code(errc::bad_file_descriptor), nullptr);
     return;
   }
-  auto sstate = std::make_unique<stream_state>(ex, &cstate);
-  sstate->connect_ = &op;
-  cstate.connecting_streams.push_back(*sstate.release()); // transfer ownership
+  auto s = std::make_unique<stream_impl>(ex, &cstate);
+  s->connect_ = &op;
+  cstate.connecting_streams.push_back(*s.release()); // transfer ownership
   ::lsquic_conn_make_stream(cstate.handle);
   process(lock);
 }
 
-stream_state* engine_state::on_stream_connect(connection_state& cstate,
+stream_impl* engine_state::on_stream_connect(connection_state& cstate,
                                               lsquic_stream_t* stream)
 {
   assert(!cstate.connecting_streams.empty());
-  auto& sstate = cstate.connecting_streams.front();
+  auto& s = cstate.connecting_streams.front();
   cstate.connecting_streams.pop_front();
-  cstate.connected_streams.push_back(sstate);
-  assert(!sstate.handle);
-  sstate.handle = stream;
+  cstate.connected_streams.push_back(s);
+  assert(!s.handle);
+  s.handle = stream;
   auto ec = error_code{}; // success
-  assert(sstate.connect_);
-  sstate.connect_->defer(ec, &sstate);
-  sstate.connect_ = nullptr;
-  return &sstate;
+  assert(s.connect_);
+  s.connect_->defer(ec, &s);
+  s.connect_ = nullptr;
+  return &s;
 }
 
 void engine_state::stream_accept(connection_state& cstate,
@@ -346,39 +346,39 @@ void engine_state::stream_accept(connection_state& cstate,
   }
   if (!cstate.incoming_streams.empty()) {
     // take ownership of the first incoming stream
-    auto sstate = stream_ptr{&cstate.incoming_streams.front()};
+    auto s = stream_ptr{&cstate.incoming_streams.front()};
     cstate.incoming_streams.pop_front();
-    cstate.connected_streams.push_back(*sstate);
-    op.post(error_code{}, std::move(sstate)); // success
+    cstate.connected_streams.push_back(*s);
+    op.post(error_code{}, std::move(s)); // success
     return;
   }
-  auto sstate = std::make_unique<stream_state>(ex, &cstate);
-  sstate->accept_ = &op;
-  cstate.accepting_streams.push_back(*sstate.release()); // transfer ownership
+  auto s = std::make_unique<stream_impl>(ex, &cstate);
+  s->accept_ = &op;
+  cstate.accepting_streams.push_back(*s.release()); // transfer ownership
 }
 
-stream_state* engine_state::on_stream_accept(connection_state& cstate,
+stream_impl* engine_state::on_stream_accept(connection_state& cstate,
                                              lsquic_stream* stream)
 {
   if (cstate.accepting_streams.empty()) {
     // not waiting on accept, queue this for later
-    auto sstate = std::make_unique<stream_state>(ex, &cstate);
-    cstate.incoming_streams.push_back(*sstate);
-    sstate->handle = stream;
-    return sstate.release();
+    auto s = std::make_unique<stream_impl>(ex, &cstate);
+    cstate.incoming_streams.push_back(*s);
+    s->handle = stream;
+    return s.release();
   }
-  auto& sstate = cstate.accepting_streams.front();
+  auto& s = cstate.accepting_streams.front();
   cstate.accepting_streams.pop_front();
-  cstate.connected_streams.push_back(sstate);
-  assert(!sstate.handle);
-  sstate.handle = stream;
-  assert(sstate.accept_);
-  sstate.accept_->defer(error_code{}, &sstate); // success
-  sstate.accept_ = nullptr;
-  return &sstate;
+  cstate.connected_streams.push_back(s);
+  assert(!s.handle);
+  s.handle = stream;
+  assert(s.accept_);
+  s.accept_->defer(error_code{}, &s); // success
+  s.accept_ = nullptr;
+  return &s;
 }
 
-stream_state* engine_state::on_new_stream(connection_state& cstate,
+stream_impl* engine_state::on_new_stream(connection_state& cstate,
                                           lsquic_stream_t* stream)
 {
   // XXX: any way to decide between connect/accept without stream id?
@@ -391,58 +391,58 @@ stream_state* engine_state::on_new_stream(connection_state& cstate,
   }
 }
 
-bool engine_state::is_open(const stream_state& sstate) const
+bool engine_state::is_open(const stream_impl& s) const
 {
   auto lock = std::scoped_lock{mutex};
-  return sstate.handle;
+  return s.handle;
 }
 
-void engine_state::stream_read(stream_state& sstate, stream_data_operation& op)
+void engine_state::stream_read(stream_impl& s, stream_data_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.conn->err) {
-    op.post(std::exchange(sstate.conn->err, {}), 0);
+  assert(s.conn);
+  if (s.conn->err) {
+    op.post(std::exchange(s.conn->err, {}), 0);
     return;
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     op.post(make_error_code(errc::not_connected), 0);
     return;
   }
-  if (sstate.in.header || sstate.in.data) { // no concurrent reads
+  if (s.in.header || s.in.data) { // no concurrent reads
     op.post(make_error_code(stream_error::busy), 0);
     return;
   }
-  if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
+  if (::lsquic_stream_wantread(s.handle, 1) == -1) {
     op.post(error_code{errno, system_category()}, 0);
     return;
   }
-  sstate.in.data = &op;
+  s.in.data = &op;
   process(lock);
 }
 
-void engine_state::stream_read_headers(stream_state& sstate,
+void engine_state::stream_read_headers(stream_impl& s,
                                        stream_header_read_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.conn->err) {
-    op.post(std::exchange(sstate.conn->err, {}));
+  assert(s.conn);
+  if (s.conn->err) {
+    op.post(std::exchange(s.conn->err, {}));
     return;
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     op.post(make_error_code(errc::not_connected));
     return;
   }
-  if (sstate.in.header || sstate.in.data) { // no concurrent reads
+  if (s.in.header || s.in.data) { // no concurrent reads
     op.post(make_error_code(stream_error::busy));
     return;
   }
-  if (::lsquic_stream_wantread(sstate.handle, 1) == -1) {
+  if (::lsquic_stream_wantread(s.handle, 1) == -1) {
     op.post(error_code{errno, system_category()});
     return;
   }
-  sstate.in.header = &op;
+  s.in.header = &op;
   process(lock);
 }
 
@@ -455,12 +455,12 @@ struct recv_header_set {
   recv_header_set(int is_push_promise) : is_push_promise(is_push_promise) {}
 };
 
-void engine_state::on_stream_read(stream_state& sstate)
+void engine_state::on_stream_read(stream_impl& s)
 {
   error_code ec;
-  if (sstate.in.header) {
-    auto& op = *std::exchange(sstate.in.header, nullptr);
-    auto hset = ::lsquic_stream_get_hset(sstate.handle);
+  if (s.in.header) {
+    auto& op = *std::exchange(s.in.header, nullptr);
+    auto hset = ::lsquic_stream_get_hset(s.handle);
     if (!hset) {
       ec = make_error_code(stream_error::eof);
     } else {
@@ -469,9 +469,9 @@ void engine_state::on_stream_read(stream_state& sstate)
       op.fields = std::move(headers->fields);
     }
     op.defer(ec);
-  } else if (sstate.in.data) {
-    auto& op = *std::exchange(sstate.in.data, nullptr);
-    auto bytes = ::lsquic_stream_readv(sstate.handle, op.iovs, op.num_iovs);
+  } else if (s.in.data) {
+    auto& op = *std::exchange(s.in.data, nullptr);
+    auto bytes = ::lsquic_stream_readv(s.handle, op.iovs, op.num_iovs);
     if (bytes == -1) {
       bytes = 0;
       ec.assign(errno, system_category());
@@ -480,55 +480,55 @@ void engine_state::on_stream_read(stream_state& sstate)
     }
     op.defer(ec, bytes);
   }
-  ::lsquic_stream_wantread(sstate.handle, 0);
+  ::lsquic_stream_wantread(s.handle, 0);
 }
 
-void engine_state::stream_write(stream_state& sstate, stream_data_operation& op)
+void engine_state::stream_write(stream_impl& s, stream_data_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.conn->err) {
-    op.post(std::exchange(sstate.conn->err, {}), 0);
+  assert(s.conn);
+  if (s.conn->err) {
+    op.post(std::exchange(s.conn->err, {}), 0);
     return;
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     op.post(make_error_code(errc::not_connected), 0);
     return;
   }
-  if (sstate.out.header || sstate.out.data) { // no concurrent writes
+  if (s.out.header || s.out.data) { // no concurrent writes
     op.post(make_error_code(stream_error::busy), 0);
     return;
   }
-  if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
+  if (::lsquic_stream_wantwrite(s.handle, 1) == -1) {
     op.post(error_code{errno, system_category()}, 0);
     return;
   }
-  sstate.out.data = &op;
+  s.out.data = &op;
   process(lock);
 }
 
-void engine_state::stream_write_headers(stream_state& sstate,
+void engine_state::stream_write_headers(stream_impl& s,
                                         stream_header_write_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.conn->err) {
-    op.post(std::exchange(sstate.conn->err, {}));
+  assert(s.conn);
+  if (s.conn->err) {
+    op.post(std::exchange(s.conn->err, {}));
     return;
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     op.post(make_error_code(errc::not_connected));
     return;
   }
-  if (sstate.out.header || sstate.out.data) { // no concurrent writes
+  if (s.out.header || s.out.data) { // no concurrent writes
     op.post(make_error_code(stream_error::busy));
     return;
   }
-  if (::lsquic_stream_wantwrite(sstate.handle, 1) == -1) {
+  if (::lsquic_stream_wantwrite(s.handle, 1) == -1) {
     op.post(error_code{errno, system_category()});
     return;
   }
-  sstate.out.header = &op;
+  s.out.header = &op;
   process(lock);
 }
 
@@ -558,198 +558,198 @@ static void do_write_headers(lsquic_stream_t* stream,
   }
 }
 
-void engine_state::on_stream_write(stream_state& sstate)
+void engine_state::on_stream_write(stream_impl& s)
 {
   error_code ec;
-  if (sstate.out.header) {
-    auto& op = *std::exchange(sstate.out.header, nullptr);
-    do_write_headers(sstate.handle, op.fields, ec);
+  if (s.out.header) {
+    auto& op = *std::exchange(s.out.header, nullptr);
+    do_write_headers(s.handle, op.fields, ec);
     op.defer(ec);
-  } else if (sstate.out.data) {
-    auto& op = *std::exchange(sstate.out.data, nullptr);
-    auto bytes = ::lsquic_stream_writev(sstate.handle, op.iovs, op.num_iovs);
+  } else if (s.out.data) {
+    auto& op = *std::exchange(s.out.data, nullptr);
+    auto bytes = ::lsquic_stream_writev(s.handle, op.iovs, op.num_iovs);
     if (bytes == -1) {
       bytes = 0;
       ec.assign(errno, system_category());
     }
     op.defer(ec, bytes);
   }
-  ::lsquic_stream_wantwrite(sstate.handle, 0);
+  ::lsquic_stream_wantwrite(s.handle, 0);
 }
 
-void engine_state::stream_flush(stream_state& sstate, error_code& ec)
+void engine_state::stream_flush(stream_impl& s, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.conn->err) {
-    ec = std::exchange(sstate.conn->err, {});
+  assert(s.conn);
+  if (s.conn->err) {
+    ec = std::exchange(s.conn->err, {});
     return;
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     ec = make_error_code(errc::not_connected);
     return;
   }
-  if (::lsquic_stream_flush(sstate.handle) == -1) {
+  if (::lsquic_stream_flush(s.handle) == -1) {
     ec.assign(errno, system_category());
     return;
   }
   process(lock);
 }
 
-void engine_state::stream_shutdown(stream_state& sstate,
+void engine_state::stream_shutdown(stream_impl& s,
                                    int how, error_code& ec)
 {
   const bool shutdown_read = (how == 0 || how == 2);
   const bool shutdown_write = (how == 1 || how == 2);
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.conn->err) {
-    ec = std::exchange(sstate.conn->err, {});
+  assert(s.conn);
+  if (s.conn->err) {
+    ec = std::exchange(s.conn->err, {});
     return;
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     ec = make_error_code(errc::bad_file_descriptor);
     return;
   }
-  if (::lsquic_stream_shutdown(sstate.handle, how) == -1) {
+  if (::lsquic_stream_shutdown(s.handle, how) == -1) {
     ec.assign(errno, system_category());
     return;
   }
   auto ecanceled = make_error_code(stream_error::aborted);
   if (shutdown_read) {
-    stream_cancel_read(sstate, ecanceled);
+    stream_cancel_read(s, ecanceled);
   }
   if (shutdown_write) {
-    stream_cancel_write(sstate, ecanceled);
+    stream_cancel_write(s, ecanceled);
   }
   process(lock);
 }
 
-bool engine_state::try_stream_reset(stream_state& sstate)
+bool engine_state::try_stream_reset(stream_impl& s)
 {
-  assert(sstate.conn);
+  assert(s.conn);
   auto ec = make_error_code(stream_error::aborted);
-  if (sstate.accept_) {
-    sstate.accept_->defer(ec, nullptr);
-    sstate.accept_ = nullptr;
-    auto& accepting = sstate.conn->accepting_streams;
-    accepting.erase(accepting.iterator_to(sstate));
+  if (s.accept_) {
+    s.accept_->defer(ec, nullptr);
+    s.accept_ = nullptr;
+    auto& accepting = s.conn->accepting_streams;
+    accepting.erase(accepting.iterator_to(s));
   }
-  if (sstate.connect_) {
-    sstate.connect_->defer(ec, nullptr);
-    sstate.connect_ = nullptr;
-    auto& connecting = sstate.conn->connecting_streams;
-    connecting.erase(connecting.iterator_to(sstate));
+  if (s.connect_) {
+    s.connect_->defer(ec, nullptr);
+    s.connect_ = nullptr;
+    auto& connecting = s.conn->connecting_streams;
+    connecting.erase(connecting.iterator_to(s));
   }
-  if (!sstate.handle) { // not connected
+  if (!s.handle) { // not connected
     return false;
   }
-  ::lsquic_stream_close(sstate.handle);
-  sstate.handle = nullptr;
+  ::lsquic_stream_close(s.handle);
+  s.handle = nullptr;
 
-  assert(sstate.conn);
-  auto& connected = sstate.conn->connected_streams;
-  connected.erase(connected.iterator_to(sstate));
+  assert(s.conn);
+  auto& connected = s.conn->connected_streams;
+  connected.erase(connected.iterator_to(s));
 
-  stream_cancel_read(sstate, ec);
-  stream_cancel_write(sstate, ec);
+  stream_cancel_read(s, ec);
+  stream_cancel_write(s, ec);
   return true;
 }
 
-void engine_state::stream_reset(stream_state& sstate)
+void engine_state::stream_reset(stream_impl& s)
 {
   auto lock = std::unique_lock{mutex};
-  assert(sstate.conn);
-  if (sstate.close_) {
-    auto& closing = sstate.conn->closing_streams;
-    closing.erase(closing.iterator_to(sstate));
-    sstate.close_->defer(make_error_code(stream_error::aborted));
-    sstate.close_ = nullptr;
+  assert(s.conn);
+  if (s.close_) {
+    auto& closing = s.conn->closing_streams;
+    closing.erase(closing.iterator_to(s));
+    s.close_->defer(make_error_code(stream_error::aborted));
+    s.close_ = nullptr;
   }
-  try_stream_reset(sstate);
-  sstate.conn = nullptr;
+  try_stream_reset(s);
+  s.conn = nullptr;
   process(lock);
 }
 
-void engine_state::stream_close(stream_state& sstate,
+void engine_state::stream_close(stream_impl& s,
                                 stream_close_operation& op)
 {
   auto lock = std::unique_lock{mutex};
-  if (sstate.close_) { // already waiting on close
+  if (s.close_) { // already waiting on close
     op.post(make_error_code(stream_error::busy));
     return;
   }
-  if (!try_stream_reset(sstate)) {
+  if (!try_stream_reset(s)) {
     op.post(error_code{});
     return;
   }
-  assert(sstate.conn);
-  sstate.conn->closing_streams.push_back(sstate);
-  assert(!sstate.close_);
-  sstate.close_ = &op;
+  assert(s.conn);
+  s.conn->closing_streams.push_back(s);
+  assert(!s.close_);
+  s.close_ = &op;
   process(lock);
 }
 
-int engine_state::stream_cancel_read(stream_state& sstate, error_code ec)
+int engine_state::stream_cancel_read(stream_impl& s, error_code ec)
 {
   int canceled = 0;
-  if (sstate.in.header) {
-    sstate.in.header->defer(ec);
-    sstate.in.header = nullptr;
+  if (s.in.header) {
+    s.in.header->defer(ec);
+    s.in.header = nullptr;
     canceled++;
   }
-  if (sstate.in.data) {
-    sstate.in.data->defer(ec, 0);
-    sstate.in.data = nullptr;
+  if (s.in.data) {
+    s.in.data->defer(ec, 0);
+    s.in.data = nullptr;
     canceled++;
   }
   return canceled;
 }
 
-int engine_state::stream_cancel_write(stream_state& sstate, error_code ec)
+int engine_state::stream_cancel_write(stream_impl& s, error_code ec)
 {
   int canceled = 0;
-  if (sstate.out.header) {
-    sstate.out.header->defer(ec);
-    sstate.out.header = nullptr;
+  if (s.out.header) {
+    s.out.header->defer(ec);
+    s.out.header = nullptr;
     canceled++;
   }
-  if (sstate.out.data) {
-    sstate.out.data->defer(ec, 0);
-    sstate.out.data = nullptr;
+  if (s.out.data) {
+    s.out.data->defer(ec, 0);
+    s.out.data = nullptr;
     canceled++;
   }
   return canceled;
 }
 
-void engine_state::on_stream_close(stream_state& sstate)
+void engine_state::on_stream_close(stream_impl& s)
 {
-  assert(sstate.conn);
-  if (sstate.close_) {
-    auto& closing = sstate.conn->closing_streams;
-    closing.erase(closing.iterator_to(sstate));
-    auto op = std::exchange(sstate.close_, nullptr);
+  assert(s.conn);
+  if (s.close_) {
+    auto& closing = s.conn->closing_streams;
+    closing.erase(closing.iterator_to(s));
+    auto op = std::exchange(s.close_, nullptr);
     op->defer(error_code{});
   }
-  if (!sstate.handle) {
+  if (!s.handle) {
     return; // already closed
   }
-  sstate.handle = nullptr;
+  s.handle = nullptr;
 
-  auto& connected = sstate.conn->connected_streams;
-  connected.erase(connected.iterator_to(sstate));
+  auto& connected = s.conn->connected_streams;
+  connected.erase(connected.iterator_to(s));
 
   auto ec = make_error_code(stream_error::reset);
-  if (sstate.conn->err) {
-    ec = sstate.conn->err;
+  if (s.conn->err) {
+    ec = s.conn->err;
   }
-  sstate.conn = nullptr;
+  s.conn = nullptr;
 
   int canceled = 0;
-  canceled += stream_cancel_read(sstate, ec);
-  canceled += stream_cancel_write(sstate, ec);
+  canceled += stream_cancel_read(s, ec);
+  canceled += stream_cancel_write(s, ec);
   if (!canceled) {
-    sstate.conn_err = ec;
+    s.conn_err = ec;
   }
 }
 
@@ -942,29 +942,29 @@ static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
   auto conn = ::lsquic_stream_conn(stream);
   auto cctx = ::lsquic_conn_get_ctx(conn);
   auto cstate = reinterpret_cast<connection_state*>(cctx);
-  auto sstate = estate->on_new_stream(*cstate, stream);
-  return reinterpret_cast<lsquic_stream_ctx_t*>(sstate);
+  auto s = estate->on_new_stream(*cstate, stream);
+  return reinterpret_cast<lsquic_stream_ctx_t*>(s);
 }
 
 static void on_read(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
-  auto sstate = reinterpret_cast<stream_state*>(sctx);
-  assert(sstate->conn);
-  sstate->conn->socket.engine.on_stream_read(*sstate);
+  auto s = reinterpret_cast<stream_impl*>(sctx);
+  assert(s->conn);
+  s->conn->socket.engine.on_stream_read(*s);
 }
 
 static void on_write(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
-  auto sstate = reinterpret_cast<stream_state*>(sctx);
-  assert(sstate->conn);
-  sstate->conn->socket.engine.on_stream_write(*sstate);
+  auto s = reinterpret_cast<stream_impl*>(sctx);
+  assert(s->conn);
+  s->conn->socket.engine.on_stream_write(*s);
 }
 
 static void on_close(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
-  auto sstate = reinterpret_cast<stream_state*>(sctx);
-  if (sstate && sstate->conn) {
-    sstate->conn->socket.engine.on_stream_close(*sstate);
+  auto s = reinterpret_cast<stream_impl*>(sctx);
+  if (s && s->conn) {
+    s->conn->socket.engine.on_stream_close(*s);
   }
 }
 
@@ -1019,7 +1019,7 @@ static constexpr lsquic_stream_if make_stream_api()
 static void* header_set_create(void* ctx, lsquic_stream_t* stream,
                                int is_push_promise)
 {
-  // TODO: store this in stream_state to avoid allocation?
+  // TODO: store this in stream_impl to avoid allocation?
   return new recv_header_set(is_push_promise);
 }
 

@@ -11,12 +11,12 @@ namespace nexus {
 namespace quic {
 namespace detail {
 
-bool stream_state::is_open() const
+bool stream_impl::is_open() const
 {
   return conn && conn->socket.engine.is_open(*this);
 }
 
-void stream_state::read_headers(stream_header_read_operation& op)
+void stream_impl::read_headers(stream_header_read_operation& op)
 {
   if (conn) {
     conn->socket.engine.stream_read_headers(*this, op);
@@ -27,7 +27,7 @@ void stream_state::read_headers(stream_header_read_operation& op)
   }
 }
 
-void stream_state::read_some(stream_data_operation& op)
+void stream_impl::read_some(stream_data_operation& op)
 {
   if (conn) {
     conn->socket.engine.stream_read(*this, op);
@@ -38,7 +38,7 @@ void stream_state::read_some(stream_data_operation& op)
   }
 }
 
-void stream_state::write_some(stream_data_operation& op)
+void stream_impl::write_some(stream_data_operation& op)
 {
   if (conn) {
     conn->socket.engine.stream_write(*this, op);
@@ -49,7 +49,7 @@ void stream_state::write_some(stream_data_operation& op)
   }
 }
 
-void stream_state::write_headers(stream_header_write_operation& op)
+void stream_impl::write_headers(stream_header_write_operation& op)
 {
   if (conn) {
     conn->socket.engine.stream_write_headers(*this, op);
@@ -60,7 +60,7 @@ void stream_state::write_headers(stream_header_write_operation& op)
   }
 }
 
-void stream_state::flush(error_code& ec)
+void stream_impl::flush(error_code& ec)
 {
   if (conn) {
     conn->socket.engine.stream_flush(*this, ec);
@@ -71,7 +71,7 @@ void stream_state::flush(error_code& ec)
   }
 }
 
-void stream_state::shutdown(int how, error_code& ec)
+void stream_impl::shutdown(int how, error_code& ec)
 {
   if (conn) {
     conn->socket.engine.stream_shutdown(*this, how, ec);
@@ -82,7 +82,7 @@ void stream_state::shutdown(int how, error_code& ec)
   }
 }
 
-void stream_state::close(stream_close_operation& op)
+void stream_impl::close(stream_close_operation& op)
 {
   if (conn) {
     conn->socket.engine.stream_close(*this, op);
@@ -93,7 +93,7 @@ void stream_state::close(stream_close_operation& op)
   }
 }
 
-void stream_state::reset()
+void stream_impl::reset()
 {
   if (conn) {
     conn->socket.engine.stream_reset(*this);
@@ -107,24 +107,24 @@ void stream_state::reset()
 
 stream::~stream()
 {
-  if (state) {
-    state->reset();
+  if (impl) {
+    impl->reset();
   }
 }
 
 stream::executor_type stream::get_executor() const
 {
-  return state->get_executor();
+  return impl->get_executor();
 }
 
 bool stream::is_open() const
 {
-  return state && state->is_open();
+  return impl && impl->is_open();
 }
 
 void stream::flush(error_code& ec)
 {
-  state->flush(ec);
+  impl->flush(ec);
 }
 
 void stream::flush()
@@ -138,7 +138,7 @@ void stream::flush()
 
 void stream::shutdown(int how, error_code& ec)
 {
-  state->shutdown(how, ec);
+  impl->shutdown(how, ec);
 }
 
 void stream::shutdown(int how)
@@ -153,7 +153,7 @@ void stream::shutdown(int how)
 void stream::close(error_code& ec)
 {
   detail::stream_close_sync op;
-  state->close(op);
+  impl->close(op);
   op.wait();
   ec = std::get<0>(*op.result);
 }
@@ -169,7 +169,7 @@ void stream::close()
 
 void stream::reset()
 {
-  state->reset();
+  impl->reset();
 }
 
 } // namespace quic
@@ -179,7 +179,7 @@ namespace h3 {
 void stream::read_headers(fields& f, error_code& ec)
 {
   auto op = quic::detail::stream_header_read_sync{f};
-  state->read_headers(op);
+  impl->read_headers(op);
   op.wait();
   ec = std::get<0>(*op.result);
 }
@@ -195,7 +195,7 @@ void stream::read_headers(fields& f)
 void stream::write_headers(const fields& f, error_code& ec)
 {
   auto op = quic::detail::stream_header_write_sync{f};
-  state->write_headers(op);
+  impl->write_headers(op);
   op.wait();
   ec = std::get<0>(*op.result);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <boost/intrusive/list.hpp>
-#include <nexus/quic/detail/stream.hpp>
+#include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/detail/stream_open_handler.hpp>
 #include <nexus/udp.hpp>
 
@@ -23,13 +23,13 @@ struct connection_state : public boost::intrusive::list_base_hook<> {
   accept_operation* accept_ = nullptr;
 
   // maintain ownership of incoming/connecting/accepting streams
-  boost::intrusive::list<stream_state> incoming_streams;
-  boost::intrusive::list<stream_state> connecting_streams;
-  boost::intrusive::list<stream_state> accepting_streams;
+  boost::intrusive::list<stream_impl> incoming_streams;
+  boost::intrusive::list<stream_impl> connecting_streams;
+  boost::intrusive::list<stream_impl> accepting_streams;
 
   // connected/closing streams are owned by a quic::stream or h3::stream
-  boost::intrusive::list<stream_state> connected_streams;
-  boost::intrusive::list<stream_state> closing_streams;
+  boost::intrusive::list<stream_impl> connected_streams;
+  boost::intrusive::list<stream_impl> closing_streams;
 
   explicit connection_state(socket_state& socket) : socket(socket) {}
   ~connection_state() {
