@@ -2,7 +2,7 @@
 #include <nexus/h3/stream.hpp>
 #include <nexus/h3/client.hpp>
 #include <nexus/h3/server.hpp>
-#include <nexus/quic/detail/engine.hpp>
+#include <nexus/quic/detail/engine_impl.hpp>
 
 #include <lsquic.h>
 #include <lsxpack_header.h>

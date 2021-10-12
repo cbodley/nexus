@@ -12,11 +12,11 @@ class stream;
 /// connections
 class client {
   friend class client_connection;
-  quic::detail::engine_state state;
+  quic::detail::engine_impl engine;
   quic::detail::socket_impl socket;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = quic::detail::engine_state::executor_type;
+  using executor_type = quic::detail::engine_impl::executor_type;
 
   /// construct the client, taking ownership of a bound UDP socket
   client(udp::socket&& socket, asio::ssl::context& ctx);

@@ -8,30 +8,30 @@ namespace nexus {
 namespace quic {
 
 server::server(const executor_type& ex)
-    : state(ex, nullptr, nullptr, LSENG_SERVER)
+    : engine(ex, nullptr, nullptr, LSENG_SERVER)
 {}
 
 server::server(const executor_type& ex, const settings& s)
-    : state(ex, nullptr, &s, LSENG_SERVER)
+    : engine(ex, nullptr, &s, LSENG_SERVER)
 {}
 
 server::executor_type server::get_executor() const
 {
-  return state.get_executor();
+  return engine.get_executor();
 }
 
 void server::close()
 {
-  state.close();
+  engine.close();
 }
 
 acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
-    : impl(s.state, std::move(socket), ctx)
+    : impl(s.engine, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
                    asio::ssl::context& ctx)
-    : impl(s.state, endpoint, true, ctx)
+    : impl(s.engine, endpoint, true, ctx)
 {}
 
 acceptor::executor_type acceptor::get_executor() const
@@ -76,25 +76,25 @@ void acceptor::close()
 namespace h3 {
 
 server::server(const executor_type& ex)
-    : state(ex, nullptr, nullptr, LSENG_SERVER | LSENG_HTTP)
+    : engine(ex, nullptr, nullptr, LSENG_SERVER | LSENG_HTTP)
 {}
 
 server::server(const executor_type& ex, const quic::settings& s)
-    : state(ex, nullptr, &s, LSENG_SERVER | LSENG_HTTP)
+    : engine(ex, nullptr, &s, LSENG_SERVER | LSENG_HTTP)
 {}
 
 server::executor_type server::get_executor() const
 {
-  return state.get_executor();
+  return engine.get_executor();
 }
 
 acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
-    : impl(s.state, std::move(socket), ctx)
+    : impl(s.engine, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
                    asio::ssl::context& ctx)
-    : impl(s.state, endpoint, true, ctx)
+    : impl(s.engine, endpoint, true, ctx)
 {}
 
 acceptor::executor_type acceptor::get_executor() const

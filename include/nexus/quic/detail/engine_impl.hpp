@@ -25,7 +25,7 @@ struct stream_impl;
 struct engine_deleter { void operator()(lsquic_engine* e) const; };
 using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 
-class engine_state {
+class engine_impl {
   mutable std::mutex mutex;
   asio::any_io_executor ex;
   asio::steady_timer timer;
@@ -42,9 +42,9 @@ class engine_state {
   void on_writeable(socket_impl& socket);
 
  public:
-  engine_state(const asio::any_io_executor& ex, socket_impl* client,
-               const settings* s, unsigned flags);
-  ~engine_state();
+  engine_impl(const asio::any_io_executor& ex, socket_impl* client,
+              const settings* s, unsigned flags);
+  ~engine_impl();
 
   using executor_type = asio::any_io_executor;
   executor_type get_executor() const { return ex; }

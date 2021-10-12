@@ -9,7 +9,7 @@ struct lsquic_out_spec;
 
 namespace nexus::quic::detail {
 
-class engine_state;
+class engine_impl;
 struct connection_impl;
 
 union sockaddr_union {
@@ -20,7 +20,7 @@ union sockaddr_union {
 };
 
 struct socket_impl : boost::intrusive::list_base_hook<> {
-  engine_state& engine;
+  engine_impl& engine;
   udp::socket socket;
   asio::ssl::context& ssl;
   udp::endpoint local_addr; // socket's bound address
@@ -29,9 +29,9 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   boost::intrusive::list<connection_impl> connected;
   bool receiving = false;
 
-  socket_impl(engine_state& engine, udp::socket&& socket,
+  socket_impl(engine_impl& engine, udp::socket&& socket,
               asio::ssl::context& ssl);
-  socket_impl(engine_state& engine, const udp::endpoint& endpoint,
+  socket_impl(engine_impl& engine, const udp::endpoint& endpoint,
               bool is_server, asio::ssl::context& ssl);
   ~socket_impl() {
     close();

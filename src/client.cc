@@ -8,33 +8,33 @@ namespace quic {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, &socket, nullptr, 0),
-      socket(state, endpoint, false, ctx)
+    : engine(ex, &socket, nullptr, 0),
+      socket(engine, endpoint, false, ctx)
 {
 }
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx, const settings& s)
-    : state(ex, &socket, &s, 0),
-      socket(state, endpoint, false, ctx)
+    : engine(ex, &socket, &s, 0),
+      socket(engine, endpoint, false, ctx)
 {
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), &this->socket, nullptr, 0),
-      socket(state, std::move(socket), ctx)
+    : engine(socket.get_executor(), &this->socket, nullptr, 0),
+      socket(engine, std::move(socket), ctx)
 {
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx, const settings& s)
-    : state(socket.get_executor(), &this->socket, &s, 0),
-      socket(state, std::move(socket), ctx)
+    : engine(socket.get_executor(), &this->socket, &s, 0),
+      socket(engine, std::move(socket), ctx)
 {
 }
 
 client::executor_type client::get_executor() const
 {
-  return state.get_executor();
+  return engine.get_executor();
 }
 
 udp::endpoint client::local_endpoint() const
@@ -46,12 +46,12 @@ void client::connect(connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
-  state.connect(conn.impl, endpoint, hostname);
+  engine.connect(conn.impl, endpoint, hostname);
 }
 
 void client::close()
 {
-  state.close();
+  engine.close();
   socket.close();
 }
 
@@ -61,34 +61,34 @@ namespace h3 {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx)
-    : state(ex, &socket, nullptr, LSENG_HTTP),
-      socket(state, endpoint, false, ctx)
+    : engine(ex, &socket, nullptr, LSENG_HTTP),
+      socket(engine, endpoint, false, ctx)
 {
 }
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
                asio::ssl::context& ctx, const quic::settings& s)
-    : state(ex, &socket, &s, LSENG_HTTP),
-      socket(state, endpoint, false, ctx)
+    : engine(ex, &socket, &s, LSENG_HTTP),
+      socket(engine, endpoint, false, ctx)
 {
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx)
-    : state(socket.get_executor(), &this->socket, nullptr, LSENG_HTTP),
-      socket(state, std::move(socket), ctx)
+    : engine(socket.get_executor(), &this->socket, nullptr, LSENG_HTTP),
+      socket(engine, std::move(socket), ctx)
 {
 }
 
 client::client(udp::socket&& socket, asio::ssl::context& ctx,
                const quic::settings& s)
-    : state(socket.get_executor(), &this->socket, &s, LSENG_HTTP),
-      socket(state, std::move(socket), ctx)
+    : engine(socket.get_executor(), &this->socket, &s, LSENG_HTTP),
+      socket(engine, std::move(socket), ctx)
 {
 }
 
 client::executor_type client::get_executor() const
 {
-  return state.get_executor();
+  return engine.get_executor();
 }
 
 udp::endpoint client::local_endpoint() const
@@ -100,12 +100,12 @@ void client::connect(client_connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
-  state.connect(conn.impl, endpoint, hostname);
+  engine.connect(conn.impl, endpoint, hostname);
 }
 
 void client::close()
 {
-  state.close();
+  engine.close();
   socket.close();
 }
 

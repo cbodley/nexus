@@ -14,10 +14,10 @@ class stream;
 /// class acceptor
 class server {
   friend class acceptor;
-  quic::detail::engine_state state;
+  quic::detail::engine_impl engine;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = quic::detail::engine_state::executor_type;
+  using executor_type = quic::detail::engine_impl::executor_type;
 
   /// construct the server with its associated executor
   explicit server(const executor_type& ex);

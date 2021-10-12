@@ -4,7 +4,7 @@
 #include <lsxpack_header.h>
 
 #include <nexus/quic/detail/connection_impl.hpp>
-#include <nexus/quic/detail/engine.hpp>
+#include <nexus/quic/detail/engine_impl.hpp>
 #include <nexus/quic/detail/socket_impl.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/socket.hpp>
@@ -15,12 +15,12 @@ void engine_deleter::operator()(lsquic_engine* e) const {
   ::lsquic_engine_destroy(e);
 }
 
-engine_state::~engine_state()
+engine_impl::~engine_impl()
 {
   close();
 }
 
-udp::endpoint engine_state::remote_endpoint(connection_impl& c)
+udp::endpoint engine_impl::remote_endpoint(connection_impl& c)
 {
   auto remote = udp::endpoint{};
   auto lock = std::scoped_lock{mutex};
@@ -37,9 +37,9 @@ udp::endpoint engine_state::remote_endpoint(connection_impl& c)
   return remote;
 }
 
-void engine_state::connect(connection_impl& c,
-                           const udp::endpoint& endpoint,
-                           const char* hostname)
+void engine_impl::connect(connection_impl& c,
+                          const udp::endpoint& endpoint,
+                          const char* hostname)
 {
   auto lock = std::unique_lock{mutex};
   auto peer_ctx = &c.socket;
@@ -57,14 +57,14 @@ void engine_state::connect(connection_impl& c,
   }
 }
 
-void engine_state::on_connect(connection_impl& c, lsquic_conn_t* conn)
+void engine_impl::on_connect(connection_impl& c, lsquic_conn_t* conn)
 {
   assert(!c.handle);
   c.handle = conn;
   c.socket.connected.push_back(c);
 }
 
-void engine_state::on_handshake(connection_impl& c, int s)
+void engine_impl::on_handshake(connection_impl& c, int s)
 {
   switch (s) {
     case LSQ_HSK_FAIL:
@@ -79,7 +79,7 @@ void engine_state::on_handshake(connection_impl& c, int s)
   }
 }
 
-void engine_state::accept(connection_impl& c, accept_operation& op)
+void engine_impl::accept(connection_impl& c, accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   if (!c.socket.incoming_connections.empty()) {
@@ -97,7 +97,7 @@ void engine_state::accept(connection_impl& c, accept_operation& op)
   process(lock);
 }
 
-connection_impl* engine_state::on_accept(lsquic_conn_t* conn)
+connection_impl* engine_impl::on_accept(lsquic_conn_t* conn)
 {
   const sockaddr* local = nullptr;
   const sockaddr* peer = nullptr;
@@ -129,13 +129,13 @@ connection_impl* engine_state::on_accept(lsquic_conn_t* conn)
   return &c;
 }
 
-bool engine_state::is_open(const connection_impl& c) const
+bool engine_impl::is_open(const connection_impl& c) const
 {
   auto lock = std::scoped_lock{mutex};
   return c.handle;
 }
 
-void engine_state::close(connection_impl& c, error_code& ec)
+void engine_impl::close(connection_impl& c, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
   const auto aborted = make_error_code(connection_error::aborted);
@@ -165,7 +165,7 @@ void engine_state::close(connection_impl& c, error_code& ec)
 
 using stream_ptr = std::unique_ptr<stream_impl>;
 
-int engine_state::cancel(connection_impl& c, error_code ec)
+int engine_impl::cancel(connection_impl& c, error_code ec)
 {
   int canceled = 0;
   // close incoming streams that we haven't accepted yet
@@ -231,7 +231,7 @@ int engine_state::cancel(connection_impl& c, error_code ec)
   return canceled;
 }
 
-void engine_state::on_close(connection_impl& c, lsquic_conn_t* conn)
+void engine_impl::on_close(connection_impl& c, lsquic_conn_t* conn)
 {
   if (!c.handle) {
     return;
@@ -279,8 +279,8 @@ void engine_state::on_close(connection_impl& c, lsquic_conn_t* conn)
   }
 }
 
-void engine_state::on_conncloseframe(connection_impl& c,
-                                     int app_error, uint64_t code)
+void engine_impl::on_conncloseframe(connection_impl& c,
+                                    int app_error, uint64_t code)
 {
   error_code ec;
   if (app_error == -1) {
@@ -297,8 +297,8 @@ void engine_state::on_conncloseframe(connection_impl& c,
   c.err = ec;
 }
 
-void engine_state::stream_connect(connection_impl& c,
-                                  stream_connect_operation& op)
+void engine_impl::stream_connect(connection_impl& c,
+                                 stream_connect_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   if (c.err) {
@@ -316,8 +316,8 @@ void engine_state::stream_connect(connection_impl& c,
   process(lock);
 }
 
-stream_impl* engine_state::on_stream_connect(connection_impl& c,
-                                              lsquic_stream_t* stream)
+stream_impl* engine_impl::on_stream_connect(connection_impl& c,
+                                            lsquic_stream_t* stream)
 {
   assert(!c.connecting_streams.empty());
   auto& s = c.connecting_streams.front();
@@ -332,8 +332,8 @@ stream_impl* engine_state::on_stream_connect(connection_impl& c,
   return &s;
 }
 
-void engine_state::stream_accept(connection_impl& c,
-                                 stream_accept_operation& op)
+void engine_impl::stream_accept(connection_impl& c,
+                                stream_accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   if (c.err) {
@@ -357,8 +357,8 @@ void engine_state::stream_accept(connection_impl& c,
   c.accepting_streams.push_back(*s.release()); // transfer ownership
 }
 
-stream_impl* engine_state::on_stream_accept(connection_impl& c,
-                                             lsquic_stream* stream)
+stream_impl* engine_impl::on_stream_accept(connection_impl& c,
+                                           lsquic_stream* stream)
 {
   if (c.accepting_streams.empty()) {
     // not waiting on accept, queue this for later
@@ -378,8 +378,8 @@ stream_impl* engine_state::on_stream_accept(connection_impl& c,
   return &s;
 }
 
-stream_impl* engine_state::on_new_stream(connection_impl& c,
-                                          lsquic_stream_t* stream)
+stream_impl* engine_impl::on_new_stream(connection_impl& c,
+                                        lsquic_stream_t* stream)
 {
   // XXX: any way to decide between connect/accept without stream id?
   const auto id = ::lsquic_stream_id(stream);
@@ -391,13 +391,13 @@ stream_impl* engine_state::on_new_stream(connection_impl& c,
   }
 }
 
-bool engine_state::is_open(const stream_impl& s) const
+bool engine_impl::is_open(const stream_impl& s) const
 {
   auto lock = std::scoped_lock{mutex};
   return s.handle;
 }
 
-void engine_state::stream_read(stream_impl& s, stream_data_operation& op)
+void engine_impl::stream_read(stream_impl& s, stream_data_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   assert(s.conn);
@@ -421,8 +421,8 @@ void engine_state::stream_read(stream_impl& s, stream_data_operation& op)
   process(lock);
 }
 
-void engine_state::stream_read_headers(stream_impl& s,
-                                       stream_header_read_operation& op)
+void engine_impl::stream_read_headers(stream_impl& s,
+                                      stream_header_read_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   assert(s.conn);
@@ -455,7 +455,7 @@ struct recv_header_set {
   recv_header_set(int is_push_promise) : is_push_promise(is_push_promise) {}
 };
 
-void engine_state::on_stream_read(stream_impl& s)
+void engine_impl::on_stream_read(stream_impl& s)
 {
   error_code ec;
   if (s.in.header) {
@@ -483,7 +483,7 @@ void engine_state::on_stream_read(stream_impl& s)
   ::lsquic_stream_wantread(s.handle, 0);
 }
 
-void engine_state::stream_write(stream_impl& s, stream_data_operation& op)
+void engine_impl::stream_write(stream_impl& s, stream_data_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   assert(s.conn);
@@ -507,8 +507,8 @@ void engine_state::stream_write(stream_impl& s, stream_data_operation& op)
   process(lock);
 }
 
-void engine_state::stream_write_headers(stream_impl& s,
-                                        stream_header_write_operation& op)
+void engine_impl::stream_write_headers(stream_impl& s,
+                                       stream_header_write_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   assert(s.conn);
@@ -558,7 +558,7 @@ static void do_write_headers(lsquic_stream_t* stream,
   }
 }
 
-void engine_state::on_stream_write(stream_impl& s)
+void engine_impl::on_stream_write(stream_impl& s)
 {
   error_code ec;
   if (s.out.header) {
@@ -577,7 +577,7 @@ void engine_state::on_stream_write(stream_impl& s)
   ::lsquic_stream_wantwrite(s.handle, 0);
 }
 
-void engine_state::stream_flush(stream_impl& s, error_code& ec)
+void engine_impl::stream_flush(stream_impl& s, error_code& ec)
 {
   auto lock = std::unique_lock{mutex};
   assert(s.conn);
@@ -596,8 +596,7 @@ void engine_state::stream_flush(stream_impl& s, error_code& ec)
   process(lock);
 }
 
-void engine_state::stream_shutdown(stream_impl& s,
-                                   int how, error_code& ec)
+void engine_impl::stream_shutdown(stream_impl& s, int how, error_code& ec)
 {
   const bool shutdown_read = (how == 0 || how == 2);
   const bool shutdown_write = (how == 1 || how == 2);
@@ -625,7 +624,7 @@ void engine_state::stream_shutdown(stream_impl& s,
   process(lock);
 }
 
-bool engine_state::try_stream_reset(stream_impl& s)
+bool engine_impl::try_stream_reset(stream_impl& s)
 {
   assert(s.conn);
   auto ec = make_error_code(stream_error::aborted);
@@ -656,7 +655,7 @@ bool engine_state::try_stream_reset(stream_impl& s)
   return true;
 }
 
-void engine_state::stream_reset(stream_impl& s)
+void engine_impl::stream_reset(stream_impl& s)
 {
   auto lock = std::unique_lock{mutex};
   assert(s.conn);
@@ -671,8 +670,7 @@ void engine_state::stream_reset(stream_impl& s)
   process(lock);
 }
 
-void engine_state::stream_close(stream_impl& s,
-                                stream_close_operation& op)
+void engine_impl::stream_close(stream_impl& s, stream_close_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   if (s.close_) { // already waiting on close
@@ -690,7 +688,7 @@ void engine_state::stream_close(stream_impl& s,
   process(lock);
 }
 
-int engine_state::stream_cancel_read(stream_impl& s, error_code ec)
+int engine_impl::stream_cancel_read(stream_impl& s, error_code ec)
 {
   int canceled = 0;
   if (s.in.header) {
@@ -706,7 +704,7 @@ int engine_state::stream_cancel_read(stream_impl& s, error_code ec)
   return canceled;
 }
 
-int engine_state::stream_cancel_write(stream_impl& s, error_code ec)
+int engine_impl::stream_cancel_write(stream_impl& s, error_code ec)
 {
   int canceled = 0;
   if (s.out.header) {
@@ -722,7 +720,7 @@ int engine_state::stream_cancel_write(stream_impl& s, error_code ec)
   return canceled;
 }
 
-void engine_state::on_stream_close(stream_impl& s)
+void engine_impl::on_stream_close(stream_impl& s)
 {
   assert(s.conn);
   if (s.close_) {
@@ -753,21 +751,21 @@ void engine_state::on_stream_close(stream_impl& s)
   }
 }
 
-void engine_state::close()
+void engine_impl::close()
 {
   auto lock = std::unique_lock{mutex};
   ::lsquic_engine_cooldown(handle.get());
   process(lock);
 }
 
-void engine_state::listen(socket_impl& socket, int backlog)
+void engine_impl::listen(socket_impl& socket, int backlog)
 {
   auto lock = std::unique_lock{mutex};
   socket.incoming_connections.set_capacity(backlog);
   start_recv(socket);
 }
 
-void engine_state::close(socket_impl& socket)
+void engine_impl::close(socket_impl& socket)
 {
   auto lock = std::unique_lock{mutex};
   // close incoming streams that we haven't accepted yet
@@ -801,13 +799,13 @@ void engine_state::close(socket_impl& socket)
   socket.socket.close();
 }
 
-void engine_state::process(std::unique_lock<std::mutex>& lock)
+void engine_impl::process(std::unique_lock<std::mutex>& lock)
 {
   ::lsquic_engine_process_conns(handle.get());
   reschedule(lock);
 }
 
-void engine_state::reschedule(std::unique_lock<std::mutex>& lock)
+void engine_impl::reschedule(std::unique_lock<std::mutex>& lock)
 {
   int micros = 0;
   if (!::lsquic_engine_earliest_adv_tick(handle.get(), &micros)) {
@@ -833,13 +831,13 @@ void engine_state::reschedule(std::unique_lock<std::mutex>& lock)
       });
 }
 
-void engine_state::on_timer()
+void engine_impl::on_timer()
 {
   auto lock = std::unique_lock{mutex};
   process(lock);
 }
 
-void engine_state::start_recv(socket_impl& socket)
+void engine_impl::start_recv(socket_impl& socket)
 {
   if (socket.receiving) {
     return;
@@ -854,7 +852,7 @@ void engine_state::start_recv(socket_impl& socket)
       });
 }
 
-void engine_state::on_readable(socket_impl& socket)
+void engine_impl::on_readable(socket_impl& socket)
 {
   std::array<unsigned char, 4096> buffer;
   iovec iov;
@@ -883,13 +881,13 @@ void engine_state::on_readable(socket_impl& socket)
   }
 }
 
-void engine_state::on_writeable(socket_impl&)
+void engine_impl::on_writeable(socket_impl&)
 {
   auto lock = std::scoped_lock{mutex};
   ::lsquic_engine_send_unsent_packets(handle.get());
 }
 
-int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
+int engine_impl::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
 {
   auto p = specs;
   const auto end = std::next(p, n_specs);
@@ -921,7 +919,7 @@ int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
 // stream api
 static lsquic_conn_ctx_t* on_new_conn(void* ectx, lsquic_conn_t* conn)
 {
-  auto estate = static_cast<engine_state*>(ectx);
+  auto estate = static_cast<engine_impl*>(ectx);
   auto cctx = ::lsquic_conn_get_ctx(conn);
   // outgoing connections will have a context set by lsquic_engine_connect()
   if (!cctx) {
@@ -935,7 +933,7 @@ static lsquic_conn_ctx_t* on_new_conn(void* ectx, lsquic_conn_t* conn)
 
 static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
 {
-  auto estate = static_cast<engine_state*>(ectx);
+  auto estate = static_cast<engine_impl*>(ectx);
   if (stream == nullptr) {
     return nullptr; // connection went away?
   }
@@ -1069,7 +1067,7 @@ static constexpr lsquic_hset_if make_header_api()
 static int api_send_packets(void* ectx, const lsquic_out_spec *specs,
                             unsigned n_specs)
 {
-  auto estate = static_cast<engine_state*>(ectx);
+  auto estate = static_cast<engine_impl*>(ectx);
   return estate->send_packets(specs, n_specs);
 }
 
@@ -1079,9 +1077,9 @@ ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
   return socket.ssl.native_handle();
 }
 
-engine_state::engine_state(const asio::any_io_executor& ex,
-                           socket_impl* client, const settings* s,
-                           unsigned flags)
+engine_impl::engine_impl(const asio::any_io_executor& ex,
+                         socket_impl* client, const settings* s,
+                         unsigned flags)
   : ex(ex), timer(ex), client(client)
 {
   lsquic_engine_api api = {};

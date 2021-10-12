@@ -1,5 +1,5 @@
 #include <nexus/quic/socket.hpp>
-#include <nexus/quic/detail/engine.hpp>
+#include <nexus/quic/detail/engine_impl.hpp>
 #include <nexus/quic/detail/socket_impl.hpp>
 #include <array>
 #include <cstring>
@@ -40,7 +40,7 @@ static udp::socket bind_socket(const asio::any_io_executor& ex,
   return socket;
 }
 
-socket_impl::socket_impl(engine_state& engine, udp::socket&& socket,
+socket_impl::socket_impl(engine_impl& engine, udp::socket&& socket,
                          asio::ssl::context& ssl)
     : engine(engine),
       socket(std::move(socket)),
@@ -48,7 +48,7 @@ socket_impl::socket_impl(engine_state& engine, udp::socket&& socket,
       local_addr(this->socket.local_endpoint())
 {}
 
-socket_impl::socket_impl(engine_state& engine, const udp::endpoint& endpoint,
+socket_impl::socket_impl(engine_impl& engine, const udp::endpoint& endpoint,
                          bool is_server, asio::ssl::context& ssl)
     : engine(engine),
       socket(bind_socket(engine.get_executor(), endpoint, is_server)),

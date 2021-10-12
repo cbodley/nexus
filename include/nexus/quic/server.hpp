@@ -2,7 +2,7 @@
 
 #include <nexus/udp.hpp>
 #include <nexus/ssl.hpp>
-#include <nexus/quic/detail/engine.hpp>
+#include <nexus/quic/detail/engine_impl.hpp>
 #include <nexus/quic/detail/socket_impl.hpp>
 
 namespace nexus::quic {
@@ -14,10 +14,10 @@ class connection;
 /// class acceptor
 class server {
   friend class acceptor;
-  detail::engine_state state;
+  detail::engine_impl engine;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = detail::engine_state::executor_type;
+  using executor_type = detail::engine_impl::executor_type;
 
   /// construct the server with its associated executor
   explicit server(const executor_type& ex);
