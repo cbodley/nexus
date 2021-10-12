@@ -13,7 +13,7 @@ struct lsquic_stream;
 namespace nexus {
 namespace quic::detail {
 
-struct connection_state;
+struct connection_impl;
 
 struct stream_read_state {
   stream_data_operation* data = nullptr;
@@ -30,7 +30,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   using executor_type = asio::any_io_executor;
   service<stream_impl>& svc;
   executor_type ex;
-  connection_state* conn;
+  connection_impl* conn;
   // make sure that connection errors get delivered to the application
   error_code conn_err;
   lsquic_stream* handle = nullptr;
@@ -53,7 +53,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
     }
   }
 
-  stream_impl(const executor_type& ex, connection_state* conn)
+  stream_impl(const executor_type& ex, connection_impl* conn)
       : svc(asio::use_service<service<stream_impl>>(
               asio::query(ex, asio::execution::context))),
         ex(ex), conn(conn)

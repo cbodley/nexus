@@ -45,7 +45,7 @@
 
 * stream and connection is_open()
 * connection errors from stream interfaces
-* connection_state lifetime vs handlers
+* connection_impl lifetime vs handlers
 * socket_state lifetime vs handlers
 
 ## possibly-interesting stuff not supported by lsquic

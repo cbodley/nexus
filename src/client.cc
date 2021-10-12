@@ -46,7 +46,7 @@ void client::connect(connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
-  state.connect(conn.state, endpoint, hostname);
+  state.connect(conn.impl, endpoint, hostname);
 }
 
 void client::close()
@@ -100,7 +100,7 @@ void client::connect(client_connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
-  state.connect(conn.state, endpoint, hostname);
+  state.connect(conn.impl, endpoint, hostname);
 }
 
 void client::close()
@@ -111,18 +111,18 @@ void client::close()
 
 udp::endpoint client_connection::remote_endpoint()
 {
-  return state.remote_endpoint();
+  return impl.remote_endpoint();
 }
 
 bool client_connection::is_open() const
 {
-  return state.is_open();
+  return impl.is_open();
 }
 
 stream client_connection::connect(error_code& ec)
 {
   quic::detail::stream_connect_sync op;
-  state.connect(op);
+  impl.connect(op);
   op.wait();
   ec = std::get<0>(*op.result);
   return quic::detail::stream_factory<stream>::create(
@@ -141,7 +141,7 @@ stream client_connection::connect()
 
 void client_connection::close(error_code& ec)
 {
-  state.close(ec);
+  impl.close(ec);
 }
 
 void client_connection::close()

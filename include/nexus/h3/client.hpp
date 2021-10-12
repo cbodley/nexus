@@ -57,19 +57,19 @@ class client {
 class client_connection {
   friend class client;
   friend class stream;
-  quic::detail::connection_state state;
+  quic::detail::connection_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = quic::detail::connection_state::executor_type;
+  using executor_type = quic::detail::connection_impl::executor_type;
 
   /// construct a client-side connection for use with connect()
-  explicit client_connection(client& c) : state(c.socket) {}
+  explicit client_connection(client& c) : impl(c.socket) {}
 
   /// open a connection to the given remote endpoint and hostname. this
   /// initiates the TLS handshake, but returns immediately without waiting
   /// for the handshake to complete
   client_connection(client& c, const udp::endpoint& endpoint,
-                    const char* hostname) : state(c.socket) {
+                    const char* hostname) : impl(c.socket) {
     c.connect(*this, endpoint, hostname);
   }
 
@@ -86,7 +86,7 @@ class client_connection {
   /// open an outgoing stream
   template <typename CompletionToken> // void(error_code, stream)
   decltype(auto) async_connect(CompletionToken&& token) {
-    return state.async_connect<stream>(std::forward<CompletionToken>(token));
+    return impl.async_connect<stream>(std::forward<CompletionToken>(token));
   }
   /// \overload
   stream connect(error_code& ec);

@@ -52,7 +52,7 @@ void acceptor::listen(int backlog)
 void acceptor::accept(connection& conn, error_code& ec)
 {
   detail::accept_sync op;
-  state.accept(conn.state, op);
+  state.accept(conn.impl, op);
   op.wait();
   ec = std::get<0>(*op.result);
 }
@@ -115,7 +115,7 @@ void acceptor::listen(int backlog)
 void acceptor::accept(server_connection& conn, error_code& ec)
 {
   quic::detail::accept_sync op;
-  state.accept(conn.state, op);
+  state.accept(conn.impl, op);
   op.wait();
   ec = std::get<0>(*op.result);
 }
@@ -136,18 +136,18 @@ void acceptor::close()
 
 udp::endpoint server_connection::remote_endpoint()
 {
-  return state.remote_endpoint();
+  return impl.remote_endpoint();
 }
 
 bool server_connection::is_open() const
 {
-  return state.is_open();
+  return impl.is_open();
 }
 
 stream server_connection::accept(error_code& ec)
 {
   quic::detail::stream_accept_sync op;
-  state.accept(op);
+  impl.accept(op);
   op.wait();
   ec = std::get<0>(*op.result);
   return quic::detail::stream_factory<stream>::create(
@@ -166,7 +166,7 @@ stream server_connection::accept()
 
 void server_connection::close(error_code& ec)
 {
-  state.close(ec);
+  impl.close(ec);
 }
 
 void server_connection::close()

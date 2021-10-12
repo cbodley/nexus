@@ -1,6 +1,6 @@
 #pragma once
 
-#include <nexus/quic/detail/connection.hpp>
+#include <nexus/quic/detail/connection_impl.hpp>
 
 namespace nexus::quic {
 
@@ -15,10 +15,10 @@ class connection {
   friend class client;
   friend class stream;
   friend class detail::socket_state;
-  detail::connection_state state;
+  detail::connection_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = detail::connection_state::executor_type;
+  using executor_type = detail::connection_impl::executor_type;
 
   /// construct a server-side connection for use with accept()
   explicit connection(acceptor& a);
@@ -44,7 +44,7 @@ class connection {
   /// open an outgoing stream
   template <typename CompletionToken> // void(error_code, stream)
   decltype(auto) async_connect(CompletionToken&& token) {
-    return state.async_connect<stream>(std::forward<CompletionToken>(token));
+    return impl.async_connect<stream>(std::forward<CompletionToken>(token));
   }
   /// \overload
   stream connect(error_code& ec);
@@ -54,7 +54,7 @@ class connection {
   /// accept an incoming stream
   template <typename CompletionToken> // void(error_code, stream)
   decltype(auto) async_accept(CompletionToken&& token) {
-    return state.async_accept<stream>(std::forward<CompletionToken>(token));
+    return impl.async_accept<stream>(std::forward<CompletionToken>(token));
   }
   /// \overload
   stream accept(error_code& ec);

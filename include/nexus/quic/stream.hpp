@@ -8,7 +8,7 @@ namespace nexus::quic {
 
 namespace detail {
 
-struct connection_state;
+struct connection_impl;
 
 template <typename Stream> struct stream_factory;
 

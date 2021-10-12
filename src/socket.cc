@@ -67,16 +67,16 @@ void socket_state::listen(int backlog)
   engine.listen(*this, backlog);
 }
 
-void socket_state::connect(connection_state& cstate,
+void socket_state::connect(connection_impl& c,
                            const udp::endpoint& endpoint,
                            const char* hostname)
 {
-  engine.connect(cstate, endpoint, hostname);
+  engine.connect(c, endpoint, hostname);
 }
 
-void socket_state::accept(connection_state& cstate, accept_operation& op)
+void socket_state::accept(connection_impl& c, accept_operation& op)
 {
-  engine.accept(cstate, op);
+  engine.accept(c, op);
 }
 
 void socket_state::close()

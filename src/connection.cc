@@ -5,35 +5,35 @@
 
 namespace nexus::quic {
 
-connection::connection(acceptor& a) : state(a.state) {}
-connection::connection(client& c) : state(c.socket) {}
+connection::connection(acceptor& a) : impl(a.state) {}
+connection::connection(client& c) : impl(c.socket) {}
 
 connection::connection(client& c, const udp::endpoint& endpoint,
                        const char* hostname)
-    : state(c.socket)
+    : impl(c.socket)
 {
   c.connect(*this, endpoint, hostname);
 }
 
 connection::executor_type connection::get_executor() const
 {
-  return state.get_executor();
+  return impl.get_executor();
 }
 
 udp::endpoint connection::remote_endpoint()
 {
-  return state.remote_endpoint();
+  return impl.remote_endpoint();
 }
 
 bool connection::is_open() const
 {
-  return state.is_open();
+  return impl.is_open();
 }
 
 stream connection::connect(error_code& ec)
 {
   detail::stream_connect_sync op;
-  state.connect(op);
+  impl.connect(op);
   op.wait();
   ec = std::get<0>(*op.result);
   return detail::stream_factory<stream>::create(
@@ -53,7 +53,7 @@ stream connection::connect()
 stream connection::accept(error_code& ec)
 {
   detail::stream_accept_sync op;
-  state.accept(op);
+  impl.accept(op);
   op.wait();
   ec = std::get<0>(*op.result);
   return detail::stream_factory<stream>::create(
@@ -72,7 +72,7 @@ stream connection::accept()
 
 void connection::close(error_code& ec)
 {
-  state.close(ec);
+  impl.close(ec);
 }
 
 void connection::close()
@@ -86,32 +86,32 @@ void connection::close()
 
 namespace detail {
 
-connection_state::executor_type connection_state::get_executor() const
+connection_impl::executor_type connection_impl::get_executor() const
 {
   return socket.get_executor();
 }
 
-udp::endpoint connection_state::remote_endpoint()
+udp::endpoint connection_impl::remote_endpoint()
 {
   return socket.engine.remote_endpoint(*this);
 }
 
-void connection_state::connect(stream_connect_operation& op)
+void connection_impl::connect(stream_connect_operation& op)
 {
   socket.engine.stream_connect(*this, op);
 }
 
-void connection_state::accept(stream_accept_operation& op)
+void connection_impl::accept(stream_accept_operation& op)
 {
   socket.engine.stream_accept(*this, op);
 }
 
-bool connection_state::is_open() const
+bool connection_impl::is_open() const
 {
   return socket.engine.is_open(*this);
 }
 
-void connection_state::close(error_code& ec)
+void connection_impl::close(error_code& ec)
 {
   socket.engine.close(*this, ec);
 }

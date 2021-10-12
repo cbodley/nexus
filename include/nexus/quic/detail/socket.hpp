@@ -3,14 +3,14 @@
 #include <boost/intrusive/list.hpp>
 #include <boost/circular_buffer.hpp>
 #include <nexus/ssl.hpp>
-#include <nexus/quic/detail/connection.hpp>
+#include <nexus/quic/detail/connection_impl.hpp>
 
 struct lsquic_out_spec;
 
 namespace nexus::quic::detail {
 
 class engine_state;
-struct connection_state;
+struct connection_impl;
 
 union sockaddr_union {
   sockaddr_storage storage;
@@ -25,8 +25,8 @@ struct socket_state : boost::intrusive::list_base_hook<> {
   asio::ssl::context& ssl;
   udp::endpoint local_addr; // socket's bound address
   boost::circular_buffer<lsquic_conn*> incoming_connections;
-  boost::intrusive::list<connection_state> accepting_connections;
-  boost::intrusive::list<connection_state> connected;
+  boost::intrusive::list<connection_impl> accepting_connections;
+  boost::intrusive::list<connection_impl> connected;
   bool receiving = false;
 
   socket_state(engine_state& engine, udp::socket&& socket,
@@ -44,23 +44,23 @@ struct socket_state : boost::intrusive::list_base_hook<> {
 
   void listen(int backlog);
 
-  void connect(connection_state& cstate,
+  void connect(connection_impl& c,
                const udp::endpoint& endpoint,
                const char* hostname);
 
-  void accept(connection_state& cstate, accept_operation& op);
+  void accept(connection_impl& c, accept_operation& op);
 
   template <typename Connection, typename CompletionToken>
   decltype(auto) async_accept(Connection& conn,
                               CompletionToken&& token) {
-    auto& cstate = conn.state;
+    auto& c = conn.impl;
     return asio::async_initiate<CompletionToken, void(error_code)>(
-        [this, &cstate] (auto h) {
+        [this, &c] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = accept_async<Handler, executor_type>;
           auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
           auto op = handler_ptr<op_type, Handler>{p, &p->handler};
-          accept(cstate, *op);
+          accept(c, *op);
           op.release(); // release ownership
         }, token);
   }

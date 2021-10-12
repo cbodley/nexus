@@ -84,13 +84,13 @@ class server_connection {
   friend class acceptor;
   friend class stream;
   friend class quic::detail::socket_state;
-  quic::detail::connection_state state;
+  quic::detail::connection_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = quic::detail::connection_state::executor_type;
+  using executor_type = quic::detail::connection_impl::executor_type;
 
   /// construct a server-side connection for use with accept()
-  explicit server_connection(acceptor& a) : state(a.state) {}
+  explicit server_connection(acceptor& a) : impl(a.state) {}
 
   /// return the associated io executor
   executor_type get_executor() const;
@@ -105,7 +105,7 @@ class server_connection {
   /// accept an incoming stream
   template <typename CompletionToken> // void(error_code, stream)
   decltype(auto) async_accept(CompletionToken&& token) {
-    return state.async_accept<stream>(std::forward<CompletionToken>(token));
+    return impl.async_accept<stream>(std::forward<CompletionToken>(token));
   }
   /// \overload
   stream accept(error_code& ec);
