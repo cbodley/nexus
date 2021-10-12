@@ -38,10 +38,10 @@ class server {
 /// service incoming connections
 class acceptor {
   friend class server_connection;
-  quic::detail::socket_state state;
+  quic::detail::socket_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = quic::detail::socket_state::executor_type;
+  using executor_type = quic::detail::socket_impl::executor_type;
 
   /// construct the acceptor, taking ownership of a bound UDP socket
   acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx);
@@ -65,7 +65,7 @@ class acceptor {
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_accept(server_connection& conn,
                               CompletionToken&& token) {
-    return state.async_accept(conn, std::forward<CompletionToken>(token));
+    return impl.async_accept(conn, std::forward<CompletionToken>(token));
   }
 
   /// accept an incoming connection whose TLS handshake has completed
@@ -83,14 +83,14 @@ class acceptor {
 class server_connection {
   friend class acceptor;
   friend class stream;
-  friend class quic::detail::socket_state;
+  friend class quic::detail::socket_impl;
   quic::detail::connection_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor
   using executor_type = quic::detail::connection_impl::executor_type;
 
   /// construct a server-side connection for use with accept()
-  explicit server_connection(acceptor& a) : impl(a.state) {}
+  explicit server_connection(acceptor& a) : impl(a.impl) {}
 
   /// return the associated io executor
   executor_type get_executor() const;

@@ -19,7 +19,7 @@ union sockaddr_union {
   sockaddr_in6 addr6;
 };
 
-struct socket_state : boost::intrusive::list_base_hook<> {
+struct socket_impl : boost::intrusive::list_base_hook<> {
   engine_state& engine;
   udp::socket socket;
   asio::ssl::context& ssl;
@@ -29,11 +29,11 @@ struct socket_state : boost::intrusive::list_base_hook<> {
   boost::intrusive::list<connection_impl> connected;
   bool receiving = false;
 
-  socket_state(engine_state& engine, udp::socket&& socket,
-               asio::ssl::context& ssl);
-  socket_state(engine_state& engine, const udp::endpoint& endpoint,
-               bool is_server, asio::ssl::context& ssl);
-  ~socket_state() {
+  socket_impl(engine_state& engine, udp::socket&& socket,
+              asio::ssl::context& ssl);
+  socket_impl(engine_state& engine, const udp::endpoint& endpoint,
+              bool is_server, asio::ssl::context& ssl);
+  ~socket_impl() {
     close();
   }
 

@@ -5,7 +5,7 @@
 
 #include <nexus/quic/detail/connection_impl.hpp>
 #include <nexus/quic/detail/engine.hpp>
-#include <nexus/quic/detail/socket.hpp>
+#include <nexus/quic/detail/socket_impl.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/socket.hpp>
 
@@ -108,7 +108,7 @@ connection_impl* engine_state::on_accept(lsquic_conn_t* conn)
   // get the peer_ctx from our call to lsquic_engine_packet_in()
   auto peer_ctx = ::lsquic_conn_get_peer_ctx(conn, local);
   assert(peer_ctx);
-  auto& socket = *static_cast<socket_state*>(peer_ctx);
+  auto& socket = *static_cast<socket_impl*>(peer_ctx);
   if (socket.accepting_connections.empty()) {
     // not waiting on accept, try to queue this for later
     if (socket.incoming_connections.full()) {
@@ -760,14 +760,14 @@ void engine_state::close()
   process(lock);
 }
 
-void engine_state::listen(socket_state& socket, int backlog)
+void engine_state::listen(socket_impl& socket, int backlog)
 {
   auto lock = std::unique_lock{mutex};
   socket.incoming_connections.set_capacity(backlog);
   start_recv(socket);
 }
 
-void engine_state::close(socket_state& socket)
+void engine_state::close(socket_impl& socket)
 {
   auto lock = std::unique_lock{mutex};
   // close incoming streams that we haven't accepted yet
@@ -839,7 +839,7 @@ void engine_state::on_timer()
   process(lock);
 }
 
-void engine_state::start_recv(socket_state& socket)
+void engine_state::start_recv(socket_impl& socket)
 {
   if (socket.receiving) {
     return;
@@ -854,7 +854,7 @@ void engine_state::start_recv(socket_state& socket)
       });
 }
 
-void engine_state::on_readable(socket_state& socket)
+void engine_state::on_readable(socket_impl& socket)
 {
   std::array<unsigned char, 4096> buffer;
   iovec iov;
@@ -883,7 +883,7 @@ void engine_state::on_readable(socket_state& socket)
   }
 }
 
-void engine_state::on_writeable(socket_state&)
+void engine_state::on_writeable(socket_impl&)
 {
   auto lock = std::scoped_lock{mutex};
   ::lsquic_engine_send_unsent_packets(handle.get());
@@ -894,7 +894,7 @@ int engine_state::send_packets(const lsquic_out_spec* specs, unsigned n_specs)
   auto p = specs;
   const auto end = std::next(p, n_specs);
   while (p < end) {
-    socket_state& socket = *static_cast<socket_state*>(p->peer_ctx);
+    socket_impl& socket = *static_cast<socket_impl*>(p->peer_ctx);
     error_code ec;
     p = socket.send_packets(p, end, ec);
     if (ec) {
@@ -1075,12 +1075,12 @@ static int api_send_packets(void* ectx, const lsquic_out_spec *specs,
 
 ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 {
-  auto& socket = *static_cast<socket_state*>(peer_ctx);
+  auto& socket = *static_cast<socket_impl*>(peer_ctx);
   return socket.ssl.native_handle();
 }
 
 engine_state::engine_state(const asio::any_io_executor& ex,
-                           socket_state* client, const settings* s,
+                           socket_impl* client, const settings* s,
                            unsigned flags)
   : ex(ex), timer(ex), client(client)
 {

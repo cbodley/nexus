@@ -14,7 +14,7 @@ class connection {
   friend class acceptor;
   friend class client;
   friend class stream;
-  friend class detail::socket_state;
+  friend class detail::socket_impl;
   detail::connection_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor

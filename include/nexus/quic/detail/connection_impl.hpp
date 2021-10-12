@@ -11,10 +11,10 @@ struct lsquic_stream;
 namespace nexus::quic::detail {
 
 struct accept_operation;
-struct socket_state;
+struct socket_impl;
 
 struct connection_impl : public boost::intrusive::list_base_hook<> {
-  socket_state& socket;
+  socket_impl& socket;
   // make sure that connection errors get delivered to the application. if we
   // see a fatal connection error while there are no pending operations we can
   // deliver the error to, save it here and deliver it to the next operation
@@ -31,7 +31,7 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
   boost::intrusive::list<stream_impl> connected_streams;
   boost::intrusive::list<stream_impl> closing_streams;
 
-  explicit connection_impl(socket_state& socket) : socket(socket) {}
+  explicit connection_impl(socket_impl& socket) : socket(socket) {}
   ~connection_impl() {
     error_code ec_ignored;
     close(ec_ignored);

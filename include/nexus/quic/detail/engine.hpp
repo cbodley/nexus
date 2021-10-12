@@ -10,7 +10,7 @@
 #include <nexus/udp.hpp>
 #include <nexus/quic/settings.hpp>
 #include <nexus/quic/detail/operation.hpp>
-#include <nexus/quic/detail/socket.hpp>
+#include <nexus/quic/detail/socket_impl.hpp>
 
 struct lsquic_engine;
 struct lsquic_conn;
@@ -31,18 +31,18 @@ class engine_state {
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
   // pointer to client socket or null if server
-  socket_state* client;
+  socket_impl* client;
 
   void process(std::unique_lock<std::mutex>& lock);
   void reschedule(std::unique_lock<std::mutex>& lock);
   void on_timer();
 
-  void start_recv(socket_state& socket);
-  void on_readable(socket_state& socket);
-  void on_writeable(socket_state& socket);
+  void start_recv(socket_impl& socket);
+  void on_readable(socket_impl& socket);
+  void on_writeable(socket_impl& socket);
 
  public:
-  engine_state(const asio::any_io_executor& ex, socket_state* client,
+  engine_state(const asio::any_io_executor& ex, socket_impl* client,
                const settings* s, unsigned flags);
   ~engine_state();
 
@@ -50,15 +50,15 @@ class engine_state {
   executor_type get_executor() const { return ex; }
 
   // return the bound address
-  udp::endpoint local_endpoint(socket_state& socket) const;
+  udp::endpoint local_endpoint(socket_impl& socket) const;
   // return the connection's remote address
   udp::endpoint remote_endpoint(connection_impl& c);
 
   void close();
 
   // sockets
-  void listen(socket_state& socket, int backlog);
-  void close(socket_state& socket);
+  void listen(socket_impl& socket, int backlog);
+  void close(socket_impl& socket);
 
   int send_packets(const lsquic_out_spec *specs, unsigned n_specs);
 

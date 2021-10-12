@@ -3,7 +3,7 @@
 #include <nexus/udp.hpp>
 #include <nexus/ssl.hpp>
 #include <nexus/quic/detail/engine.hpp>
-#include <nexus/quic/detail/socket.hpp>
+#include <nexus/quic/detail/socket_impl.hpp>
 
 namespace nexus::quic {
 
@@ -15,7 +15,7 @@ class stream;
 class client {
   friend class connection;
   detail::engine_state state;
-  detail::socket_state socket;
+  detail::socket_impl socket;
  public:
   /// the polymorphic executor type, asio::any_io_executor
   using executor_type = detail::engine_state::executor_type;

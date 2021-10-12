@@ -1,6 +1,6 @@
 #include <nexus/quic/socket.hpp>
 #include <nexus/quic/detail/engine.hpp>
-#include <nexus/quic/detail/socket.hpp>
+#include <nexus/quic/detail/socket_impl.hpp>
 #include <array>
 #include <cstring>
 
@@ -40,16 +40,16 @@ static udp::socket bind_socket(const asio::any_io_executor& ex,
   return socket;
 }
 
-socket_state::socket_state(engine_state& engine, udp::socket&& socket,
-                           asio::ssl::context& ssl)
+socket_impl::socket_impl(engine_state& engine, udp::socket&& socket,
+                         asio::ssl::context& ssl)
     : engine(engine),
       socket(std::move(socket)),
       ssl(ssl),
       local_addr(this->socket.local_endpoint())
 {}
 
-socket_state::socket_state(engine_state& engine, const udp::endpoint& endpoint,
-                           bool is_server, asio::ssl::context& ssl)
+socket_impl::socket_impl(engine_state& engine, const udp::endpoint& endpoint,
+                         bool is_server, asio::ssl::context& ssl)
     : engine(engine),
       socket(bind_socket(engine.get_executor(), endpoint, is_server)),
       ssl(ssl),
@@ -57,36 +57,36 @@ socket_state::socket_state(engine_state& engine, const udp::endpoint& endpoint,
 {
 }
 
-socket_state::executor_type socket_state::get_executor() const
+socket_impl::executor_type socket_impl::get_executor() const
 {
   return engine.get_executor();
 }
 
-void socket_state::listen(int backlog)
+void socket_impl::listen(int backlog)
 {
   engine.listen(*this, backlog);
 }
 
-void socket_state::connect(connection_impl& c,
-                           const udp::endpoint& endpoint,
-                           const char* hostname)
+void socket_impl::connect(connection_impl& c,
+                          const udp::endpoint& endpoint,
+                          const char* hostname)
 {
   engine.connect(c, endpoint, hostname);
 }
 
-void socket_state::accept(connection_impl& c, accept_operation& op)
+void socket_impl::accept(connection_impl& c, accept_operation& op)
 {
   engine.accept(c, op);
 }
 
-void socket_state::close()
+void socket_impl::close()
 {
   engine.close(*this);
 }
 
-auto socket_state::send_packets(const lsquic_out_spec* begin,
-                                const lsquic_out_spec* end,
-                                error_code& ec)
+auto socket_impl::send_packets(const lsquic_out_spec* begin,
+                               const lsquic_out_spec* end,
+                               error_code& ec)
   -> const lsquic_out_spec*
 {
   msghdr msg;
@@ -146,9 +146,9 @@ constexpr size_t dstaddr4_size = sizeof(in_pktinfo)
 constexpr size_t dstaddr_size = std::max(dstaddr4_size, sizeof(in6_pktinfo));
 constexpr size_t max_control_size = CMSG_SPACE(ecn_size) + CMSG_SPACE(dstaddr_size);
 
-size_t socket_state::recv_packet(iovec iov, udp::endpoint& peer,
-                                 sockaddr_union& self, int& ecn,
-                                 error_code& ec)
+size_t socket_impl::recv_packet(iovec iov, udp::endpoint& peer,
+                                sockaddr_union& self, int& ecn,
+                                error_code& ec)
 {
   auto msg = msghdr{};
 

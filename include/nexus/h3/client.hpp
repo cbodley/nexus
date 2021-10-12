@@ -13,7 +13,7 @@ class stream;
 class client {
   friend class client_connection;
   quic::detail::engine_state state;
-  quic::detail::socket_state socket;
+  quic::detail::socket_impl socket;
  public:
   /// the polymorphic executor type, asio::any_io_executor
   using executor_type = quic::detail::engine_state::executor_type;

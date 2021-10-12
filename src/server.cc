@@ -26,33 +26,33 @@ void server::close()
 }
 
 acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
-    : state(s.state, std::move(socket), ctx)
+    : impl(s.state, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
                    asio::ssl::context& ctx)
-    : state(s.state, endpoint, true, ctx)
+    : impl(s.state, endpoint, true, ctx)
 {}
 
 acceptor::executor_type acceptor::get_executor() const
 {
-  return state.get_executor();
+  return impl.get_executor();
 }
 
 udp::endpoint acceptor::local_endpoint() const
 {
-  return state.local_endpoint();
+  return impl.local_endpoint();
 }
 
 void acceptor::listen(int backlog)
 {
-  return state.listen(backlog);
+  return impl.listen(backlog);
 }
 
 void acceptor::accept(connection& conn, error_code& ec)
 {
   detail::accept_sync op;
-  state.accept(conn.impl, op);
+  impl.accept(conn.impl, op);
   op.wait();
   ec = std::get<0>(*op.result);
 }
@@ -68,7 +68,7 @@ void acceptor::accept(connection& conn)
 
 void acceptor::close()
 {
-  state.close();
+  impl.close();
 }
 
 } // namespace quic
@@ -89,33 +89,33 @@ server::executor_type server::get_executor() const
 }
 
 acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
-    : state(s.state, std::move(socket), ctx)
+    : impl(s.state, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
                    asio::ssl::context& ctx)
-    : state(s.state, endpoint, true, ctx)
+    : impl(s.state, endpoint, true, ctx)
 {}
 
 acceptor::executor_type acceptor::get_executor() const
 {
-  return state.get_executor();
+  return impl.get_executor();
 }
 
 udp::endpoint acceptor::local_endpoint() const
 {
-  return state.local_endpoint();
+  return impl.local_endpoint();
 }
 
 void acceptor::listen(int backlog)
 {
-  return state.listen(backlog);
+  return impl.listen(backlog);
 }
 
 void acceptor::accept(server_connection& conn, error_code& ec)
 {
   quic::detail::accept_sync op;
-  state.accept(conn.impl, op);
+  impl.accept(conn.impl, op);
   op.wait();
   ec = std::get<0>(*op.result);
 }
@@ -131,7 +131,7 @@ void acceptor::accept(server_connection& conn)
 
 void acceptor::close()
 {
-  state.close();
+  impl.close();
 }
 
 udp::endpoint server_connection::remote_endpoint()

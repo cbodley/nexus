@@ -5,7 +5,7 @@
 
 namespace nexus::quic {
 
-connection::connection(acceptor& a) : impl(a.state) {}
+connection::connection(acceptor& a) : impl(a.impl) {}
 connection::connection(client& c) : impl(c.socket) {}
 
 connection::connection(client& c, const udp::endpoint& endpoint,

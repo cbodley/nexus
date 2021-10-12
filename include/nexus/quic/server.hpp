@@ -3,7 +3,7 @@
 #include <nexus/udp.hpp>
 #include <nexus/ssl.hpp>
 #include <nexus/quic/detail/engine.hpp>
-#include <nexus/quic/detail/socket.hpp>
+#include <nexus/quic/detail/socket_impl.hpp>
 
 namespace nexus::quic {
 
@@ -38,10 +38,10 @@ class server {
 /// service incoming connections
 class acceptor {
   friend class connection;
-  detail::socket_state state;
+  detail::socket_impl impl;
  public:
   /// the polymorphic executor type, asio::any_io_executor
-  using executor_type = detail::socket_state::executor_type;
+  using executor_type = detail::socket_impl::executor_type;
 
   /// construct the acceptor, taking ownership of a bound UDP socket
   acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx);
@@ -64,7 +64,7 @@ class acceptor {
   /// successfully
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_accept(connection& conn, CompletionToken&& token) {
-    return state.async_accept(conn, std::forward<CompletionToken>(token));
+    return impl.async_accept(conn, std::forward<CompletionToken>(token));
   }
 
   /// accept an incoming connection whose TLS handshake has completed
