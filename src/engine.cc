@@ -163,69 +163,57 @@ void engine_impl::close(connection_impl& c, error_code& ec)
   process(lock);
 }
 
-using stream_ptr = std::unique_ptr<stream_impl>;
-
 int engine_impl::cancel(connection_impl& c, error_code ec)
 {
   int canceled = 0;
   // close incoming streams that we haven't accepted yet
   while (!c.incoming_streams.empty()) {
     // take ownership of the stream and free on scope exit
-    auto s = stream_ptr{&c.incoming_streams.front()};
+    auto s = std::unique_ptr<stream_impl>{&c.incoming_streams.front()};
     c.incoming_streams.pop_front();
-    ::lsquic_stream_close(s->handle);
-    s->handle = nullptr;
+    assert(s->conn);
     s->conn = nullptr;
+    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
+    assert(t == stream_state::transition::incoming_to_closed);
   }
   // cancel pending stream connect/accept
   while (!c.connecting_streams.empty()) {
-    auto s = stream_ptr{&c.connecting_streams.front()};
+    auto s = std::unique_ptr<stream_impl>{&c.connecting_streams.front()};
     c.connecting_streams.pop_front();
     assert(s->conn);
     s->conn = nullptr;
-    assert(!s->handle);
-    assert(s->connect_);
-    auto op = std::exchange(s->connect_, nullptr);
-    op->defer(ec, nullptr);
+    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
+    assert(t == stream_state::transition::connecting_to_closed);
     canceled++;
   }
   while (!c.accepting_streams.empty()) {
-    auto s = stream_ptr{&c.accepting_streams.front()};
+    auto s = std::unique_ptr<stream_impl>{&c.accepting_streams.front()};
     c.accepting_streams.pop_front();
     assert(s->conn);
     s->conn = nullptr;
-    assert(!s->handle);
-    assert(s->accept_);
-    auto op = std::exchange(s->accept_, nullptr);
-    op->defer(ec, nullptr);
+    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
+    assert(t == stream_state::transition::accepting_to_closed);
     canceled++;
   }
   // close connected streams
-  while (!c.connected_streams.empty()) {
-    auto& s = c.connected_streams.front();
-    c.connected_streams.pop_front();
+  while (!c.open_streams.empty()) {
+    auto& s = c.open_streams.front();
+    c.open_streams.pop_front();
     assert(s.conn);
     s.conn = nullptr;
-
-    assert(s.handle);
-    ::lsquic_stream_close(s.handle);
-    s.handle = nullptr;
-
-    int count = 0;
-    count += stream_cancel_read(s, ec);
-    count += stream_cancel_write(s, ec);
-    if (!count) {
-      s.conn_err = ec;
-    }
-    canceled += count;
+    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
+    assert(t == stream_state::transition::open_to_closed ||
+           t == stream_state::transition::open_to_error);
+    canceled++;
   }
   // cancel closing streams
   while (!c.closing_streams.empty()) {
     auto& s = c.closing_streams.front();
     c.closing_streams.pop_front();
-    assert(s.close_);
-    auto op = std::exchange(s.close_, nullptr);
-    op->defer(ec);
+    assert(s.conn);
+    s.conn = nullptr;
+    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
+    assert(t == stream_state::transition::closing_to_closed);
     canceled++;
   }
   return canceled;
@@ -297,87 +285,6 @@ void engine_impl::on_conncloseframe(connection_impl& c,
   c.err = ec;
 }
 
-void engine_impl::stream_connect(connection_impl& c,
-                                 stream_connect_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  if (c.err) {
-    op.post(std::exchange(c.err, {}), nullptr);
-    return;
-  }
-  if (!c.handle) {
-    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
-    return;
-  }
-  auto s = std::make_unique<stream_impl>(ex, &c);
-  s->connect_ = &op;
-  c.connecting_streams.push_back(*s.release()); // transfer ownership
-  ::lsquic_conn_make_stream(c.handle);
-  process(lock);
-}
-
-stream_impl* engine_impl::on_stream_connect(connection_impl& c,
-                                            lsquic_stream_t* stream)
-{
-  assert(!c.connecting_streams.empty());
-  auto& s = c.connecting_streams.front();
-  c.connecting_streams.pop_front();
-  c.connected_streams.push_back(s);
-  assert(!s.handle);
-  s.handle = stream;
-  auto ec = error_code{}; // success
-  assert(s.connect_);
-  s.connect_->defer(ec, &s);
-  s.connect_ = nullptr;
-  return &s;
-}
-
-void engine_impl::stream_accept(connection_impl& c,
-                                stream_accept_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  if (c.err) {
-    op.post(std::exchange(c.err, {}), nullptr);
-    return;
-  }
-  if (!c.handle) {
-    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
-    return;
-  }
-  if (!c.incoming_streams.empty()) {
-    // take ownership of the first incoming stream
-    auto s = stream_ptr{&c.incoming_streams.front()};
-    c.incoming_streams.pop_front();
-    c.connected_streams.push_back(*s);
-    op.post(error_code{}, std::move(s)); // success
-    return;
-  }
-  auto s = std::make_unique<stream_impl>(ex, &c);
-  s->accept_ = &op;
-  c.accepting_streams.push_back(*s.release()); // transfer ownership
-}
-
-stream_impl* engine_impl::on_stream_accept(connection_impl& c,
-                                           lsquic_stream* stream)
-{
-  if (c.accepting_streams.empty()) {
-    // not waiting on accept, queue this for later
-    auto s = std::make_unique<stream_impl>(ex, &c);
-    c.incoming_streams.push_back(*s);
-    s->handle = stream;
-    return s.release();
-  }
-  auto& s = c.accepting_streams.front();
-  c.accepting_streams.pop_front();
-  c.connected_streams.push_back(s);
-  assert(!s.handle);
-  s.handle = stream;
-  assert(s.accept_);
-  s.accept_->defer(error_code{}, &s); // success
-  s.accept_ = nullptr;
-  return &s;
-}
-
 stream_impl* engine_impl::on_new_stream(connection_impl& c,
                                         lsquic_stream_t* stream)
 {
@@ -385,360 +292,9 @@ stream_impl* engine_impl::on_new_stream(connection_impl& c,
   const auto id = ::lsquic_stream_id(stream);
   const int server = !client;
   if ((id & 1) == server) { // self-initiated
-    return on_stream_connect(c, stream);
+    return c.on_connect(stream);
   } else { // peer-initiated
-    return on_stream_accept(c, stream);
-  }
-}
-
-bool engine_impl::is_open(const stream_impl& s) const
-{
-  auto lock = std::scoped_lock{mutex};
-  return s.handle;
-}
-
-void engine_impl::stream_read(stream_impl& s, stream_data_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.conn->err) {
-    op.post(std::exchange(s.conn->err, {}), 0);
-    return;
-  }
-  if (!s.handle) {
-    op.post(make_error_code(errc::not_connected), 0);
-    return;
-  }
-  if (s.in.header || s.in.data) { // no concurrent reads
-    op.post(make_error_code(stream_error::busy), 0);
-    return;
-  }
-  if (::lsquic_stream_wantread(s.handle, 1) == -1) {
-    op.post(error_code{errno, system_category()}, 0);
-    return;
-  }
-  s.in.data = &op;
-  process(lock);
-}
-
-void engine_impl::stream_read_headers(stream_impl& s,
-                                      stream_header_read_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.conn->err) {
-    op.post(std::exchange(s.conn->err, {}));
-    return;
-  }
-  if (!s.handle) {
-    op.post(make_error_code(errc::not_connected));
-    return;
-  }
-  if (s.in.header || s.in.data) { // no concurrent reads
-    op.post(make_error_code(stream_error::busy));
-    return;
-  }
-  if (::lsquic_stream_wantread(s.handle, 1) == -1) {
-    op.post(error_code{errno, system_category()});
-    return;
-  }
-  s.in.header = &op;
-  process(lock);
-}
-
-void engine_impl::on_stream_read(stream_impl& s)
-{
-  error_code ec;
-  if (s.in.header) {
-    auto& op = *std::exchange(s.in.header, nullptr);
-    auto hset = ::lsquic_stream_get_hset(s.handle);
-    if (!hset) {
-      ec = make_error_code(stream_error::eof);
-    } else {
-      auto headers = std::unique_ptr<recv_header_set>(
-          reinterpret_cast<recv_header_set*>(hset)); // take ownership
-      op.fields = std::move(headers->fields);
-    }
-    op.defer(ec);
-  } else if (s.in.data) {
-    auto& op = *std::exchange(s.in.data, nullptr);
-    auto bytes = ::lsquic_stream_readv(s.handle, op.iovs, op.num_iovs);
-    if (bytes == -1) {
-      bytes = 0;
-      ec.assign(errno, system_category());
-    } else if (bytes == 0) {
-      ec = make_error_code(stream_error::eof);
-    }
-    op.defer(ec, bytes);
-  }
-  ::lsquic_stream_wantread(s.handle, 0);
-}
-
-void engine_impl::stream_write(stream_impl& s, stream_data_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.conn->err) {
-    op.post(std::exchange(s.conn->err, {}), 0);
-    return;
-  }
-  if (!s.handle) {
-    op.post(make_error_code(errc::not_connected), 0);
-    return;
-  }
-  if (s.out.header || s.out.data) { // no concurrent writes
-    op.post(make_error_code(stream_error::busy), 0);
-    return;
-  }
-  if (::lsquic_stream_wantwrite(s.handle, 1) == -1) {
-    op.post(error_code{errno, system_category()}, 0);
-    return;
-  }
-  s.out.data = &op;
-  process(lock);
-}
-
-void engine_impl::stream_write_headers(stream_impl& s,
-                                       stream_header_write_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.conn->err) {
-    op.post(std::exchange(s.conn->err, {}));
-    return;
-  }
-  if (!s.handle) {
-    op.post(make_error_code(errc::not_connected));
-    return;
-  }
-  if (s.out.header || s.out.data) { // no concurrent writes
-    op.post(make_error_code(stream_error::busy));
-    return;
-  }
-  if (::lsquic_stream_wantwrite(s.handle, 1) == -1) {
-    op.post(error_code{errno, system_category()});
-    return;
-  }
-  s.out.header = &op;
-  process(lock);
-}
-
-static void do_write_headers(lsquic_stream_t* stream,
-                             const h3::fields& fields, error_code& ec)
-{
-  // stack-allocate a lsxpack_header array
-  auto array = reinterpret_cast<lsxpack_header*>(
-      ::alloca(fields.size() * sizeof(lsxpack_header)));
-  int num_headers = 0;
-  for (auto f = fields.begin(); f != fields.end(); ++f, ++num_headers) {
-    auto& header = array[num_headers];
-    const char* buf = f->data();
-    const size_t name_offset = std::distance(buf, f->name().data());
-    const size_t name_len = f->name().size();
-    const size_t val_offset = std::distance(buf, f->value().data());
-    const size_t val_len = f->value().size();
-    lsxpack_header_set_offset2(&header, buf, name_offset, name_len,
-                               val_offset, val_len);
-    if (f->never_index()) {
-      header.flags = LSXPACK_NEVER_INDEX;
-    }
-  }
-  auto headers = lsquic_http_headers{num_headers, array};
-  if (::lsquic_stream_send_headers(stream, &headers, 0) == -1) {
-    ec.assign(errno, system_category());
-  }
-}
-
-void engine_impl::on_stream_write(stream_impl& s)
-{
-  error_code ec;
-  if (s.out.header) {
-    auto& op = *std::exchange(s.out.header, nullptr);
-    do_write_headers(s.handle, op.fields, ec);
-    op.defer(ec);
-  } else if (s.out.data) {
-    auto& op = *std::exchange(s.out.data, nullptr);
-    auto bytes = ::lsquic_stream_writev(s.handle, op.iovs, op.num_iovs);
-    if (bytes == -1) {
-      bytes = 0;
-      ec.assign(errno, system_category());
-    }
-    op.defer(ec, bytes);
-  }
-  ::lsquic_stream_wantwrite(s.handle, 0);
-}
-
-void engine_impl::stream_flush(stream_impl& s, error_code& ec)
-{
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.conn->err) {
-    ec = std::exchange(s.conn->err, {});
-    return;
-  }
-  if (!s.handle) {
-    ec = make_error_code(errc::not_connected);
-    return;
-  }
-  if (::lsquic_stream_flush(s.handle) == -1) {
-    ec.assign(errno, system_category());
-    return;
-  }
-  process(lock);
-}
-
-void engine_impl::stream_shutdown(stream_impl& s, int how, error_code& ec)
-{
-  const bool shutdown_read = (how == 0 || how == 2);
-  const bool shutdown_write = (how == 1 || how == 2);
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.conn->err) {
-    ec = std::exchange(s.conn->err, {});
-    return;
-  }
-  if (!s.handle) {
-    ec = make_error_code(errc::bad_file_descriptor);
-    return;
-  }
-  if (::lsquic_stream_shutdown(s.handle, how) == -1) {
-    ec.assign(errno, system_category());
-    return;
-  }
-  auto ecanceled = make_error_code(stream_error::aborted);
-  if (shutdown_read) {
-    stream_cancel_read(s, ecanceled);
-  }
-  if (shutdown_write) {
-    stream_cancel_write(s, ecanceled);
-  }
-  process(lock);
-}
-
-bool engine_impl::try_stream_reset(stream_impl& s)
-{
-  assert(s.conn);
-  auto ec = make_error_code(stream_error::aborted);
-  if (s.accept_) {
-    s.accept_->defer(ec, nullptr);
-    s.accept_ = nullptr;
-    auto& accepting = s.conn->accepting_streams;
-    accepting.erase(accepting.iterator_to(s));
-  }
-  if (s.connect_) {
-    s.connect_->defer(ec, nullptr);
-    s.connect_ = nullptr;
-    auto& connecting = s.conn->connecting_streams;
-    connecting.erase(connecting.iterator_to(s));
-  }
-  if (!s.handle) { // not connected
-    return false;
-  }
-  ::lsquic_stream_close(s.handle);
-  s.handle = nullptr;
-
-  assert(s.conn);
-  auto& connected = s.conn->connected_streams;
-  connected.erase(connected.iterator_to(s));
-
-  stream_cancel_read(s, ec);
-  stream_cancel_write(s, ec);
-  return true;
-}
-
-void engine_impl::stream_reset(stream_impl& s)
-{
-  auto lock = std::unique_lock{mutex};
-  assert(s.conn);
-  if (s.close_) {
-    auto& closing = s.conn->closing_streams;
-    closing.erase(closing.iterator_to(s));
-    s.close_->defer(make_error_code(stream_error::aborted));
-    s.close_ = nullptr;
-  }
-  try_stream_reset(s);
-  s.conn = nullptr;
-  process(lock);
-}
-
-void engine_impl::stream_close(stream_impl& s, stream_close_operation& op)
-{
-  auto lock = std::unique_lock{mutex};
-  if (s.close_) { // already waiting on close
-    op.post(make_error_code(stream_error::busy));
-    return;
-  }
-  if (!try_stream_reset(s)) {
-    op.post(error_code{});
-    return;
-  }
-  assert(s.conn);
-  s.conn->closing_streams.push_back(s);
-  assert(!s.close_);
-  s.close_ = &op;
-  process(lock);
-}
-
-int engine_impl::stream_cancel_read(stream_impl& s, error_code ec)
-{
-  int canceled = 0;
-  if (s.in.header) {
-    s.in.header->defer(ec);
-    s.in.header = nullptr;
-    canceled++;
-  }
-  if (s.in.data) {
-    s.in.data->defer(ec, 0);
-    s.in.data = nullptr;
-    canceled++;
-  }
-  return canceled;
-}
-
-int engine_impl::stream_cancel_write(stream_impl& s, error_code ec)
-{
-  int canceled = 0;
-  if (s.out.header) {
-    s.out.header->defer(ec);
-    s.out.header = nullptr;
-    canceled++;
-  }
-  if (s.out.data) {
-    s.out.data->defer(ec, 0);
-    s.out.data = nullptr;
-    canceled++;
-  }
-  return canceled;
-}
-
-void engine_impl::on_stream_close(stream_impl& s)
-{
-  assert(s.conn);
-  if (s.close_) {
-    auto& closing = s.conn->closing_streams;
-    closing.erase(closing.iterator_to(s));
-    auto op = std::exchange(s.close_, nullptr);
-    op->defer(error_code{});
-  }
-  if (!s.handle) {
-    return; // already closed
-  }
-  s.handle = nullptr;
-
-  auto& connected = s.conn->connected_streams;
-  connected.erase(connected.iterator_to(s));
-
-  auto ec = make_error_code(stream_error::reset);
-  if (s.conn->err) {
-    ec = s.conn->err;
-  }
-  s.conn = nullptr;
-
-  int canceled = 0;
-  canceled += stream_cancel_read(s, ec);
-  canceled += stream_cancel_write(s, ec);
-  if (!canceled) {
-    s.conn_err = ec;
+    return c.on_accept(stream);
   }
 }
 
@@ -938,22 +494,20 @@ static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
 static void on_read(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
   auto s = reinterpret_cast<stream_impl*>(sctx);
-  assert(s->conn);
-  s->conn->socket.engine.on_stream_read(*s);
+  s->on_read();
 }
 
 static void on_write(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
   auto s = reinterpret_cast<stream_impl*>(sctx);
-  assert(s->conn);
-  s->conn->socket.engine.on_stream_write(*s);
+  s->on_write();
 }
 
 static void on_close(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
 {
   auto s = reinterpret_cast<stream_impl*>(sctx);
-  if (s && s->conn) {
-    s->conn->socket.engine.on_stream_close(*s);
+  if (s) {
+    s->on_close();
   }
 }
 
@@ -1084,6 +638,7 @@ engine_impl::engine_impl(const asio::any_io_executor& ex,
     static const lsquic_hset_if header_api = make_header_api();
     api.ea_hsi_if = &header_api;
     api.ea_hsi_ctx = this;
+    is_http = true;
   }
 
   // apply and validate the settings

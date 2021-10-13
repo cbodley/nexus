@@ -17,10 +17,6 @@
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
 
-## stream
-
-* reify stream state machine
-
 ## UDP
 
 * send packets with IP_PKTINFO

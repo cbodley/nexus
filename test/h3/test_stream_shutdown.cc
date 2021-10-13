@@ -149,23 +149,14 @@ TEST_F(Stream, shutdown_before_read_headers)
 
 TEST_F(Stream, remote_shutdown_before_read_headers)
 {
-  auto f1 = h3::fields{};
-  std::optional<error_code> read_headers1_ec;
-  sstream.async_read_headers(f1, capture(read_headers1_ec));
-
-  context.poll();
-  ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(read_headers1_ec);
-  EXPECT_EQ(ok, *read_headers1_ec);
-
-  cstream.shutdown(1);
+  sstream.shutdown(1);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
 
   auto f2 = h3::fields{};
   std::optional<error_code> read_headers2_ec;
-  sstream.async_read_headers(f2, capture(read_headers2_ec));
+  cstream.async_read_headers(f2, capture(read_headers2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -175,37 +166,57 @@ TEST_F(Stream, remote_shutdown_before_read_headers)
 
 TEST_F(Stream, shutdown_pending_read)
 {
+  // must read headers before body
+  auto f = h3::fields{};
+  std::optional<error_code> read_headers_ec;
+  sstream.async_read_headers(f, capture(read_headers_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(read_headers_ec);
+  EXPECT_EQ(ok, *read_headers_ec);
+
   auto data = std::array<char, 16>{};
-  std::optional<error_code> cstream_read_ec;
-  cstream.async_read_some(asio::buffer(data), capture(cstream_read_ec));
+  std::optional<error_code> read_ec;
+  sstream.async_read_some(asio::buffer(data), capture(read_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
-  ASSERT_FALSE(cstream_read_ec);
+  ASSERT_FALSE(read_ec);
 
-  cstream.shutdown(0);
+  sstream.shutdown(0);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(cstream_read_ec);
-  EXPECT_EQ(quic::stream_error::aborted, *cstream_read_ec);
+  ASSERT_TRUE(read_ec);
+  EXPECT_EQ(quic::stream_error::aborted, *read_ec);
 }
 
 TEST_F(Stream, shutdown_before_read)
 {
-  cstream.shutdown(0);
+  // must read headers before body
+  auto f = h3::fields{};
+  std::optional<error_code> read_headers_ec;
+  sstream.async_read_headers(f, capture(read_headers_ec));
+
+  context.poll();
+  ASSERT_FALSE(context.stopped());
+  ASSERT_TRUE(read_headers_ec);
+  EXPECT_EQ(ok, *read_headers_ec);
+
+  sstream.shutdown(0);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
 
   auto data = std::array<char, 16>{};
-  std::optional<error_code> cstream_read_ec;
-  cstream.async_read_some(asio::buffer(data), capture(cstream_read_ec));
+  std::optional<error_code> read_ec;
+  sstream.async_read_some(asio::buffer(data), capture(read_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
-  ASSERT_TRUE(cstream_read_ec);
-  EXPECT_EQ(errc::bad_file_descriptor, *cstream_read_ec);
+  ASSERT_TRUE(read_ec);
+  EXPECT_EQ(errc::bad_file_descriptor, *read_ec);
 }
 
 TEST_F(Stream, shutdown_pending_write)
@@ -286,14 +297,14 @@ TEST_F(Stream, shutdown_pending_write_headers)
 
 TEST_F(Stream, shutdown_before_write_headers)
 {
-  cstream.shutdown(1);
+  sstream.shutdown(1);
 
   context.poll();
   ASSERT_FALSE(context.stopped());
 
   auto fields = h3::fields{};
   std::optional<error_code> write_headers_ec;
-  cstream.async_write_headers(fields, capture(write_headers_ec));
+  sstream.async_write_headers(fields, capture(write_headers_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());

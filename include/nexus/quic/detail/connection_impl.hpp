@@ -28,8 +28,8 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
   stream_list connecting_streams;
   stream_list accepting_streams;
 
-  // connected/closing streams are owned by a quic::stream or h3::stream
-  stream_list connected_streams;
+  // open/closing streams are owned by a quic::stream or h3::stream
+  stream_list open_streams;
   stream_list closing_streams;
 
   explicit connection_impl(socket_impl& socket) : socket(socket) {}
@@ -44,6 +44,7 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
   udp::endpoint remote_endpoint();
 
   void connect(stream_connect_operation& op);
+  stream_impl* on_connect(lsquic_stream* stream);
 
   template <typename Stream, typename CompletionToken>
   decltype(auto) async_connect(CompletionToken&& token) {
@@ -61,6 +62,7 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
   }
 
   void accept(stream_accept_operation& op);
+  stream_impl* on_accept(lsquic_stream* stream);
 
   template <typename Stream, typename CompletionToken>
   decltype(auto) async_accept(CompletionToken&& token) {
@@ -81,5 +83,18 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
 
   void close(error_code& ec);
 };
+
+inline void list_erase(stream_impl& entry, connection_impl::stream_list& from)
+{
+  from.erase(from.iterator_to(entry));
+}
+
+inline void list_transfer(stream_impl& entry,
+                          connection_impl::stream_list& from,
+                          connection_impl::stream_list& to)
+{
+  from.erase(from.iterator_to(entry));
+  to.push_back(entry);
+}
 
 } // namespace nexus::quic::detail

@@ -13,93 +13,163 @@ namespace detail {
 
 bool stream_impl::is_open() const
 {
-  return conn && conn->socket.engine.is_open(*this);
+  if (conn) {
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    return std::holds_alternative<stream_state::open>(state);
+  } else {
+    return std::holds_alternative<stream_state::open>(state);
+  }
 }
 
 void stream_impl::read_headers(stream_header_read_operation& op)
 {
   if (conn) {
-    conn->socket.engine.stream_read_headers(*this, op);
-  } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}));
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    if (stream_state::read_headers(state, op)) {
+      conn->socket.engine.process(lock);
+    }
   } else {
-    op.post(make_error_code(errc::bad_file_descriptor));
+    stream_state::read_headers(state, op);
   }
 }
 
 void stream_impl::read_some(stream_data_operation& op)
 {
   if (conn) {
-    conn->socket.engine.stream_read(*this, op);
-  } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}), 0);
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    if (stream_state::read(state, op)) {
+      conn->socket.engine.process(lock);
+    }
   } else {
-    op.post(make_error_code(errc::bad_file_descriptor), 0);
+    stream_state::read(state, op);
   }
+}
+
+void stream_impl::on_read()
+{
+  stream_state::on_read(state);
 }
 
 void stream_impl::write_some(stream_data_operation& op)
 {
   if (conn) {
-    conn->socket.engine.stream_write(*this, op);
-  } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}), 0);
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    if (stream_state::write(state, op)) {
+      conn->socket.engine.process(lock);
+    }
   } else {
-    op.post(make_error_code(errc::bad_file_descriptor), 0);
+    stream_state::write(state, op);
   }
 }
 
 void stream_impl::write_headers(stream_header_write_operation& op)
 {
   if (conn) {
-    conn->socket.engine.stream_write_headers(*this, op);
-  } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}));
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    if (stream_state::write_headers(state, op)) {
+      conn->socket.engine.process(lock);
+    }
   } else {
-    op.post(make_error_code(errc::bad_file_descriptor));
+    stream_state::write_headers(state, op);
   }
+}
+
+void stream_impl::on_write()
+{
+  stream_state::on_write(state);
 }
 
 void stream_impl::flush(error_code& ec)
 {
   if (conn) {
-    conn->socket.engine.stream_flush(*this, ec);
-  } else if (conn_err) {
-    ec = std::exchange(conn_err, {});
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    stream_state::flush(state, ec);
+    if (!ec) {
+      conn->socket.engine.process(lock);
+    }
   } else {
-    ec = make_error_code(errc::bad_file_descriptor);
+    stream_state::flush(state, ec);
   }
 }
 
 void stream_impl::shutdown(int how, error_code& ec)
 {
   if (conn) {
-    conn->socket.engine.stream_shutdown(*this, how, ec);
-  } else if (conn_err) {
-    ec = std::exchange(conn_err, {});
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    stream_state::shutdown(state, how, ec);
+    if (!ec) {
+      conn->socket.engine.process(lock);
+    }
   } else {
-    ec = make_error_code(errc::bad_file_descriptor);
+    stream_state::shutdown(state, how, ec);
   }
 }
 
 void stream_impl::close(stream_close_operation& op)
 {
-  if (conn) {
-    conn->socket.engine.stream_close(*this, op);
-  } else if (conn_err) {
-    op.post(std::exchange(conn_err, {}));
-  } else {
-    op.post(error_code{}); // already closed
+  if (!conn) {
+    stream_state::close(state, op);
+    return;
+  }
+  auto lock = std::unique_lock{conn->socket.engine.mutex};
+  const auto t = stream_state::close(state, op);
+  if (t == stream_state::transition::open_to_closing) {
+    list_transfer(*this, conn->open_streams, conn->closing_streams);
+    conn->socket.engine.process(lock);
+  }
+}
+
+void stream_impl::on_close()
+{
+  if (!conn) {
+    error_code ec;
+    stream_state::on_close(state, ec);
+    return;
+  }
+
+  const auto t = stream_state::on_close(state, conn->err);
+  switch (t) {
+    case stream_state::transition::incoming_to_closed:
+      list_erase(*this, conn->incoming_streams);
+      break;
+    case stream_state::transition::closing_to_closed:
+      list_erase(*this, conn->closing_streams);
+      break;
+    case stream_state::transition::open_to_closed:
+    case stream_state::transition::open_to_error:
+      list_erase(*this, conn->open_streams);
+      break;
   }
 }
 
 void stream_impl::reset()
 {
   if (conn) {
-    conn->socket.engine.stream_reset(*this);
-  } else if (close_) {
-    auto op = std::exchange(close_, nullptr);
-    op->dispatch(make_error_code(stream_error::aborted));
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    const auto t = stream_state::reset(state);
+    switch (t) {
+      case stream_state::transition::incoming_to_closed:
+        list_erase(*this, conn->incoming_streams);
+        break;
+      case stream_state::transition::accepting_to_closed:
+        list_erase(*this, conn->accepting_streams);
+        break;
+      case stream_state::transition::connecting_to_closed:
+        list_erase(*this, conn->connecting_streams);
+        break;
+      case stream_state::transition::closing_to_closed:
+        list_erase(*this, conn->closing_streams);
+        break;
+      case stream_state::transition::open_to_closed:
+        list_erase(*this, conn->open_streams);
+        break;
+
+      default:
+        return; // nothing changed, return without calling process()
+    }
+    conn->socket.engine.process(lock);
+  } else {
+    stream_state::reset(state);
   }
 }
 

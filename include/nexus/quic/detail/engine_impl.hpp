@@ -25,13 +25,14 @@ struct stream_impl;
 struct engine_deleter { void operator()(lsquic_engine* e) const; };
 using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
 
-class engine_impl {
+struct engine_impl {
   mutable std::mutex mutex;
   asio::any_io_executor ex;
   asio::steady_timer timer;
   lsquic_engine_ptr handle;
   // pointer to client socket or null if server
   socket_impl* client;
+  bool is_http = false;
 
   void process(std::unique_lock<std::mutex>& lock);
   void reschedule(std::unique_lock<std::mutex>& lock);
@@ -41,7 +42,6 @@ class engine_impl {
   void on_readable(socket_impl& socket);
   void on_writeable(socket_impl& socket);
 
- public:
   engine_impl(const asio::any_io_executor& ex, socket_impl* client,
               const settings* s, unsigned flags);
   ~engine_impl();
@@ -89,26 +89,8 @@ class engine_impl {
   stream_impl* on_stream_accept(connection_impl& c, lsquic_stream* stream);
   stream_impl* on_new_stream(connection_impl& c, lsquic_stream* stream);
 
-  bool is_open(const stream_impl& s) const;
-
-  void stream_read(stream_impl& s, stream_data_operation& op);
-  void stream_read_headers(stream_impl& s, stream_header_read_operation& op);
   void on_stream_read(stream_impl& s);
-
-  void stream_write(stream_impl& s, stream_data_operation& op);
-  void stream_write_headers(stream_impl& s, stream_header_write_operation& op);
   void on_stream_write(stream_impl& s);
-
-  int stream_cancel_read(stream_impl& s, error_code ec);
-  int stream_cancel_write(stream_impl& s, error_code ec);
-
-  void stream_flush(stream_impl& s, error_code& ec);
-  void stream_shutdown(stream_impl& s, int how, error_code& ec);
-
-  bool try_stream_reset(stream_impl& s);
-  void stream_reset(stream_impl& s);
-
-  void stream_close(stream_impl& s, stream_close_operation& op);
   void on_stream_close(stream_impl& s);
 };
 

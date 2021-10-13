@@ -9,7 +9,7 @@ struct lsquic_out_spec;
 
 namespace nexus::quic::detail {
 
-class engine_impl;
+struct engine_impl;
 struct connection_impl;
 
 union sockaddr_union {

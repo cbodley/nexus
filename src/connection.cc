@@ -2,6 +2,7 @@
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/server.hpp>
 #include <nexus/quic/stream.hpp>
+#include <lsquic.h>
 
 namespace nexus::quic {
 
@@ -98,12 +99,71 @@ udp::endpoint connection_impl::remote_endpoint()
 
 void connection_impl::connect(stream_connect_operation& op)
 {
-  socket.engine.stream_connect(*this, op);
+  auto lock = std::unique_lock{socket.engine.mutex};
+  if (err) {
+    op.post(std::exchange(err, {}), nullptr);
+    return;
+  }
+  if (!handle) {
+    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
+    return;
+  }
+  auto s = std::make_unique<stream_impl>(get_executor(), this);
+  stream_state::connect(s->state, op);
+  connecting_streams.push_back(*s.release()); // transfer ownership
+  ::lsquic_conn_make_stream(handle);
+  socket.engine.process(lock);
+}
+
+stream_impl* connection_impl::on_connect(lsquic_stream_t* stream)
+{
+  assert(!connecting_streams.empty());
+  auto& s = connecting_streams.front();
+  connecting_streams.pop_front();
+  open_streams.push_back(s);
+  stream_state::on_connect(s.state, s, stream);
+  return &s;
 }
 
 void connection_impl::accept(stream_accept_operation& op)
 {
-  socket.engine.stream_accept(*this, op);
+  auto lock = std::unique_lock{socket.engine.mutex};
+  if (err) {
+    op.post(std::exchange(err, {}), nullptr);
+    return;
+  }
+  if (!handle) {
+    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
+    return;
+  }
+  if (!incoming_streams.empty()) {
+    // take ownership of the first incoming stream
+    auto s = std::unique_ptr<stream_impl>{&incoming_streams.front()};
+    incoming_streams.pop_front();
+    open_streams.push_back(*s);
+    stream_state::accept_incoming(s->state, socket.engine.is_http);
+    op.post(error_code{}, std::move(s)); // success
+    return;
+  }
+  auto s = std::make_unique<stream_impl>(get_executor(), this);
+  stream_state::accept(s->state, op);
+  accepting_streams.push_back(*s.release()); // transfer ownership
+}
+
+stream_impl* connection_impl::on_accept(lsquic_stream* stream)
+{
+  if (accepting_streams.empty()) {
+    // not waiting on accept, queue this for later
+    auto s = std::make_unique<stream_impl>(get_executor(), this);
+    incoming_streams.push_back(*s);
+    stream_state::on_incoming(s->state, stream);
+    return s.release();
+  }
+  auto& s = accepting_streams.front();
+  accepting_streams.pop_front();
+  open_streams.push_back(s);
+  stream_state::on_accept(s.state, s, stream);
+  return &s;
 }
 
 bool connection_impl::is_open() const

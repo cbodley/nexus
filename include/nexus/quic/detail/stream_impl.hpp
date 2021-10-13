@@ -5,6 +5,7 @@
 
 #include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/service.hpp>
+#include <nexus/quic/detail/stream_state.hpp>
 #include <nexus/quic/error.hpp>
 #include <nexus/h3/fields.hpp>
 
@@ -15,31 +16,13 @@ namespace quic::detail {
 
 struct connection_impl;
 
-struct stream_read_state {
-  stream_data_operation* data = nullptr;
-  stream_header_read_operation* header = nullptr;
-};
-
-struct stream_write_state {
-  stream_data_operation* data = nullptr;
-  stream_header_write_operation* header = nullptr;
-};
-
 struct stream_impl : public boost::intrusive::list_base_hook<>,
                      public service_list_base_hook {
   using executor_type = asio::any_io_executor;
   service<stream_impl>& svc;
   executor_type ex;
   connection_impl* conn;
-  // make sure that connection errors get delivered to the application
-  error_code conn_err;
-  lsquic_stream* handle = nullptr;
-  stream_read_state in;
-  stream_write_state out;
-
-  stream_connect_operation* connect_ = nullptr;
-  stream_accept_operation* accept_ = nullptr;
-  stream_close_operation* close_ = nullptr;
+  stream_state::variant state;
 
   template <typename BufferSequence>
   static void init_op(const BufferSequence& buffers,
@@ -56,7 +39,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   stream_impl(const executor_type& ex, connection_impl* conn)
       : svc(asio::use_service<service<stream_impl>>(
               asio::query(ex, asio::execution::context))),
-        ex(ex), conn(conn)
+        ex(ex), conn(conn), state(stream_state::closed{})
   {
     // register for service_shutdown() notifications
     svc.add(*this);
@@ -69,28 +52,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   void service_shutdown()
   {
     // destroy any pending operations
-    const error_code ec; // fake error code
-    if (auto op = std::exchange(in.data, nullptr); op) {
-      op->destroy(ec, 0);
-    }
-    if (auto op = std::exchange(in.header, nullptr); op) {
-      op->destroy(ec);
-    }
-    if (auto op = std::exchange(out.data, nullptr); op) {
-      op->destroy(ec, 0);
-    }
-    if (auto op = std::exchange(out.header, nullptr); op) {
-      op->destroy(ec);
-    }
-    if (auto op = std::exchange(connect_, nullptr); op) {
-      op->destroy(ec, nullptr);
-    }
-    if (auto op = std::exchange(accept_, nullptr); op) {
-      op->destroy(ec, nullptr);
-    }
-    if (auto op = std::exchange(close_, nullptr); op) {
-      op->destroy(ec);
-    }
+    stream_state::destroy(state);
   }
 
   executor_type get_executor() const { return ex; }
@@ -115,6 +77,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   }
 
   void read_some(stream_data_operation& op);
+  void on_read();
 
   template <typename MutableBufferSequence, typename CompletionToken>
   decltype(auto) async_read_some(const MutableBufferSequence& buffers,
@@ -161,6 +124,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   }
 
   void write_some(stream_data_operation& op);
+  void on_write();
 
   template <typename ConstBufferSequence, typename CompletionToken>
   decltype(auto) async_write_some(const ConstBufferSequence& buffers,
@@ -193,6 +157,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   void shutdown(int how, error_code& ec);
 
   void close(stream_close_operation& op);
+  void on_close();
 
   template <typename CompletionToken>
   decltype(auto) async_close(CompletionToken&& token) {

@@ -7,7 +7,8 @@ set(nexus-srcs
 	server.cc
 	settings.cc
 	socket.cc
-	stream.cc)
+	stream.cc
+	stream_state.cc)
 
 add_library(nexus ${nexus-srcs})
 target_link_libraries(nexus PUBLIC nexus-headers lsquic)
