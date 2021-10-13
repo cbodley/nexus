@@ -14,6 +14,7 @@ struct accept_operation;
 struct socket_impl;
 
 struct connection_impl : public boost::intrusive::list_base_hook<> {
+  using stream_list = boost::intrusive::list<stream_impl>;
   socket_impl& socket;
   // make sure that connection errors get delivered to the application. if we
   // see a fatal connection error while there are no pending operations we can
@@ -23,13 +24,13 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
   accept_operation* accept_ = nullptr;
 
   // maintain ownership of incoming/connecting/accepting streams
-  boost::intrusive::list<stream_impl> incoming_streams;
-  boost::intrusive::list<stream_impl> connecting_streams;
-  boost::intrusive::list<stream_impl> accepting_streams;
+  stream_list incoming_streams;
+  stream_list connecting_streams;
+  stream_list accepting_streams;
 
   // connected/closing streams are owned by a quic::stream or h3::stream
-  boost::intrusive::list<stream_impl> connected_streams;
-  boost::intrusive::list<stream_impl> closing_streams;
+  stream_list connected_streams;
+  stream_list closing_streams;
 
   explicit connection_impl(socket_impl& socket) : socket(socket) {}
   ~connection_impl() {
