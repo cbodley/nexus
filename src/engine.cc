@@ -1,5 +1,3 @@
-#include <vector>
-
 #include <lsquic.h>
 #include <lsxpack_header.h>
 
@@ -8,6 +6,8 @@
 #include <nexus/quic/detail/socket_impl.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/socket.hpp>
+
+#include "recv_header_set.hpp"
 
 namespace nexus::quic::detail {
 
@@ -445,15 +445,6 @@ void engine_impl::stream_read_headers(stream_impl& s,
   s.in.header = &op;
   process(lock);
 }
-
-struct recv_header_set {
-  h3::fields fields;
-  int is_push_promise;
-  lsxpack_header header;
-  std::vector<char> buffer;
-
-  recv_header_set(int is_push_promise) : is_push_promise(is_push_promise) {}
-};
 
 void engine_impl::on_stream_read(stream_impl& s)
 {
