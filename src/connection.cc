@@ -87,6 +87,29 @@ void connection::close()
 
 namespace detail {
 
+connection_impl::connection_impl(socket_impl& socket)
+    : svc(asio::use_service<service<connection_impl>>(
+            asio::query(socket.get_executor(),
+                        asio::execution::context))),
+      socket(socket), state(connection_state::closed{})
+{
+  // register for service_shutdown() notifications
+  svc.add(*this);
+}
+
+connection_impl::~connection_impl()
+{
+  error_code ec_ignored;
+  close(ec_ignored);
+  svc.remove(*this);
+}
+
+void connection_impl::service_shutdown()
+{
+  // destroy any pending operations
+  connection_state::destroy(state);
+}
+
 connection_impl::executor_type connection_impl::get_executor() const
 {
   return socket.get_executor();

@@ -2,6 +2,7 @@
 
 #include <boost/intrusive/list.hpp>
 #include <nexus/quic/detail/connection_state.hpp>
+#include <nexus/quic/detail/service.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/detail/stream_open_handler.hpp>
 #include <nexus/udp.hpp>
@@ -14,17 +15,16 @@ namespace nexus::quic::detail {
 struct accept_operation;
 struct socket_impl;
 
-struct connection_impl : public boost::intrusive::list_base_hook<> {
+struct connection_impl : public boost::intrusive::list_base_hook<>,
+                         public service_list_base_hook {
+  service<connection_impl>& svc;
   socket_impl& socket;
   connection_state::variant state;
 
-  explicit connection_impl(socket_impl& socket)
-      : socket(socket), state(connection_state::closed{})
-  {}
-  ~connection_impl() {
-    error_code ec_ignored;
-    close(ec_ignored);
-  }
+  explicit connection_impl(socket_impl& socket);
+  ~connection_impl();
+
+  void service_shutdown();
 
   using executor_type = asio::any_io_executor;
   executor_type get_executor() const;
