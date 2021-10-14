@@ -94,86 +94,140 @@ connection_impl::executor_type connection_impl::get_executor() const
 
 udp::endpoint connection_impl::remote_endpoint()
 {
-  return socket.engine.remote_endpoint(*this);
+  auto lock = std::unique_lock{socket.engine.mutex};
+  return connection_state::remote_endpoint(state);
 }
 
 void connection_impl::connect(stream_connect_operation& op)
 {
   auto lock = std::unique_lock{socket.engine.mutex};
-  if (err) {
-    op.post(std::exchange(err, {}), nullptr);
-    return;
+  if (connection_state::stream_connect(state, op, get_executor(), this)) {
+    socket.engine.process(lock);
   }
-  if (!handle) {
-    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
-    return;
-  }
-  auto s = std::make_unique<stream_impl>(get_executor(), this);
-  stream_state::connect(s->state, op);
-  connecting_streams.push_back(*s.release()); // transfer ownership
-  ::lsquic_conn_make_stream(handle);
-  socket.engine.process(lock);
 }
 
 stream_impl* connection_impl::on_connect(lsquic_stream_t* stream)
 {
-  assert(!connecting_streams.empty());
-  auto& s = connecting_streams.front();
-  connecting_streams.pop_front();
-  open_streams.push_back(s);
-  stream_state::on_connect(s.state, s, stream);
-  return &s;
+  return connection_state::on_stream_connect(state, stream);
 }
 
 void connection_impl::accept(stream_accept_operation& op)
 {
   auto lock = std::unique_lock{socket.engine.mutex};
-  if (err) {
-    op.post(std::exchange(err, {}), nullptr);
-    return;
-  }
-  if (!handle) {
-    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
-    return;
-  }
-  if (!incoming_streams.empty()) {
-    // take ownership of the first incoming stream
-    auto s = std::unique_ptr<stream_impl>{&incoming_streams.front()};
-    incoming_streams.pop_front();
-    open_streams.push_back(*s);
-    stream_state::accept_incoming(s->state, socket.engine.is_http);
-    op.post(error_code{}, std::move(s)); // success
-    return;
-  }
-  auto s = std::make_unique<stream_impl>(get_executor(), this);
-  stream_state::accept(s->state, op);
-  accepting_streams.push_back(*s.release()); // transfer ownership
+  connection_state::stream_accept(state, op, socket.engine.is_http,
+                                  get_executor(), this);
 }
 
 stream_impl* connection_impl::on_accept(lsquic_stream* stream)
 {
-  if (accepting_streams.empty()) {
-    // not waiting on accept, queue this for later
-    auto s = std::make_unique<stream_impl>(get_executor(), this);
-    incoming_streams.push_back(*s);
-    stream_state::on_incoming(s->state, stream);
-    return s.release();
-  }
-  auto& s = accepting_streams.front();
-  accepting_streams.pop_front();
-  open_streams.push_back(s);
-  stream_state::on_accept(s.state, s, stream);
-  return &s;
+  return connection_state::on_stream_accept(state, stream,
+                                            get_executor(), this);
 }
 
 bool connection_impl::is_open() const
 {
-  return socket.engine.is_open(*this);
+  auto lock = std::unique_lock{socket.engine.mutex};
+  return connection_state::is_open(state);
 }
 
 void connection_impl::close(error_code& ec)
 {
-  socket.engine.close(*this, ec);
+  auto lock = std::unique_lock{socket.engine.mutex};
+  const auto t = connection_state::close(state, ec);
+  switch (t) {
+    case connection_state::transition::accepting_to_closed:
+      list_erase(*this, socket.accepting_connections);
+      break;
+    case connection_state::transition::open_to_closed:
+      list_erase(*this, socket.open_connections);
+      socket.engine.process(lock);
+      break;
+    default:
+      break;
+  }
+}
+
+void connection_impl::on_close()
+{
+  const auto t = connection_state::on_close(state);
+  if (t == connection_state::transition::open_to_error ||
+      t == connection_state::transition::open_to_closed) {
+    list_erase(*this, socket.open_connections);
+  }
+}
+
+void connection_impl::on_handshake(int status)
+{
+  connection_state::on_handshake(state, status);
+}
+
+void connection_impl::on_conncloseframe(int app_error, uint64_t code)
+{
+  error_code ec;
+  if (app_error == -1) {
+    ec = make_error_code(connection_error::reset);
+  } else if (app_error) {
+    ec.assign(code, application_category());
+  } else if ((code & 0xffff'ffff'ffff'ff00) == 0x0100) {
+    // CRYPTO_ERROR 0x0100-0x01ff
+    ec.assign(code & 0xff, tls_category());
+  } else {
+    ec.assign(code, transport_category());
+  }
+
+  const auto t = connection_state::on_connection_close_frame(state, ec);
+  if (t == connection_state::transition::open_to_error ||
+      t == connection_state::transition::open_to_closed) {
+    list_erase(*this, socket.open_connections);
+  }
+}
+
+void connection_impl::on_incoming_stream_closed(stream_impl& s)
+{
+  if (std::holds_alternative<connection_state::open>(state)) {
+    auto& o = *std::get_if<connection_state::open>(&state);
+    list_erase(s, o.incoming_streams);
+  }
+}
+
+void connection_impl::on_accepting_stream_closed(stream_impl& s)
+{
+  if (std::holds_alternative<connection_state::open>(state)) {
+    auto& o = *std::get_if<connection_state::open>(&state);
+    list_erase(s, o.accepting_streams);
+  }
+}
+
+void connection_impl::on_connecting_stream_closed(stream_impl& s)
+{
+  if (std::holds_alternative<connection_state::open>(state)) {
+    auto& o = *std::get_if<connection_state::open>(&state);
+    list_erase(s, o.connecting_streams);
+  }
+}
+
+void connection_impl::on_open_stream_closing(stream_impl& s)
+{
+  if (std::holds_alternative<connection_state::open>(state)) {
+    auto& o = *std::get_if<connection_state::open>(&state);
+    list_transfer(s, o.open_streams, o.closing_streams);
+  }
+}
+
+void connection_impl::on_open_stream_closed(stream_impl& s)
+{
+  if (std::holds_alternative<connection_state::open>(state)) {
+    auto& o = *std::get_if<connection_state::open>(&state);
+    list_erase(s, o.open_streams);
+  }
+}
+
+void connection_impl::on_closing_stream_closed(stream_impl& s)
+{
+  if (std::holds_alternative<connection_state::open>(state)) {
+    auto& o = *std::get_if<connection_state::open>(&state);
+    list_erase(s, o.closing_streams);
+  }
 }
 
 } // namespace detail

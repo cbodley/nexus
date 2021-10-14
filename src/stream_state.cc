@@ -459,7 +459,7 @@ transition close(variant& state, stream_close_operation& op)
   return transition::open_to_closing;
 }
 
-transition on_close(variant& state, error_code& conn_ec)
+transition on_close(variant& state)
 {
   if (std::holds_alternative<incoming>(state)) {
     state = closed{};
@@ -476,20 +476,11 @@ transition on_close(variant& state, error_code& conn_ec)
     return transition::none;
   }
   auto& o = *std::get_if<open>(&state);
-  const auto ec = conn_ec ? conn_ec : make_error_code(stream_error::reset);
-  int canceled = 0;
-  canceled += receiving_stream_state::cancel(o.in, ec);
-  canceled += sending_stream_state::cancel(o.out, ec);
-  if (canceled) {
-    conn_ec = error_code{}; // if there was a connection error, we delivered it
-  }
-  if (conn_ec) {
-    state = error{conn_ec};
-    return transition::open_to_error;
-  } else {
-    state = closed{};
-    return transition::open_to_closed;
-  }
+  const auto ec = make_error_code(stream_error::reset);
+  receiving_stream_state::cancel(o.in, ec);
+  sending_stream_state::cancel(o.out, ec);
+  state = closed{};
+  return transition::open_to_closed;
 }
 
 transition on_error(variant& state, error_code ec)

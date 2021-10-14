@@ -1,6 +1,7 @@
 set(nexus-srcs
 	client.cc
 	connection.cc
+	connection_state.cc
 	engine.cc
 	error.cc
 	global.cc

@@ -13,7 +13,6 @@
 
 * make connection moveable? this means dynamic allocation
 	- make connect()/accept() return a connection instead of taking an existing one by reference
-* reify connection state machine
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
 * option to pre-allocate stream_impls based on negotiated limits?

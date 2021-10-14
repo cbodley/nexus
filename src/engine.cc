@@ -20,23 +20,6 @@ engine_impl::~engine_impl()
   close();
 }
 
-udp::endpoint engine_impl::remote_endpoint(connection_impl& c)
-{
-  auto remote = udp::endpoint{};
-  auto lock = std::scoped_lock{mutex};
-  if (c.handle) {
-    const sockaddr* l = nullptr;
-    const sockaddr* r = nullptr;
-    lsquic_conn_get_sockaddr(c.handle, &l, &r);
-    if (r->sa_family == AF_INET6) {
-      ::memcpy(remote.data(), r, sizeof(sockaddr_in6));
-    } else {
-      ::memcpy(remote.data(), r, sizeof(sockaddr_in));
-    }
-  }
-  return remote;
-}
-
 void engine_impl::connect(connection_impl& c,
                           const udp::endpoint& endpoint,
                           const char* hostname)
@@ -44,13 +27,12 @@ void engine_impl::connect(connection_impl& c,
   auto lock = std::unique_lock{mutex};
   auto peer_ctx = &c.socket;
   auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&c);
-  assert(!c.handle);
   ::lsquic_engine_connect(handle.get(), N_LSQVER,
       c.socket.local_addr.data(), endpoint.data(), peer_ctx, cctx,
       hostname, 0, nullptr, 0, nullptr, 0);
   // note, this assert triggers with some quic versions that don't allow
   // multiple connections on the same address, see lquic's hash_conns_by_addr()
-  assert(c.handle); // lsquic_engine_connect() calls on_connect()
+  assert(connection_state::is_open(c.state));
   process(lock);
   if (client) { // make sure we're listening
     start_recv(*client);
@@ -59,40 +41,24 @@ void engine_impl::connect(connection_impl& c,
 
 void engine_impl::on_connect(connection_impl& c, lsquic_conn_t* conn)
 {
-  assert(!c.handle);
-  c.handle = conn;
-  c.socket.connected.push_back(c);
-}
-
-void engine_impl::on_handshake(connection_impl& c, int s)
-{
-  switch (s) {
-    case LSQ_HSK_FAIL:
-    case LSQ_HSK_RESUMED_FAIL:
-      if (!c.err) {
-        // set a generic connection handshake error. we may get a more specific
-        // error from CONNECTION_CLOSE before the on_conn_closed() callback
-        // delivers this error to the application
-        c.err = make_error_code(connection_error::handshake_failed);
-      }
-      break;
-  }
+  connection_state::on_connect(c.state, conn);
+  c.socket.open_connections.push_back(c);
 }
 
 void engine_impl::accept(connection_impl& c, accept_operation& op)
 {
   auto lock = std::unique_lock{mutex};
   if (!c.socket.incoming_connections.empty()) {
-    c.handle = c.socket.incoming_connections.front();
+    auto handle = c.socket.incoming_connections.front();
     c.socket.incoming_connections.pop_front();
-    c.socket.connected.push_back(c);
+    c.socket.open_connections.push_back(c);
     auto ctx = reinterpret_cast<lsquic_conn_ctx_t*>(&c);
-    ::lsquic_conn_set_ctx(c.handle, ctx);
+    ::lsquic_conn_set_ctx(handle, ctx);
+    connection_state::accept_incoming(c.state, handle);
     op.post(error_code{}); // success
     return;
   }
-  assert(!c.accept_);
-  c.accept_ = &op;
+  connection_state::accept(c.state, op);
   c.socket.accepting_connections.push_back(c);
   process(lock);
 }
@@ -120,169 +86,9 @@ connection_impl* engine_impl::on_accept(lsquic_conn_t* conn)
   }
   auto& c = socket.accepting_connections.front();
   socket.accepting_connections.pop_front();
-  socket.connected.push_back(c);
-  assert(!c.handle);
-  c.handle = conn;
-  assert(c.accept_);
-  c.accept_->defer(error_code{}); // success
-  c.accept_ = nullptr;
+  socket.open_connections.push_back(c);
+  connection_state::on_accept(c.state, conn);
   return &c;
-}
-
-bool engine_impl::is_open(const connection_impl& c) const
-{
-  auto lock = std::scoped_lock{mutex};
-  return c.handle;
-}
-
-void engine_impl::close(connection_impl& c, error_code& ec)
-{
-  auto lock = std::unique_lock{mutex};
-  const auto aborted = make_error_code(connection_error::aborted);
-  if (c.accept_) {
-    assert(c.is_linked());
-    auto& accepting = c.socket.accepting_connections;
-    accepting.erase(accepting.iterator_to(c));
-    auto op = std::exchange(c.accept_, nullptr);
-    op->defer(aborted);
-  }
-  if (!c.handle) {
-    ec = make_error_code(errc::not_connected);
-    return;
-  }
-
-  cancel(c, aborted);
-
-  ::lsquic_conn_close(c.handle);
-  c.handle = nullptr;
-
-  assert(c.is_linked());
-  auto& connected = c.socket.connected;
-  connected.erase(connected.iterator_to(c));
-
-  process(lock);
-}
-
-int engine_impl::cancel(connection_impl& c, error_code ec)
-{
-  int canceled = 0;
-  // close incoming streams that we haven't accepted yet
-  while (!c.incoming_streams.empty()) {
-    // take ownership of the stream and free on scope exit
-    auto s = std::unique_ptr<stream_impl>{&c.incoming_streams.front()};
-    c.incoming_streams.pop_front();
-    assert(s->conn);
-    s->conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
-    assert(t == stream_state::transition::incoming_to_closed);
-  }
-  // cancel pending stream connect/accept
-  while (!c.connecting_streams.empty()) {
-    auto s = std::unique_ptr<stream_impl>{&c.connecting_streams.front()};
-    c.connecting_streams.pop_front();
-    assert(s->conn);
-    s->conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
-    assert(t == stream_state::transition::connecting_to_closed);
-    canceled++;
-  }
-  while (!c.accepting_streams.empty()) {
-    auto s = std::unique_ptr<stream_impl>{&c.accepting_streams.front()};
-    c.accepting_streams.pop_front();
-    assert(s->conn);
-    s->conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
-    assert(t == stream_state::transition::accepting_to_closed);
-    canceled++;
-  }
-  // close connected streams
-  while (!c.open_streams.empty()) {
-    auto& s = c.open_streams.front();
-    c.open_streams.pop_front();
-    assert(s.conn);
-    s.conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
-    assert(t == stream_state::transition::open_to_closed ||
-           t == stream_state::transition::open_to_error);
-    canceled++;
-  }
-  // cancel closing streams
-  while (!c.closing_streams.empty()) {
-    auto& s = c.closing_streams.front();
-    c.closing_streams.pop_front();
-    assert(s.conn);
-    s.conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
-    assert(t == stream_state::transition::closing_to_closed);
-    canceled++;
-  }
-  return canceled;
-}
-
-void engine_impl::on_close(connection_impl& c, lsquic_conn_t* conn)
-{
-  if (!c.handle) {
-    return;
-  }
-  assert(c.handle == conn);
-  c.handle = nullptr;
-
-  assert(c.accept_ == nullptr);
-  assert(c.is_linked());
-  auto& connected = c.socket.connected;
-  connected.erase(connected.iterator_to(c));
-
-  // we may already have an error from on_handshake() or on_conncloseframe()
-  error_code ec = c.err;
-  if (!ec) {
-    // use lsquic_conn_status() to choose the most relevant error code
-    const auto status = ::lsquic_conn_status(conn, nullptr, 0);
-    switch (status) {
-      case LSCONN_ST_VERNEG_FAILURE:
-      case LSCONN_ST_HSK_FAILURE:
-        ec = make_error_code(connection_error::handshake_failed);
-        break;
-      case LSCONN_ST_TIMED_OUT:
-        ec = make_error_code(connection_error::timed_out);
-        break;
-      case LSCONN_ST_PEER_GOING_AWAY:
-        ec = make_error_code(connection_error::going_away);
-        break;
-      case LSCONN_ST_USER_ABORTED:
-      case LSCONN_ST_CLOSED:
-        ec = make_error_code(connection_error::aborted);
-        break;
-      case LSCONN_ST_ERROR:
-      case LSCONN_ST_RESET:
-      default:
-        ec = make_error_code(connection_error::reset);
-        break;
-    }
-  }
-
-  const int canceled = cancel(c, ec);
-  if (canceled) {
-    // clear the connection error if we delivered it to the application
-    c.err = error_code{};
-  }
-}
-
-void engine_impl::on_conncloseframe(connection_impl& c,
-                                    int app_error, uint64_t code)
-{
-  error_code ec;
-  if (app_error == -1) {
-    ec = make_error_code(connection_error::reset);
-  } else if (app_error) {
-    ec.assign(code, application_category());
-  } else if ((code & 0xffff'ffff'ffff'ff00) == 0x0100) {
-    // CRYPTO_ERROR 0x0100-0x01ff
-    ec.assign(code & 0xff, tls_category());
-  } else {
-    ec.assign(code, transport_category());
-  }
-
-  c.err = ec;
 }
 
 stream_impl* engine_impl::on_new_stream(connection_impl& c,
@@ -323,25 +129,19 @@ void engine_impl::close(socket_impl& socket)
   }
   const auto ecanceled = make_error_code(connection_error::aborted);
   // close connections on this socket
-  while (!socket.connected.empty()) {
-    auto& c = socket.connected.front();
-    socket.connected.pop_front();
-
-    ::lsquic_conn_close(c.handle);
-    c.handle = nullptr;
-
-    cancel(c, ecanceled);
+  while (!socket.open_connections.empty()) {
+    auto& c = socket.open_connections.front();
+    socket.open_connections.pop_front();
+    connection_state::reset(c.state, ecanceled);
   }
-  // send any CONNECTION_CLOSE frames before closing the socket
-  process(lock);
   // cancel connections pending accept
   while (!socket.accepting_connections.empty()) {
     auto& c = socket.accepting_connections.front();
     socket.accepting_connections.pop_front();
-    assert(c.accept_);
-    c.accept_->defer(ecanceled);
-    c.accept_ = nullptr;
+    connection_state::reset(c.state, ecanceled);
   }
+  // send any CONNECTION_CLOSE frames before closing the socket
+  process(lock);
   socket.receiving = false;
   socket.socket.close();
 }
@@ -518,7 +318,7 @@ static void on_conn_closed(lsquic_conn_t* conn)
     return;
   }
   auto c = reinterpret_cast<connection_impl*>(cctx);
-  c->socket.engine.on_close(*c, conn);
+  c->on_close();
 }
 
 static void on_hsk_done(lsquic_conn_t* conn, lsquic_hsk_status s)
@@ -528,7 +328,7 @@ static void on_hsk_done(lsquic_conn_t* conn, lsquic_hsk_status s)
     return;
   }
   auto c = reinterpret_cast<connection_impl*>(cctx);
-  c->socket.engine.on_handshake(*c, s);
+  c->on_handshake(s);
 }
 
 void on_conncloseframe_received(lsquic_conn_t* conn,
@@ -540,7 +340,7 @@ void on_conncloseframe_received(lsquic_conn_t* conn,
     return;
   }
   auto c = reinterpret_cast<connection_impl*>(cctx);
-  c->socket.engine.on_conncloseframe(*c, app_error, code);
+  c->on_conncloseframe(app_error, code);
 }
 
 static constexpr lsquic_stream_if make_stream_api()

@@ -51,8 +51,6 @@ struct engine_impl {
 
   // return the bound address
   udp::endpoint local_endpoint(socket_impl& socket) const;
-  // return the connection's remote address
-  udp::endpoint remote_endpoint(connection_impl& c);
 
   void close();
 
@@ -72,26 +70,7 @@ struct engine_impl {
   void accept(connection_impl& c, accept_operation& op);
   connection_impl* on_accept(lsquic_conn* conn);
 
-  bool is_open(const connection_impl& c) const;
-
-  void close(connection_impl& c, error_code& ec);
-  void on_close(connection_impl& c, lsquic_conn* conn);
-
-  void on_conncloseframe(connection_impl& c, int app_error, uint64_t code);
-
-  int cancel(connection_impl& c, error_code ec);
-
-  // streams
-  void stream_connect(connection_impl& c, stream_connect_operation& op);
-  stream_impl* on_stream_connect(connection_impl& c, lsquic_stream* stream);
-
-  void stream_accept(connection_impl& c, stream_accept_operation& op);
-  stream_impl* on_stream_accept(connection_impl& c, lsquic_stream* stream);
   stream_impl* on_new_stream(connection_impl& c, lsquic_stream* stream);
-
-  void on_stream_read(stream_impl& s);
-  void on_stream_write(stream_impl& s);
-  void on_stream_close(stream_impl& s);
 };
 
 } // namespace nexus::quic::detail

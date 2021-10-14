@@ -19,14 +19,28 @@ union sockaddr_union {
   sockaddr_in6 addr6;
 };
 
+using connection_list = boost::intrusive::list<connection_impl>;
+
+inline void list_erase(connection_impl& s, connection_list& from)
+{
+  from.erase(from.iterator_to(s));
+}
+
+inline void list_transfer(connection_impl& s, connection_list& from,
+                          connection_list& to)
+{
+  from.erase(from.iterator_to(s));
+  to.push_back(s);
+}
+
 struct socket_impl : boost::intrusive::list_base_hook<> {
   engine_impl& engine;
   udp::socket socket;
   asio::ssl::context& ssl;
   udp::endpoint local_addr; // socket's bound address
   boost::circular_buffer<lsquic_conn*> incoming_connections;
-  boost::intrusive::list<connection_impl> accepting_connections;
-  boost::intrusive::list<connection_impl> connected;
+  connection_list accepting_connections;
+  connection_list open_connections;
   bool receiving = false;
 
   socket_impl(engine_impl& engine, udp::socket&& socket,

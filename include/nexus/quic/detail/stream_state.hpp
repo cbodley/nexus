@@ -163,7 +163,7 @@ enum class transition {
 };
 
 transition close(variant& state, stream_close_operation& op);
-transition on_close(variant& state, error_code& conn_ec);
+transition on_close(variant& state);
 transition on_error(variant& state, error_code ec);
 transition reset(variant& state);
 

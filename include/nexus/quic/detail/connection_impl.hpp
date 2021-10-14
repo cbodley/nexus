@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/intrusive/list.hpp>
+#include <nexus/quic/detail/connection_state.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/quic/detail/stream_open_handler.hpp>
 #include <nexus/udp.hpp>
@@ -14,25 +15,12 @@ struct accept_operation;
 struct socket_impl;
 
 struct connection_impl : public boost::intrusive::list_base_hook<> {
-  using stream_list = boost::intrusive::list<stream_impl>;
   socket_impl& socket;
-  // make sure that connection errors get delivered to the application. if we
-  // see a fatal connection error while there are no pending operations we can
-  // deliver the error to, save it here and deliver it to the next operation
-  error_code err;
-  lsquic_conn* handle = nullptr;
-  accept_operation* accept_ = nullptr;
+  connection_state::variant state;
 
-  // maintain ownership of incoming/connecting/accepting streams
-  stream_list incoming_streams;
-  stream_list connecting_streams;
-  stream_list accepting_streams;
-
-  // open/closing streams are owned by a quic::stream or h3::stream
-  stream_list open_streams;
-  stream_list closing_streams;
-
-  explicit connection_impl(socket_impl& socket) : socket(socket) {}
+  explicit connection_impl(socket_impl& socket)
+      : socket(socket), state(connection_state::closed{})
+  {}
   ~connection_impl() {
     error_code ec_ignored;
     close(ec_ignored);
@@ -82,19 +70,17 @@ struct connection_impl : public boost::intrusive::list_base_hook<> {
   bool is_open() const;
 
   void close(error_code& ec);
+
+  void on_close();
+  void on_handshake(int status);
+  void on_conncloseframe(int app_error, uint64_t code);
+
+  void on_incoming_stream_closed(stream_impl& s);
+  void on_accepting_stream_closed(stream_impl& s);
+  void on_connecting_stream_closed(stream_impl& s);
+  void on_open_stream_closing(stream_impl& s);
+  void on_open_stream_closed(stream_impl& s);
+  void on_closing_stream_closed(stream_impl& s);
 };
-
-inline void list_erase(stream_impl& entry, connection_impl::stream_list& from)
-{
-  from.erase(from.iterator_to(entry));
-}
-
-inline void list_transfer(stream_impl& entry,
-                          connection_impl::stream_list& from,
-                          connection_impl::stream_list& to)
-{
-  from.erase(from.iterator_to(entry));
-  to.push_back(entry);
-}
 
 } // namespace nexus::quic::detail
