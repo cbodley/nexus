@@ -16,6 +16,8 @@
 * reify connection state machine
 * expose lsquic_conn_n_avail_streams()?
 * expose lsquic_conn_n_pending_streams/lsquic_conn_cancel_pending_streams?
+* option to pre-allocate stream_impls based on negotiated limits?
+* otherwise save closed streams and recycle them
 
 ## UDP
 
