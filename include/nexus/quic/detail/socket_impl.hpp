@@ -61,8 +61,10 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   void connect(connection_impl& c,
                const udp::endpoint& endpoint,
                const char* hostname);
+  void on_connect(connection_impl& c, lsquic_conn_t* conn);
 
   void accept(connection_impl& c, accept_operation& op);
+  connection_impl* on_accept(lsquic_conn_t* conn);
 
   template <typename Connection, typename CompletionToken>
   decltype(auto) async_accept(Connection& conn,
@@ -80,6 +82,12 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   }
 
   void close();
+
+  void abort_connections(error_code ec);
+
+  void start_recv();
+  void on_readable();
+  void on_writeable();
 
   const lsquic_out_spec* send_packets(const lsquic_out_spec* begin,
                                       const lsquic_out_spec* end,

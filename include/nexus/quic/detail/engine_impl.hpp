@@ -38,10 +38,6 @@ struct engine_impl {
   void reschedule(std::unique_lock<std::mutex>& lock);
   void on_timer();
 
-  void start_recv(socket_impl& socket);
-  void on_readable(socket_impl& socket);
-  void on_writeable(socket_impl& socket);
-
   engine_impl(const asio::any_io_executor& ex, socket_impl* client,
               const settings* s, unsigned flags);
   ~engine_impl();
@@ -49,26 +45,9 @@ struct engine_impl {
   using executor_type = asio::any_io_executor;
   executor_type get_executor() const { return ex; }
 
-  // return the bound address
-  udp::endpoint local_endpoint(socket_impl& socket) const;
-
   void close();
 
-  // sockets
-  void listen(socket_impl& socket, int backlog);
-  void close(socket_impl& socket);
-
   int send_packets(const lsquic_out_spec *specs, unsigned n_specs);
-
-  // connections
-  void connect(connection_impl& c,
-               const udp::endpoint& endpoint,
-               const char* hostname);
-  void on_connect(connection_impl& c, lsquic_conn* conn);
-  void on_handshake(connection_impl& c, int status);
-
-  void accept(connection_impl& c, accept_operation& op);
-  connection_impl* on_accept(lsquic_conn* conn);
 
   stream_impl* on_new_stream(connection_impl& c, lsquic_stream* stream);
 };

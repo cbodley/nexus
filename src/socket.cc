@@ -64,24 +64,152 @@ socket_impl::executor_type socket_impl::get_executor() const
 
 void socket_impl::listen(int backlog)
 {
-  engine.listen(*this, backlog);
+  auto lock = std::unique_lock{engine.mutex};
+  incoming_connections.set_capacity(backlog);
+  start_recv();
 }
 
 void socket_impl::connect(connection_impl& c,
                           const udp::endpoint& endpoint,
                           const char* hostname)
 {
-  engine.connect(c, endpoint, hostname);
+  assert(&c.socket == this);
+  auto lock = std::unique_lock{engine.mutex};
+  auto peer_ctx = this;
+  auto cctx = reinterpret_cast<lsquic_conn_ctx_t*>(&c);
+  ::lsquic_engine_connect(engine.handle.get(), N_LSQVER,
+      local_addr.data(), endpoint.data(), peer_ctx, cctx,
+      hostname, 0, nullptr, 0, nullptr, 0);
+  // note, this assert triggers with some quic versions that don't allow
+  // multiple connections on the same address, see lquic's hash_conns_by_addr()
+  assert(connection_state::is_open(c.state));
+  engine.process(lock);
+  start_recv();
+}
+
+void socket_impl::on_connect(connection_impl& c, lsquic_conn_t* conn)
+{
+  connection_state::on_connect(c.state, conn);
+  open_connections.push_back(c);
 }
 
 void socket_impl::accept(connection_impl& c, accept_operation& op)
 {
-  engine.accept(c, op);
+  auto lock = std::unique_lock{engine.mutex};
+  if (!incoming_connections.empty()) {
+    auto handle = incoming_connections.front();
+    incoming_connections.pop_front();
+    open_connections.push_back(c);
+    auto ctx = reinterpret_cast<lsquic_conn_ctx_t*>(&c);
+    ::lsquic_conn_set_ctx(handle, ctx);
+    connection_state::accept_incoming(c.state, handle);
+    op.post(error_code{}); // success
+    return;
+  }
+  connection_state::accept(c.state, op);
+  accepting_connections.push_back(c);
+  engine.process(lock);
+}
+
+connection_impl* socket_impl::on_accept(lsquic_conn_t* conn)
+{
+  if (accepting_connections.empty()) {
+    // not waiting on accept, try to queue this for later
+    if (incoming_connections.full()) {
+      ::lsquic_conn_close(conn);
+    } else {
+      incoming_connections.push_back(conn);
+    }
+    return nullptr;
+  }
+  auto& c = accepting_connections.front();
+  list_transfer(c, accepting_connections, open_connections);
+
+  connection_state::on_accept(c.state, conn);
+  return &c;
+}
+
+void socket_impl::abort_connections(error_code ec)
+{
+  // close incoming streams that we haven't accepted yet
+  while (!incoming_connections.empty()) {
+    auto conn = incoming_connections.front();
+    incoming_connections.pop_front();
+    ::lsquic_conn_close(conn);
+  }
+  // close open connections on this socket
+  while (!open_connections.empty()) {
+    auto& c = open_connections.front();
+    open_connections.pop_front();
+    connection_state::reset(c.state, ec);
+  }
+  // cancel connections pending accept
+  while (!accepting_connections.empty()) {
+    auto& c = accepting_connections.front();
+    accepting_connections.pop_front();
+    connection_state::reset(c.state, ec);
+  }
 }
 
 void socket_impl::close()
 {
-  engine.close(*this);
+  auto lock = std::unique_lock{engine.mutex};
+  abort_connections(make_error_code(connection_error::aborted));
+  // send any CONNECTION_CLOSE frames before closing the socket
+  engine.process(lock);
+  receiving = false;
+  socket.close();
+}
+
+void socket_impl::start_recv()
+{
+  if (receiving) {
+    return;
+  }
+  receiving = true;
+  socket.async_wait(udp::socket::wait_read,
+      [this] (error_code ec) {
+        receiving = false;
+        if (!ec) {
+          on_readable();
+        } // XXX: else fatal? retry?
+      });
+}
+
+void socket_impl::on_readable()
+{
+  std::array<unsigned char, 4096> buffer;
+  iovec iov;
+  iov.iov_base = buffer.data();
+  iov.iov_len = buffer.size();
+
+  error_code ec;
+  for (;;) {
+    udp::endpoint peer;
+    sockaddr_union self;
+    int ecn = 0;
+
+    const auto bytes = recv_packet(iov, peer, self, ecn, ec);
+    if (ec) {
+      if (ec == errc::resource_unavailable_try_again ||
+          ec == errc::operation_would_block) {
+        start_recv();
+      } // XXX: else fatal? retry?
+      return;
+    }
+
+    auto lock = std::unique_lock{engine.mutex};
+    const auto peer_ctx = this;
+    ::lsquic_engine_packet_in(engine.handle.get(), buffer.data(), bytes,
+                              &self.addr, peer.data(), peer_ctx, ecn);
+    engine.process(lock);
+  }
+}
+
+void socket_impl::on_writeable()
+{
+  auto lock = std::scoped_lock{engine.mutex};
+  ::lsquic_engine_send_unsent_packets(engine.handle.get());
 }
 
 auto socket_impl::send_packets(const lsquic_out_spec* begin,
@@ -131,6 +259,19 @@ auto socket_impl::send_packets(const lsquic_out_spec* begin,
     // TODO: send all at once with sendmmsg()
     if (::sendmsg(socket.native_handle(), &msg, 0) == -1) {
       ec.assign(errno, system_category());
+      if (ec == errc::resource_unavailable_try_again ||
+          ec == errc::operation_would_block) {
+        // lsquic won't call our send_packets() callback again until we call
+        // lsquic_engine_send_unsent_packets()
+        // wait for the socket to become writeable again, so we can call that
+        socket.async_wait(udp::socket::wait_write,
+            [this] (error_code ec) {
+              if (!ec) {
+                on_writeable();
+              } // else fatal?
+            });
+        errno = ec.value(); // lsquic needs to see this errno
+      }
       break;
     }
   }

@@ -46,7 +46,7 @@ void client::connect(connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
-  engine.connect(conn.impl, endpoint, hostname);
+  socket.connect(conn.impl, endpoint, hostname);
 }
 
 void client::close()
@@ -100,7 +100,7 @@ void client::connect(client_connection& conn,
                      const udp::endpoint& endpoint,
                      const char* hostname)
 {
-  engine.connect(conn.impl, endpoint, hostname);
+  socket.connect(conn.impl, endpoint, hostname);
 }
 
 void client::close()
