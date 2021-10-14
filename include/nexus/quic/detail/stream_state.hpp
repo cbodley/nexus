@@ -7,8 +7,8 @@ struct lsquic_stream;
 
 namespace nexus::quic::detail {
 
-struct stream_impl;
 struct connection_impl;
+struct stream_impl;
 
 namespace sending_stream_state {
 
