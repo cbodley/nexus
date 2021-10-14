@@ -1,7 +1,7 @@
 #pragma once
 
 #include <variant>
-#include <nexus/quic/detail/operation.hpp>
+#include <nexus/error_code.hpp>
 
 struct lsquic_stream;
 
@@ -10,6 +10,15 @@ namespace nexus::quic::detail {
 struct connection_impl;
 struct stream_impl;
 
+struct stream_header_read_operation;
+struct stream_header_write_operation;
+struct stream_data_operation;
+struct stream_accept_operation;
+struct stream_connect_operation;
+struct stream_close_operation;
+
+/// state machine for the sending side of a quic stream. h3 streams start at the
+/// expecting_header state, and non-h3 streams start at expecting_body
 namespace sending_stream_state {
 
 using header_operation = stream_header_write_operation;
@@ -29,6 +38,7 @@ using variant = std::variant<expecting_header, header,
                              expecting_body, body,
                              shutdown>;
 
+// sending stream events
 void write_header(variant& state, lsquic_stream* handle, header_operation& op);
 void write_body(variant& state, lsquic_stream* handle, data_operation& op);
 void on_write_header(variant& state, lsquic_stream* handle);
@@ -39,6 +49,8 @@ void destroy(variant& state);
 
 } // namespace sending_stream_state
 
+/// state machine for the receiving side of a quic stream. h3 streams start at
+/// the expecting_header state, and non-h3 streams start at expecting_body
 namespace receiving_stream_state {
 
 using header_operation = stream_header_read_operation;
@@ -58,6 +70,7 @@ using variant = std::variant<expecting_header, header,
                              expecting_body, body,
                              shutdown>;
 
+// receiving stream events
 void read_header(variant& state, lsquic_stream* handle, header_operation* op);
 void read_body(variant& state, lsquic_stream* handle, data_operation* op);
 void on_read_header(variant& state, error_code ec);
@@ -68,6 +81,7 @@ void destroy(variant& state);
 
 } // namespace receiving_stream_state
 
+/// state machine for quic streams
 namespace stream_state {
 
 /// an incoming stream that has been received by the library, but has not been
@@ -130,6 +144,20 @@ struct closed {
 using variant = std::variant<incoming, accepting, connecting,
                              open, closing, error, closed>;
 
+/// stream state transitions (only those relevent to close)
+enum class transition {
+  none,
+  incoming_to_closed,
+  accepting_to_closed,
+  connecting_to_closed,
+  open_to_closing,
+  open_to_closed,
+  open_to_error,
+  closing_to_closed,
+  error_to_closed,
+};
+
+// stream events
 void connect(variant& state, stream_connect_operation& op);
 void on_connect(variant& state, stream_impl& s, lsquic_stream* handle);
 
@@ -149,18 +177,6 @@ void on_write(variant& state);
 void flush(variant& state, error_code& ec);
 void shutdown(variant& state, int how, error_code& ec);
 int cancel(variant& state, error_code ec);
-
-enum class transition {
-  none,
-  incoming_to_closed,
-  accepting_to_closed,
-  connecting_to_closed,
-  open_to_closing,
-  open_to_closed,
-  open_to_error,
-  closing_to_closed,
-  error_to_closed,
-};
 
 transition close(variant& state, stream_close_operation& op);
 transition on_close(variant& state);
