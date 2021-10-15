@@ -58,6 +58,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   executor_type get_executor() const { return ex; }
 
   bool is_open() const;
+  stream_id id(error_code& ec) const;
 
   void read_headers(stream_header_read_operation& op);
 

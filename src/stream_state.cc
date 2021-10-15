@@ -240,6 +240,24 @@ void destroy(variant& state)
 
 namespace stream_state {
 
+bool is_open(const variant& state)
+{
+  return std::holds_alternative<open>(state);
+}
+
+stream_id id(const variant& state, error_code& ec)
+{
+  stream_id sid = 0;
+  if (std::holds_alternative<open>(state)) {
+    auto& o = *std::get_if<open>(&state);
+    sid = ::lsquic_stream_id(&o.handle);
+    ec = error_code{};
+  } else {
+    ec = make_error_code(errc::not_connected);
+  }
+  return sid;
+}
+
 void connect(variant& state, stream_connect_operation& op)
 {
   assert(std::holds_alternative<closed>(state));

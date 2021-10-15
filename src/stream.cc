@@ -15,9 +15,19 @@ bool stream_impl::is_open() const
 {
   if (conn) {
     auto lock = std::unique_lock{conn->socket.engine.mutex};
-    return std::holds_alternative<stream_state::open>(state);
+    return stream_state::is_open(state);
   } else {
-    return std::holds_alternative<stream_state::open>(state);
+    return stream_state::is_open(state);
+  }
+}
+
+stream_id stream_impl::id(error_code& ec) const
+{
+  if (conn) {
+    auto lock = std::unique_lock{conn->socket.engine.mutex};
+    return stream_state::id(state, ec);
+  } else {
+    return stream_state::id(state, ec);
   }
 }
 
@@ -189,6 +199,26 @@ stream::executor_type stream::get_executor() const
 bool stream::is_open() const
 {
   return impl && impl->is_open();
+}
+
+stream_id stream::id(error_code& ec) const
+{
+  if (impl) {
+    return impl->id(ec);
+  } else {
+    ec = make_error_code(errc::not_connected);
+    return 0;
+  }
+}
+
+stream_id stream::id() const
+{
+  error_code ec;
+  auto sid = id(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return sid;
 }
 
 void stream::flush(error_code& ec)

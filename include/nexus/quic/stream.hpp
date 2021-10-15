@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <nexus/error_code.hpp>
+#include <nexus/quic/stream_id.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 
 namespace nexus::quic {
@@ -42,6 +43,12 @@ class stream {
 
   /// determine whether the stream is open
   bool is_open() const;
+
+  /// return the stream identifier if open. for streams initiated locally,
+  /// an identifier may not be assigned until the first STREAM frame is sent
+  stream_id id(error_code& ec) const;
+  /// \overload
+  stream_id id() const;
 
   /// read some bytes into the given buffer sequence
   template <typename MutableBufferSequence,

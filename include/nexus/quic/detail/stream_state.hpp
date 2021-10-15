@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <nexus/error_code.hpp>
+#include <nexus/quic/stream_id.hpp>
 
 struct lsquic_stream;
 
@@ -156,6 +157,10 @@ enum class transition {
   closing_to_closed,
   error_to_closed,
 };
+
+// stream accessors
+bool is_open(const variant& state);
+stream_id id(const variant& state, error_code& ec);
 
 // stream events
 void connect(variant& state, stream_connect_operation& op);
