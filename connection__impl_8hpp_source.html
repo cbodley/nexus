@@ -108,55 +108,53 @@ $(function() {
 <div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;  stream_impl* on_connect(lsquic_stream* stream);</div>
 <div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160; </div>
 <div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Stream, <span class="keyword">typename</span> CompletionToken&gt;</div>
-<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;  decltype(<span class="keyword">auto</span>) async_connect(CompletionToken&amp;&amp; token) {</div>
-<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;    <span class="keywordflow">return</span> asio::async_initiate&lt;CompletionToken, void(error_code, Stream)&gt;(</div>
-<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;        [<span class="keyword">this</span>] (<span class="keyword">auto</span> handler) {</div>
-<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;          <span class="keyword">using</span> Handler = std::decay_t&lt;decltype(handler)&gt;;</div>
-<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;          <span class="keyword">using</span> StreamHandler = stream_open_handler&lt;Stream, Handler&gt;;</div>
-<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;          <span class="keyword">auto</span> h = StreamHandler{std::move(handler)};</div>
-<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;          <span class="keyword">using</span> op_type = stream_connect_async&lt;StreamHandler, executor_type&gt;;</div>
-<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;          <span class="keyword">auto</span> p = handler_allocate&lt;op_type&gt;(h, std::move(h), get_executor());</div>
-<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;          <span class="keyword">auto</span> op = handler_ptr&lt;op_type, StreamHandler&gt;{p, &amp;p-&gt;handler};</div>
-<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;          connect(*op);</div>
-<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;          op.release(); <span class="comment">// release ownership</span></div>
-<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;        }, token);</div>
-<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;  }</div>
-<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160; </div>
-<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;  <span class="keywordtype">void</span> accept(stream_accept_operation&amp; op);</div>
-<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;  stream_impl* on_accept(lsquic_stream* stream);</div>
-<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160; </div>
-<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Stream, <span class="keyword">typename</span> CompletionToken&gt;</div>
-<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;  decltype(<span class="keyword">auto</span>) async_accept(CompletionToken&amp;&amp; token) {</div>
-<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;    <span class="keywordflow">return</span> asio::async_initiate&lt;CompletionToken, void(error_code, Stream)&gt;(</div>
-<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;        [<span class="keyword">this</span>] (<span class="keyword">auto</span> handler) {</div>
-<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;          <span class="keyword">using</span> Handler = std::decay_t&lt;decltype(handler)&gt;;</div>
-<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;          <span class="keyword">using</span> StreamHandler = stream_open_handler&lt;Stream, Handler&gt;;</div>
-<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;          <span class="keyword">auto</span> h = StreamHandler{std::move(handler)};</div>
-<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;          <span class="keyword">using</span> op_type = stream_accept_async&lt;StreamHandler, executor_type&gt;;</div>
-<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;          <span class="keyword">auto</span> p = handler_allocate&lt;op_type&gt;(h, std::move(h), get_executor());</div>
-<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;          <span class="keyword">auto</span> op = handler_ptr&lt;op_type, StreamHandler&gt;{p, &amp;p-&gt;handler};</div>
-<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;          accept(*op);</div>
-<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;          op.release(); <span class="comment">// release ownership</span></div>
-<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;        }, token);</div>
-<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;  }</div>
+<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;  decltype(<span class="keyword">auto</span>) async_connect(Stream&amp; stream, CompletionToken&amp;&amp; token) {</div>
+<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;    <span class="keyword">auto</span>&amp; s = stream.impl;</div>
+<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;    <span class="keywordflow">return</span> asio::async_initiate&lt;CompletionToken, void(error_code)&gt;(</div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;        [<span class="keyword">this</span>, &amp;s] (<span class="keyword">auto</span> h) {</div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;          <span class="keyword">using</span> Handler = std::decay_t&lt;decltype(h)&gt;;</div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;          <span class="keyword">using</span> op_type = stream_connect_async&lt;Handler, executor_type&gt;;</div>
+<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;          <span class="keyword">auto</span> p = handler_allocate&lt;op_type&gt;(h, std::move(h), get_executor(), s);</div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;          <span class="keyword">auto</span> op = handler_ptr&lt;op_type, Handler&gt;{p, &amp;p-&gt;handler};</div>
+<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;          connect(*op);</div>
+<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;          op.release(); <span class="comment">// release ownership</span></div>
+<div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;        }, token);</div>
+<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;  }</div>
+<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160; </div>
+<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;  <span class="keywordtype">void</span> accept(stream_accept_operation&amp; op);</div>
+<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;  stream_impl* on_accept(lsquic_stream* stream);</div>
+<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160; </div>
+<div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Stream, <span class="keyword">typename</span> CompletionToken&gt;</div>
+<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;  decltype(<span class="keyword">auto</span>) async_accept(Stream&amp; stream, CompletionToken&amp;&amp; token) {</div>
+<div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;    <span class="keyword">auto</span>&amp; s = stream.impl;</div>
+<div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;    <span class="keywordflow">return</span> asio::async_initiate&lt;CompletionToken, void(error_code)&gt;(</div>
+<div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;        [<span class="keyword">this</span>, &amp;s] (<span class="keyword">auto</span> h) {</div>
+<div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;          <span class="keyword">using</span> Handler = std::decay_t&lt;decltype(h)&gt;;</div>
+<div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;          <span class="keyword">using</span> op_type = stream_accept_async&lt;Handler, executor_type&gt;;</div>
+<div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;          <span class="keyword">auto</span> p = handler_allocate&lt;op_type&gt;(h, std::move(h), get_executor(), s);</div>
+<div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;          <span class="keyword">auto</span> op = handler_ptr&lt;op_type, Handler&gt;{p, &amp;p-&gt;handler};</div>
+<div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;          accept(*op);</div>
+<div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;          op.release(); <span class="comment">// release ownership</span></div>
+<div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;        }, token);</div>
+<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;  }</div>
+<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160; </div>
+<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;  <span class="keywordtype">bool</span> is_open() <span class="keyword">const</span>;</div>
 <div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160; </div>
-<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;  <span class="keywordtype">bool</span> is_open() <span class="keyword">const</span>;</div>
+<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;  <span class="keywordtype">void</span> close(error_code&amp; ec);</div>
 <div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160; </div>
-<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;  <span class="keywordtype">void</span> close(error_code&amp; ec);</div>
-<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160; </div>
-<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;  <span class="keywordtype">void</span> on_close();</div>
-<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;  <span class="keywordtype">void</span> on_handshake(<span class="keywordtype">int</span> status);</div>
-<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;  <span class="keywordtype">void</span> on_conncloseframe(<span class="keywordtype">int</span> app_error, uint64_t code);</div>
-<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160; </div>
-<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;  <span class="keywordtype">void</span> on_incoming_stream_closed(stream_impl&amp; s);</div>
-<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;  <span class="keywordtype">void</span> on_accepting_stream_closed(stream_impl&amp; s);</div>
-<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;  <span class="keywordtype">void</span> on_connecting_stream_closed(stream_impl&amp; s);</div>
-<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;  <span class="keywordtype">void</span> on_open_stream_closing(stream_impl&amp; s);</div>
-<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;  <span class="keywordtype">void</span> on_open_stream_closed(stream_impl&amp; s);</div>
-<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160;  <span class="keywordtype">void</span> on_closing_stream_closed(stream_impl&amp; s);</div>
-<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;};</div>
-<div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160; </div>
-<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;} <span class="comment">// namespace nexus::quic::detail</span></div>
+<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;  <span class="keywordtype">void</span> on_close();</div>
+<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;  <span class="keywordtype">void</span> on_handshake(<span class="keywordtype">int</span> status);</div>
+<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;  <span class="keywordtype">void</span> on_conncloseframe(<span class="keywordtype">int</span> app_error, uint64_t code);</div>
+<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160; </div>
+<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;  <span class="keywordtype">void</span> on_incoming_stream_closed(stream_impl&amp; s);</div>
+<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;  <span class="keywordtype">void</span> on_accepting_stream_closed(stream_impl&amp; s);</div>
+<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;  <span class="keywordtype">void</span> on_connecting_stream_closed(stream_impl&amp; s);</div>
+<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;  <span class="keywordtype">void</span> on_open_stream_closing(stream_impl&amp; s);</div>
+<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;  <span class="keywordtype">void</span> on_open_stream_closed(stream_impl&amp; s);</div>
+<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;  <span class="keywordtype">void</span> on_closing_stream_closed(stream_impl&amp; s);</div>
+<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;};</div>
+<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160; </div>
+<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;} <span class="comment">// namespace nexus::quic::detail</span></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
