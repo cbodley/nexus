@@ -3,14 +3,9 @@
 #include <memory>
 #include <mutex>
 
-#include <asio/basic_waitable_timer.hpp>
-#include <boost/intrusive/list.hpp>
+#include <asio/steady_timer.hpp>
 
-#include <nexus/error_code.hpp>
-#include <nexus/udp.hpp>
 #include <nexus/quic/settings.hpp>
-#include <nexus/quic/detail/operation.hpp>
-#include <nexus/quic/detail/socket_impl.hpp>
 
 struct lsquic_engine;
 struct lsquic_conn;
@@ -21,6 +16,7 @@ namespace nexus::quic::detail {
 
 struct connection_impl;
 struct stream_impl;
+struct socket_impl;
 
 struct engine_deleter { void operator()(lsquic_engine* e) const; };
 using lsquic_engine_ptr = std::unique_ptr<lsquic_engine, engine_deleter>;
