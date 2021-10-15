@@ -17,12 +17,6 @@ const error_code ok;
 auto capture(std::optional<error_code>& ec) {
   return [&] (error_code e, size_t = 0) { ec = e; };
 }
-auto capture(std::optional<error_code>& ec, quic::stream& stream) {
-  return [&] (error_code e, quic::stream&& s) {
-    ec = e;
-    stream = std::move(s);
-  };
-}
 
 void test_stream_connect_during_handshake(asio::io_context& context,
                                           quic::connection& cconn,
@@ -31,8 +25,8 @@ void test_stream_connect_during_handshake(asio::io_context& context,
   // start a pending async_connect() before the handshake initiates, and test
   // that the handshake error is delivered to the pending operation
   std::optional<error_code> connect1_ec;
-  quic::stream cstream1;
-  cconn.async_connect(capture(connect1_ec, cstream1));
+  auto cstream1 = quic::stream{cconn};
+  cconn.async_connect(cstream1, capture(connect1_ec));
 
   // TODO: assert connection handshake has not finished
   context.poll();
@@ -43,8 +37,8 @@ void test_stream_connect_during_handshake(asio::io_context& context,
   // the handshake error was already delivered; test that another
   // async_connect() call does not see it
   std::optional<error_code> connect2_ec;
-  quic::stream cstream2;
-  cconn.async_connect(capture(connect2_ec, cstream2));
+  auto cstream2 = quic::stream{cconn};
+  cconn.async_connect(cstream2, capture(connect2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -64,8 +58,8 @@ void test_stream_connect_after_handshake(asio::io_context& context,
 
   // test that the stored handshake error gets delivered to async_connect()
   std::optional<error_code> connect1_ec;
-  quic::stream cstream1;
-  cconn.async_connect(capture(connect1_ec, cstream1));
+  auto cstream1 = quic::stream{cconn};
+  cconn.async_connect(cstream1, capture(connect1_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -75,8 +69,8 @@ void test_stream_connect_after_handshake(asio::io_context& context,
   // the handshake error was already delivered; test that another
   // async_connect() call does not see it
   std::optional<error_code> connect2_ec;
-  quic::stream cstream2;
-  cconn.async_connect(capture(connect2_ec, cstream2));
+  auto cstream2 = quic::stream{cconn};
+  cconn.async_connect(cstream2, capture(connect2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -91,8 +85,8 @@ void test_stream_accept_during_handshake(asio::io_context& context,
   // start a pending async_accept() before the handshake initiates, and test
   // that the handshake error is delivered to the pending operation
   std::optional<error_code> accept1_ec;
-  quic::stream cstream1;
-  cconn.async_accept(capture(accept1_ec, cstream1));
+  auto cstream1 = quic::stream{cconn};
+  cconn.async_accept(cstream1, capture(accept1_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -102,8 +96,8 @@ void test_stream_accept_during_handshake(asio::io_context& context,
   // the handshake error was already delivered; test that another
   // async_accept() call does not see it
   std::optional<error_code> accept2_ec;
-  quic::stream cstream2;
-  cconn.async_accept(capture(accept2_ec, cstream2));
+  auto cstream2 = quic::stream{cconn};
+  cconn.async_accept(cstream2, capture(accept2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -123,8 +117,8 @@ void test_stream_accept_after_handshake(asio::io_context& context,
 
   // test that the stored handshake error gets delivered to async_accept()
   std::optional<error_code> accept1_ec;
-  quic::stream cstream1;
-  cconn.async_accept(capture(accept1_ec, cstream1));
+  auto cstream1 = quic::stream{cconn};
+  cconn.async_accept(cstream1, capture(accept1_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -134,8 +128,8 @@ void test_stream_accept_after_handshake(asio::io_context& context,
   // the handshake error was already delivered; test that another
   // async_accept() call does not see it
   std::optional<error_code> accept2_ec;
-  quic::stream cstream2;
-  cconn.async_accept(capture(accept2_ec, cstream2));
+  auto cstream2 = quic::stream{cconn};
+  cconn.async_accept(cstream2, capture(accept2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -283,8 +277,8 @@ class BadVerifyClient : public testing::Test {
 TEST_F(BadVerifyClient, stream_connect_during_handshake)
 {
   std::optional<error_code> connect_ec;
-  quic::stream cstream;
-  cconn.async_connect(capture(connect_ec, cstream));
+  auto cstream = quic::stream{cconn};
+  cconn.async_connect(cstream, capture(connect_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());

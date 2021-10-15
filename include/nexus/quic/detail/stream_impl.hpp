@@ -15,13 +15,14 @@ namespace nexus {
 namespace quic::detail {
 
 struct connection_impl;
+struct engine_impl;
 
 struct stream_impl : public boost::intrusive::list_base_hook<>,
                      public service_list_base_hook {
   using executor_type = asio::any_io_executor;
+  engine_impl& engine;
   service<stream_impl>& svc;
-  executor_type ex;
-  connection_impl* conn;
+  connection_impl& conn;
   stream_state::variant state;
 
   template <typename BufferSequence>
@@ -36,26 +37,12 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
     }
   }
 
-  stream_impl(const executor_type& ex, connection_impl* conn)
-      : svc(asio::use_service<service<stream_impl>>(
-              asio::query(ex, asio::execution::context))),
-        ex(ex), conn(conn), state(stream_state::closed{})
-  {
-    // register for service_shutdown() notifications
-    svc.add(*this);
-  }
-  ~stream_impl()
-  {
-    svc.remove(*this);
-  }
+  explicit stream_impl(connection_impl& conn);
+  ~stream_impl();
 
-  void service_shutdown()
-  {
-    // destroy any pending operations
-    stream_state::destroy(state);
-  }
+  void service_shutdown();
 
-  executor_type get_executor() const { return ex; }
+  executor_type get_executor() const;
 
   bool is_open() const;
   stream_id id(error_code& ec) const;

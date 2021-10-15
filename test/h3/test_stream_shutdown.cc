@@ -17,12 +17,6 @@ const error_code ok;
 auto capture(std::optional<error_code>& ec) {
   return [&] (error_code e, size_t = 0) { ec = e; };
 }
-auto capture(std::optional<error_code>& ec, h3::stream& stream) {
-  return [&] (error_code e, h3::stream s) {
-    ec = e;
-    stream = std::move(s);
-  };
-}
 
 } // anonymous namespace
 
@@ -49,18 +43,18 @@ class Stream : public testing::Test {
   asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
   h3::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   h3::server_connection sconn{acceptor};
-  h3::stream sstream;
+  h3::stream sstream{sconn};
 
   h3::client client{context.get_executor(), udp::endpoint{}, sslc};
   h3::client_connection cconn{client, acceptor.local_endpoint(), "host"};
-  h3::stream cstream;
+  h3::stream cstream{cconn};
 
   void SetUp() override
   {
     acceptor.listen(16);
 
     std::optional<error_code> cstream_connect_ec;
-    cconn.async_connect(capture(cstream_connect_ec, cstream));
+    cconn.async_connect(cstream, capture(cstream_connect_ec));
 
     context.poll();
     ASSERT_FALSE(context.stopped());
@@ -76,7 +70,7 @@ class Stream : public testing::Test {
     EXPECT_EQ(ok, *accept_ec);
 
     std::optional<error_code> sstream_accept_ec;
-    sconn.async_accept(capture(sstream_accept_ec, sstream));
+    sconn.async_accept(sstream, capture(sstream_accept_ec));
 
     // the server won't see this stream until we write a packet for it
     std::optional<error_code> cstream_write_headers_ec;
@@ -271,8 +265,8 @@ TEST_F(Stream, shutdown_pending_write_headers)
 
   // open another stream to block on async_write_headers()
   std::optional<error_code> cstream2_connect_ec;
-  auto cstream2 = h3::stream{};
-  cconn.async_connect(capture(cstream2_connect_ec, cstream2));
+  auto cstream2 = h3::stream{cconn};
+  cconn.async_connect(cstream2, capture(cstream2_connect_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());

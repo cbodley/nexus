@@ -56,44 +56,38 @@ udp::endpoint connection::remote_endpoint() const
   return e;
 }
 
-stream connection::connect(error_code& ec)
+void connection::connect(stream& s, error_code& ec)
 {
-  detail::stream_connect_sync op;
+  auto op = detail::stream_connect_sync{s.impl};
   impl.connect(op);
   op.wait();
   ec = std::get<0>(*op.result);
-  return detail::stream_factory<stream>::create(
-      std::get<1>(std::move(*op.result)));
 }
 
-stream connection::connect()
+void connection::connect(stream& s)
 {
   error_code ec;
-  auto s = connect(ec);
+  connect(s, ec);
   if (ec) {
     throw system_error(ec);
   }
-  return s;
 }
 
-stream connection::accept(error_code& ec)
+void connection::accept(stream& s, error_code& ec)
 {
-  detail::stream_accept_sync op;
+  auto op = detail::stream_accept_sync{s.impl};
   impl.accept(op);
   op.wait();
   ec = std::get<0>(*op.result);
-  return detail::stream_factory<stream>::create(
-      std::get<1>(std::move(*op.result)));
 }
 
-stream connection::accept()
+void connection::accept(stream& s)
 {
   error_code ec;
-  auto s = accept(ec);
+  accept(s, ec);
   if (ec) {
     throw system_error(ec);
   }
-  return s;
 }
 
 void connection::close(error_code& ec)
@@ -161,27 +155,25 @@ udp::endpoint connection_impl::remote_endpoint(error_code& ec) const
 void connection_impl::connect(stream_connect_operation& op)
 {
   auto lock = std::unique_lock{socket.engine.mutex};
-  if (connection_state::stream_connect(state, op, get_executor(), this)) {
+  if (connection_state::stream_connect(state, op)) {
     socket.engine.process(lock);
   }
 }
 
 stream_impl* connection_impl::on_connect(lsquic_stream_t* stream)
 {
-  return connection_state::on_stream_connect(state, stream);
+  return connection_state::on_stream_connect(state, stream, socket.engine.is_http);
 }
 
 void connection_impl::accept(stream_accept_operation& op)
 {
   auto lock = std::unique_lock{socket.engine.mutex};
-  connection_state::stream_accept(state, op, socket.engine.is_http,
-                                  get_executor(), this);
+  connection_state::stream_accept(state, op, socket.engine.is_http);
 }
 
 stream_impl* connection_impl::on_accept(lsquic_stream* stream)
 {
-  return connection_state::on_stream_accept(state, stream,
-                                            get_executor(), this);
+  return connection_state::on_stream_accept(state, stream, socket.engine.is_http);
 }
 
 void connection_impl::close(error_code& ec)
@@ -233,14 +225,6 @@ void connection_impl::on_conncloseframe(int app_error, uint64_t code)
   if (t == connection_state::transition::open_to_error ||
       t == connection_state::transition::open_to_closed) {
     list_erase(*this, socket.open_connections);
-  }
-}
-
-void connection_impl::on_incoming_stream_closed(stream_impl& s)
-{
-  if (std::holds_alternative<connection_state::open>(state)) {
-    auto& o = *std::get_if<connection_state::open>(&state);
-    list_erase(s, o.incoming_streams);
   }
 }
 

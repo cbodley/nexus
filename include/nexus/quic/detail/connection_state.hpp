@@ -1,6 +1,7 @@
 #pragma once
 
 #include <variant>
+#include <boost/circular_buffer.hpp>
 #include <boost/intrusive/list.hpp>
 #include <nexus/quic/connection_id.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
@@ -10,8 +11,6 @@
 struct lsquic_conn;
 
 namespace nexus::quic::detail {
-
-struct connection_impl;
 
 struct accept_operation;
 struct stream_accept_operation;
@@ -42,11 +41,9 @@ struct accepting {
 /// the connection is open and ready to initiate and accept streams
 struct open {
   lsquic_conn& handle;
-  // maintain ownership of incoming/connecting/accepting streams
-  stream_list incoming_streams;
+  boost::circular_buffer<lsquic_stream*> incoming_streams;
   stream_list connecting_streams;
   stream_list accepting_streams;
-  // open/closing streams are owned by a quic::stream or h3::stream
   stream_list open_streams;
   stream_list closing_streams;
   // handshake errors are stored here until they can be delivered on close
@@ -90,15 +87,13 @@ void accept(variant& state, accept_operation& op);
 void accept_incoming(variant& state, lsquic_conn* handle);
 void on_accept(variant& state, lsquic_conn* handle);
 
-bool stream_connect(variant& state, stream_connect_operation& op,
-                    const stream_impl::executor_type& ex, connection_impl* c);
-stream_impl* on_stream_connect(variant& state, lsquic_stream_t* handle);
+bool stream_connect(variant& state, stream_connect_operation& op);
+stream_impl* on_stream_connect(variant& state, lsquic_stream_t* handle,
+                               bool is_http);
 
-void stream_accept(variant& state, stream_accept_operation& op, bool is_http,
-                   const stream_impl::executor_type& ex, connection_impl* c);
+void stream_accept(variant& state, stream_accept_operation& op, bool is_http);
 stream_impl* on_stream_accept(variant& state, lsquic_stream* handle,
-                              const stream_impl::executor_type& ex,
-                              connection_impl* c);
+                              bool is_http);
 
 transition reset(variant& state, error_code ec);
 transition close(variant& state, error_code& ec);

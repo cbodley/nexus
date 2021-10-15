@@ -50,23 +50,23 @@ class connection {
 
   /// open an outgoing stream
   template <typename CompletionToken> // void(error_code, stream)
-  decltype(auto) async_connect(CompletionToken&& token) {
-    return impl.async_connect<stream>(std::forward<CompletionToken>(token));
+  decltype(auto) async_connect(stream& s, CompletionToken&& token) {
+    return impl.async_connect<stream>(s, std::forward<CompletionToken>(token));
   }
   /// \overload
-  stream connect(error_code& ec);
+  void connect(stream& s, error_code& ec);
   /// \overload
-  stream connect();
+  void connect(stream& s);
 
   /// accept an incoming stream
   template <typename CompletionToken> // void(error_code, stream)
-  decltype(auto) async_accept(CompletionToken&& token) {
-    return impl.async_accept<stream>(std::forward<CompletionToken>(token));
+  decltype(auto) async_accept(stream& s, CompletionToken&& token) {
+    return impl.async_accept<stream>(s, std::forward<CompletionToken>(token));
   }
   /// \overload
-  stream accept(error_code& ec);
+  void accept(stream& s, error_code& ec);
   /// \overload
-  stream accept();
+  void accept(stream& s);
 
   /// close the connection, along with any related streams
   void close(error_code& ec);

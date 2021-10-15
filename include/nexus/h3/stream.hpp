@@ -12,13 +12,20 @@ class server_connection;
 /// meets the type requirements of asio's AsyncRead/WriteStream and
 /// SyncRead/WriteStream for transferring the HTTP message body
 class stream : public quic::stream {
-  friend class quic::detail::stream_factory<stream>;
+  friend class client_connection;
+  friend class server_connection;
   using quic::stream::stream;
  public:
+  /// construct a stream associated with the given client connection
+  explicit stream(client_connection& conn);
+
+  /// construct a stream associated with the given server connection
+  explicit stream(server_connection& conn);
+
   /// read headers from the stream
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_read_headers(fields& f, CompletionToken&& token) {
-    return impl->async_read_headers(f, std::forward<CompletionToken>(token));
+    return impl.async_read_headers(f, std::forward<CompletionToken>(token));
   }
 
   /// read headers from the stream
@@ -29,7 +36,7 @@ class stream : public quic::stream {
   /// write headers to the stream
   template <typename CompletionToken> // void(error_code)
   decltype(auto) async_write_headers(const fields& f, CompletionToken&& token) {
-    return impl->async_write_headers(f, std::forward<CompletionToken>(token));
+    return impl.async_write_headers(f, std::forward<CompletionToken>(token));
   }
 
   /// write headers to the stream

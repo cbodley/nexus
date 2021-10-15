@@ -85,14 +85,6 @@ void destroy(variant& state);
 /// state machine for quic streams
 namespace stream_state {
 
-/// an incoming stream that has been received by the library, but has not been
-/// requested by the application via accept()
-struct incoming {
-  lsquic_stream& handle;
-
-  explicit incoming(lsquic_stream& handle) noexcept : handle(handle) {}
-};
-
 /// the application has requested to accept() a stream, but no incoming stream
 /// has been received yet to satisfy the request
 struct accepting {
@@ -142,13 +134,12 @@ struct error {
 struct closed {
 };
 
-using variant = std::variant<incoming, accepting, connecting,
-                             open, closing, error, closed>;
+using variant = std::variant<accepting, connecting, open,
+                             closing, error, closed>;
 
 /// stream state transitions (only those relevent to close)
 enum class transition {
   none,
-  incoming_to_closed,
   accepting_to_closed,
   connecting_to_closed,
   open_to_closing,
@@ -164,12 +155,10 @@ stream_id id(const variant& state, error_code& ec);
 
 // stream events
 void connect(variant& state, stream_connect_operation& op);
-void on_connect(variant& state, stream_impl& s, lsquic_stream* handle);
+void on_connect(variant& state, lsquic_stream* handle, bool is_http);
 
 void accept(variant& state, stream_accept_operation& op);
-void on_incoming(variant& state, lsquic_stream* handle);
-void accept_incoming(variant& state, bool is_http);
-void on_accept(variant& state, stream_impl& s, lsquic_stream* handle);
+void on_accept(variant& state, lsquic_stream* handle, bool is_http);
 
 bool read(variant& state, stream_data_operation& op);
 bool read_headers(variant& state, stream_header_read_operation& op);

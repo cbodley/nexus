@@ -69,9 +69,8 @@ struct echo_stream : ref_counter<echo_stream> {
   std::ostream& output;
   buffer_type readbuf;
   buffer_type writebuf;
-  echo_stream(connection_ptr conn, nexus::quic::stream&& stream,
-              const char* filename, std::ostream& output)
-      : conn(std::move(conn)), stream(std::move(stream)),
+  echo_stream(connection_ptr conn, const char* filename, std::ostream& output)
+      : conn(std::move(conn)), stream(this->conn->conn),
         input(filename), output(output)
   {}
 };
@@ -143,15 +142,15 @@ int main(int argc, char** argv)
 
   // connect a stream for each input file
   for (auto f = cfg.files_begin; f != cfg.files_end; ++f) {
-    conn->conn.async_connect([conn, f] (error_code ec, nexus::quic::stream s) {
-        auto stream = stream_ptr{new echo_stream(conn, std::move(s),
-                                                 *f, std::cout)};
+    auto s = stream_ptr{new echo_stream(conn, *f, std::cout)};
+    auto& stream = s->stream;
+    conn->conn.async_connect(stream, [s=std::move(s)] (error_code ec) {
         if (ec) {
           std::cerr << "async_connect failed with " << ec.message() << '\n';
           return;
         }
-        write_file(stream);
-        read_file(std::move(stream));
+        write_file(s);
+        read_file(std::move(s));
       });
   }
   conn.reset(); // let the connection close once all streams are done

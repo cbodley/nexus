@@ -180,11 +180,12 @@ using accept_async = async_operation<accept_operation, Handler, IoExecutor>;
 
 
 // stream connection
-struct stream_connect_operation :
-    operation<error_code, std::unique_ptr<stream_impl>> {
+struct stream_connect_operation : operation<error_code> {
+  stream_impl& stream;
 
-  explicit stream_connect_operation(complete_fn complete) noexcept
-      : operation(complete)
+  explicit stream_connect_operation(complete_fn complete,
+                                    stream_impl& stream) noexcept
+      : operation(complete), stream(stream)
   {}
 };
 using stream_connect_sync = sync_operation<stream_connect_operation>;
@@ -195,11 +196,12 @@ using stream_connect_async = async_operation<
 
 
 // stream accept
-struct stream_accept_operation :
-    operation<error_code, std::unique_ptr<stream_impl>> {
+struct stream_accept_operation : operation<error_code> {
+  stream_impl& stream;
 
-  explicit stream_accept_operation(complete_fn complete) noexcept
-      : operation(complete)
+  explicit stream_accept_operation(complete_fn complete,
+                                   stream_impl& stream) noexcept
+      : operation(complete), stream(stream)
   {}
 };
 using stream_accept_sync = sync_operation<stream_accept_operation>;

@@ -264,12 +264,11 @@ void connect(variant& state, stream_connect_operation& op)
   state = connecting{&op};
 }
 
-void on_connect(variant& state, stream_impl& s, lsquic_stream* handle)
+void on_connect(variant& state, lsquic_stream* handle, bool is_http)
 {
   assert(std::holds_alternative<connecting>(state));
-  std::get_if<connecting>(&state)->op->defer(error_code{}, &s);
-  assert(s.conn);
-  if (s.conn->socket.engine.is_http) {
+  std::get_if<connecting>(&state)->op->defer(error_code{});
+  if (is_http) {
     state.emplace<open>(*handle, open::h3_tag{});
   } else {
     state.emplace<open>(*handle, open::quic_tag{});
@@ -282,30 +281,14 @@ void accept(variant& state, stream_accept_operation& op)
   state = accepting{&op};
 }
 
-void on_incoming(variant& state, lsquic_stream* handle)
+void on_accept(variant& state, lsquic_stream* handle, bool is_http)
 {
-  assert(std::holds_alternative<closed>(state));
-  assert(handle);
-  state.emplace<incoming>(*handle);
-}
-
-void accept_incoming(variant& state, bool is_http)
-{
-  assert(std::holds_alternative<incoming>(state));
-  auto handle = &std::get_if<incoming>(&state)->handle;
-  if (is_http) {
-    state.emplace<open>(*handle, open::h3_tag{});
-  } else {
-    state.emplace<open>(*handle, open::quic_tag{});
+  if (std::holds_alternative<accepting>(state)) {
+    std::get_if<accepting>(&state)->op->defer(error_code{});
+  } else { // accept() found an incoming stream
+    assert(std::holds_alternative<closed>(state));
   }
-}
-
-void on_accept(variant& state, stream_impl& s, lsquic_stream* handle)
-{
-  assert(std::holds_alternative<accepting>(state));
-  std::get_if<accepting>(&state)->op->defer(error_code{}, &s);
-  assert(s.conn);
-  if (s.conn->socket.engine.is_http) {
+  if (is_http) {
     state.emplace<open>(*handle, open::h3_tag{});
   } else {
     state.emplace<open>(*handle, open::quic_tag{});
@@ -460,7 +443,6 @@ transition close(variant& state, stream_close_operation& op)
     return transition::error_to_closed;
   }
   if (!std::holds_alternative<open>(state)) {
-    assert(!std::holds_alternative<incoming>(state)); // not visible yet
     assert(!std::holds_alternative<accepting>(state)); // not visible yet
     assert(!std::holds_alternative<connecting>(state)); // not visible yet
     op.post(make_error_code(errc::not_connected));
@@ -479,10 +461,6 @@ transition close(variant& state, stream_close_operation& op)
 
 transition on_close(variant& state)
 {
-  if (std::holds_alternative<incoming>(state)) {
-    state = closed{};
-    return transition::incoming_to_closed;
-  }
   if (std::holds_alternative<closing>(state)) {
     std::get_if<closing>(&state)->op->defer(error_code{});
     state = closed{};
@@ -503,20 +481,16 @@ transition on_close(variant& state)
 
 transition on_error(variant& state, error_code ec)
 {
-  if (std::holds_alternative<incoming>(state)) {
-    state = closed{};
-    return transition::incoming_to_closed;
-  }
   if (std::holds_alternative<accepting>(state)) {
     if (auto op = std::get_if<accepting>(&state)->op; op) { // maybe destroy()ed
-      op->defer(ec, nullptr);
+      op->defer(ec);
     }
     state = closed{};
     return transition::accepting_to_closed;
   }
   if (std::holds_alternative<connecting>(state)) {
     if (auto op = std::get_if<connecting>(&state)->op; op) { // maybe destroy()ed
-      op->defer(ec, nullptr);
+      op->defer(ec);
     }
     state = closed{};
     return transition::connecting_to_closed;
@@ -547,22 +521,16 @@ transition on_error(variant& state, error_code ec)
 transition reset(variant& state)
 {
   const auto ec = make_error_code(stream_error::aborted);
-  if (std::holds_alternative<incoming>(state)) {
-    auto& i = *std::get_if<incoming>(&state);
-    ::lsquic_stream_close(&i.handle);
-    state = closed{};
-    return transition::incoming_to_closed;
-  }
   if (std::holds_alternative<accepting>(state)) {
     if (auto op = std::get_if<accepting>(&state)->op; op) { // maybe destroy()ed
-      op->defer(ec, nullptr);
+      op->defer(ec);
     }
     state = closed{};
     return transition::accepting_to_closed;
   }
   if (std::holds_alternative<connecting>(state)) {
     if (auto op = std::get_if<connecting>(&state)->op; op) { // maybe destroy()ed
-      op->defer(ec, nullptr);
+      op->defer(ec);
     }
     state = closed{};
     return transition::connecting_to_closed;
@@ -595,11 +563,11 @@ void destroy(variant& state)
 {
   if (std::holds_alternative<accepting>(state)) {
     auto& a = *std::get_if<accepting>(&state);
-    a.op->destroy(error_code{}, nullptr);
+    a.op->destroy(error_code{});
     a.op = nullptr;
   } else if (std::holds_alternative<connecting>(state)) {
     auto& c = *std::get_if<connecting>(&state);
-    c.op->destroy(error_code{}, nullptr);
+    c.op->destroy(error_code{});
     c.op = nullptr;
   } else if (std::holds_alternative<open>(state)) {
     auto& o = *std::get_if<open>(&state);

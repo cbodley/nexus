@@ -169,24 +169,21 @@ udp::endpoint server_connection::remote_endpoint() const
   return e;
 }
 
-stream server_connection::accept(error_code& ec)
+void server_connection::accept(stream& s, error_code& ec)
 {
-  quic::detail::stream_accept_sync op;
+  auto op = quic::detail::stream_accept_sync{s.impl};
   impl.accept(op);
   op.wait();
   ec = std::get<0>(*op.result);
-  return quic::detail::stream_factory<stream>::create(
-      std::get<1>(std::move(*op.result)));
 }
 
-stream server_connection::accept()
+void server_connection::accept(stream& s)
 {
   error_code ec;
-  auto s = accept(ec);
+  accept(s, ec);
   if (ec) {
     throw system_error(ec);
   }
-  return s;
 }
 
 void server_connection::close(error_code& ec)

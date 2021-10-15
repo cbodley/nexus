@@ -19,12 +19,6 @@ const error_code ok;
 auto capture(std::optional<error_code>& out) {
   return [&] (error_code ec) { out = ec; };
 }
-auto capture(std::optional<error_code>& out, quic::stream& stream) {
-  return [&] (error_code ec, quic::stream s) {
-    out = ec;
-    stream = std::move(s);
-  };
-}
 
 } // anonymous namespace
 
@@ -55,8 +49,8 @@ TEST(server, accept_wait) // accept() before a connection is received
   auto cconn = quic::connection{client, endpoint, "host"};
 
   std::optional<error_code> stream_connect_ec;
-  auto cstream = quic::stream{};
-  cconn.async_connect(capture(stream_connect_ec, cstream));
+  auto cstream = quic::stream{cconn};
+  cconn.async_connect(cstream, capture(stream_connect_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -83,8 +77,8 @@ TEST(server, accept_ready) // accept() after a connection is received
   auto cconn = quic::connection{client, endpoint, "host"};
 
   std::optional<error_code> stream_connect_ec;
-  auto cstream = quic::stream{};
-  cconn.async_connect(capture(stream_connect_ec, cstream));
+  auto cstream = quic::stream{cconn};
+  cconn.async_connect(cstream, capture(stream_connect_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());

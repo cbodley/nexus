@@ -36,15 +36,14 @@ struct connection_impl : public boost::intrusive::list_base_hook<>,
   stream_impl* on_connect(lsquic_stream* stream);
 
   template <typename Stream, typename CompletionToken>
-  decltype(auto) async_connect(CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code, Stream)>(
-        [this] (auto handler) {
-          using Handler = std::decay_t<decltype(handler)>;
-          using StreamHandler = stream_open_handler<Stream, Handler>;
-          auto h = StreamHandler{std::move(handler)};
-          using op_type = stream_connect_async<StreamHandler, executor_type>;
-          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
-          auto op = handler_ptr<op_type, StreamHandler>{p, &p->handler};
+  decltype(auto) async_connect(Stream& stream, CompletionToken&& token) {
+    auto& s = stream.impl;
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this, &s] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_connect_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor(), s);
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
           connect(*op);
           op.release(); // release ownership
         }, token);
@@ -54,15 +53,14 @@ struct connection_impl : public boost::intrusive::list_base_hook<>,
   stream_impl* on_accept(lsquic_stream* stream);
 
   template <typename Stream, typename CompletionToken>
-  decltype(auto) async_accept(CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code, Stream)>(
-        [this] (auto handler) {
-          using Handler = std::decay_t<decltype(handler)>;
-          using StreamHandler = stream_open_handler<Stream, Handler>;
-          auto h = StreamHandler{std::move(handler)};
-          using op_type = stream_accept_async<StreamHandler, executor_type>;
-          auto p = handler_allocate<op_type>(h, std::move(h), get_executor());
-          auto op = handler_ptr<op_type, StreamHandler>{p, &p->handler};
+  decltype(auto) async_accept(Stream& stream, CompletionToken&& token) {
+    auto& s = stream.impl;
+    return asio::async_initiate<CompletionToken, void(error_code)>(
+        [this, &s] (auto h) {
+          using Handler = std::decay_t<decltype(h)>;
+          using op_type = stream_accept_async<Handler, executor_type>;
+          auto p = handler_allocate<op_type>(h, std::move(h), get_executor(), s);
+          auto op = handler_ptr<op_type, Handler>{p, &p->handler};
           accept(*op);
           op.release(); // release ownership
         }, token);

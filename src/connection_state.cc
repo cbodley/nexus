@@ -88,77 +88,79 @@ void on_accept(variant& state, lsquic_conn* handle)
   state.emplace<open>(*handle);
 }
 
-bool stream_connect(variant& state, stream_connect_operation& op,
-                    const stream_impl::executor_type& ex, connection_impl* c)
+bool stream_connect(variant& state, stream_connect_operation& op)
 {
   if (std::holds_alternative<error>(state)) {
-    op.post(std::get_if<error>(&state)->ec, nullptr);
+    op.post(std::get_if<error>(&state)->ec);
     state = closed{};
     return false;
   } else if (!std::holds_alternative<open>(state)) {
-    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
+    op.post(make_error_code(errc::bad_file_descriptor));
     return false;
   }
   auto& o = *std::get_if<open>(&state);
-  auto s = std::make_unique<stream_impl>(ex, c);
-  stream_state::connect(s->state, op);
-  o.connecting_streams.push_back(*s.release()); // transfer ownership
+  stream_state::connect(op.stream.state, op);
+  o.connecting_streams.push_back(op.stream);
   ::lsquic_conn_make_stream(&o.handle);
   return true;
 }
 
-stream_impl* on_stream_connect(variant& state, lsquic_stream_t* handle)
+stream_impl* on_stream_connect(variant& state, lsquic_stream_t* handle,
+                               bool is_http)
 {
   assert(std::holds_alternative<open>(state));
   auto& o = *std::get_if<open>(&state);
   assert(!o.connecting_streams.empty());
   auto& s = o.connecting_streams.front();
   list_transfer(s, o.connecting_streams, o.open_streams);
-  stream_state::on_connect(s.state, s, handle);
+  stream_state::on_connect(s.state, handle, is_http);
   return &s;
 }
 
-void stream_accept(variant& state, stream_accept_operation& op, bool is_http,
-                   const stream_impl::executor_type& ex, connection_impl* c)
+void stream_accept(variant& state, stream_accept_operation& op, bool is_http)
 {
   if (std::holds_alternative<error>(state)) {
-    op.post(std::get_if<error>(&state)->ec, nullptr);
+    op.post(std::get_if<error>(&state)->ec);
     state = closed{};
     return;
   } else if (!std::holds_alternative<open>(state)) {
-    op.post(make_error_code(errc::bad_file_descriptor), nullptr);
+    op.post(make_error_code(errc::bad_file_descriptor));
     return;
   }
   auto& o = *std::get_if<open>(&state);
   if (!o.incoming_streams.empty()) {
-    // take ownership of the first incoming stream
-    auto s = std::unique_ptr<stream_impl>{&o.incoming_streams.front()};
-    list_transfer(*s, o.incoming_streams, o.open_streams);
-    stream_state::accept_incoming(s->state, is_http);
-    op.post(error_code{}, std::move(s)); // success
+    auto handle = o.incoming_streams.front();
+    o.incoming_streams.pop_front();
+    stream_state::on_accept(op.stream.state, handle, is_http);
+    o.open_streams.push_back(op.stream);
+    // when we accepted this, we had to return nullptr for the stream ctx
+    // because we didn't have this stream_impl yet. update the ctx
+    auto ctx = reinterpret_cast<lsquic_stream_ctx_t*>(&op.stream);
+    ::lsquic_stream_set_ctx(handle, ctx);
+    op.post(error_code{}); // success
     return;
   }
-  auto s = std::make_unique<stream_impl>(ex, c);
-  stream_state::accept(s->state, op);
-  o.accepting_streams.push_back(*s.release()); // transfer ownership
+  stream_state::accept(op.stream.state, op);
+  o.accepting_streams.push_back(op.stream);
 }
 
 stream_impl* on_stream_accept(variant& state, lsquic_stream* handle,
-                              const stream_impl::executor_type& ex,
-                              connection_impl* c)
+                              bool is_http)
 {
   assert(std::holds_alternative<open>(state));
   auto& o = *std::get_if<open>(&state);
   if (o.accepting_streams.empty()) {
-    // not waiting on accept, queue this for later
-    auto s = std::make_unique<stream_impl>(ex, c);
-    o.incoming_streams.push_back(*s);
-    stream_state::on_incoming(s->state, handle);
-    return s.release();
+    // not waiting on accept, try to queue this for later
+    if (o.incoming_streams.full()) {
+      ::lsquic_stream_close(handle);
+    } else {
+      o.incoming_streams.push_back(handle);
+    }
+    return nullptr;
   }
   auto& s = o.accepting_streams.front();
   list_transfer(s, o.accepting_streams, o.open_streams);
-  stream_state::on_accept(s.state, s, handle);
+  stream_state::on_accept(s.state, handle, is_http);
   return &s;
 }
 
@@ -167,30 +169,22 @@ int abort_streams(open& state, error_code ec)
   int canceled = 0;
   // close incoming streams that we haven't accepted yet
   while (!state.incoming_streams.empty()) {
-    // take ownership of the stream and free on scope exit
-    auto s = std::unique_ptr<stream_impl>{&state.incoming_streams.front()};
+    auto handle = state.incoming_streams.front();
     state.incoming_streams.pop_front();
-    assert(s->conn);
-    s->conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
-    assert(t == stream_state::transition::incoming_to_closed);
+    ::lsquic_stream_close(handle);
   }
   // cancel pending stream connect/accept
   while (!state.connecting_streams.empty()) {
-    auto s = std::unique_ptr<stream_impl>{&state.connecting_streams.front()};
+    auto& s = state.connecting_streams.front();
     state.connecting_streams.pop_front();
-    assert(s->conn);
-    s->conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
+    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
     assert(t == stream_state::transition::connecting_to_closed);
     canceled++;
   }
   while (!state.accepting_streams.empty()) {
-    auto s = std::unique_ptr<stream_impl>{&state.accepting_streams.front()};
+    auto& s = state.accepting_streams.front();
     state.accepting_streams.pop_front();
-    assert(s->conn);
-    s->conn = nullptr;
-    [[maybe_unused]] auto t = stream_state::on_error(s->state, ec);
+    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
     assert(t == stream_state::transition::accepting_to_closed);
     canceled++;
   }
@@ -198,8 +192,6 @@ int abort_streams(open& state, error_code ec)
   while (!state.open_streams.empty()) {
     auto& s = state.open_streams.front();
     state.open_streams.pop_front();
-    assert(s.conn);
-    s.conn = nullptr;
     [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
     assert(t == stream_state::transition::open_to_closed ||
            t == stream_state::transition::open_to_error);
@@ -209,8 +201,6 @@ int abort_streams(open& state, error_code ec)
   while (!state.closing_streams.empty()) {
     auto& s = state.closing_streams.front();
     state.closing_streams.pop_front();
-    assert(s.conn);
-    s.conn = nullptr;
     [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
     assert(t == stream_state::transition::closing_to_closed);
     canceled++;
