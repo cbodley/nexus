@@ -21,14 +21,39 @@ connection::executor_type connection::get_executor() const
   return impl.get_executor();
 }
 
-udp::endpoint connection::remote_endpoint()
-{
-  return impl.remote_endpoint();
-}
-
 bool connection::is_open() const
 {
   return impl.is_open();
+}
+
+connection_id connection::id(error_code& ec) const
+{
+  return impl.id(ec);
+}
+
+connection_id connection::id() const
+{
+  error_code ec;
+  auto i = impl.id(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return i;
+}
+
+udp::endpoint connection::remote_endpoint(error_code& ec) const
+{
+  return impl.remote_endpoint(ec);
+}
+
+udp::endpoint connection::remote_endpoint() const
+{
+  error_code ec;
+  auto e = impl.remote_endpoint(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return e;
 }
 
 stream connection::connect(error_code& ec)
@@ -115,10 +140,22 @@ connection_impl::executor_type connection_impl::get_executor() const
   return socket.get_executor();
 }
 
-udp::endpoint connection_impl::remote_endpoint()
+bool connection_impl::is_open() const
 {
   auto lock = std::unique_lock{socket.engine.mutex};
-  return connection_state::remote_endpoint(state);
+  return connection_state::is_open(state);
+}
+
+connection_id connection_impl::id(error_code& ec) const
+{
+  auto lock = std::unique_lock{socket.engine.mutex};
+  return connection_state::id(state, ec);
+}
+
+udp::endpoint connection_impl::remote_endpoint(error_code& ec) const
+{
+  auto lock = std::unique_lock{socket.engine.mutex};
+  return connection_state::remote_endpoint(state, ec);
 }
 
 void connection_impl::connect(stream_connect_operation& op)
@@ -145,12 +182,6 @@ stream_impl* connection_impl::on_accept(lsquic_stream* stream)
 {
   return connection_state::on_stream_accept(state, stream,
                                             get_executor(), this);
-}
-
-bool connection_impl::is_open() const
-{
-  auto lock = std::unique_lock{socket.engine.mutex};
-  return connection_state::is_open(state);
 }
 
 void connection_impl::close(error_code& ec)

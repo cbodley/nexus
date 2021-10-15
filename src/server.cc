@@ -134,14 +134,39 @@ void acceptor::close()
   impl.close();
 }
 
-udp::endpoint server_connection::remote_endpoint()
-{
-  return impl.remote_endpoint();
-}
-
 bool server_connection::is_open() const
 {
   return impl.is_open();
+}
+
+quic::connection_id server_connection::id(error_code& ec) const
+{
+  return impl.id(ec);
+}
+
+quic::connection_id server_connection::id() const
+{
+  error_code ec;
+  auto i = impl.id(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return i;
+}
+
+udp::endpoint server_connection::remote_endpoint(error_code& ec) const
+{
+  return impl.remote_endpoint(ec);
+}
+
+udp::endpoint server_connection::remote_endpoint() const
+{
+  error_code ec;
+  auto e = impl.remote_endpoint(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return e;
 }
 
 stream server_connection::accept(error_code& ec)

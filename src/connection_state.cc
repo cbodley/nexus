@@ -9,7 +9,21 @@ bool is_open(const variant& state)
   return std::holds_alternative<open>(state);
 }
 
-udp::endpoint remote_endpoint(const variant& state)
+connection_id id(const variant& state, error_code& ec)
+{
+  connection_id cid;
+  if (std::holds_alternative<open>(state)) {
+    auto& o = *std::get_if<open>(&state);
+    auto i = ::lsquic_conn_id(&o.handle);
+    cid = connection_id{i->idbuf, i->len};
+    ec = error_code{};
+  } else {
+    ec = make_error_code(errc::not_connected);
+  }
+  return cid;
+}
+
+udp::endpoint remote_endpoint(const variant& state, error_code& ec)
 {
   auto remote = udp::endpoint{};
   if (std::holds_alternative<open>(state)) {
@@ -22,6 +36,9 @@ udp::endpoint remote_endpoint(const variant& state)
     } else {
       ::memcpy(remote.data(), r, sizeof(sockaddr_in));
     }
+    ec = error_code{};
+  } else {
+    ec = make_error_code(errc::not_connected);
   }
   return remote;
 }

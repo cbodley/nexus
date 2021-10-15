@@ -109,14 +109,39 @@ void client::close()
   socket.close();
 }
 
-udp::endpoint client_connection::remote_endpoint()
-{
-  return impl.remote_endpoint();
-}
-
 bool client_connection::is_open() const
 {
   return impl.is_open();
+}
+
+quic::connection_id client_connection::id(error_code& ec) const
+{
+  return impl.id(ec);
+}
+
+quic::connection_id client_connection::id() const
+{
+  error_code ec;
+  auto i = impl.id(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return i;
+}
+
+udp::endpoint client_connection::remote_endpoint(error_code& ec) const
+{
+  return impl.remote_endpoint(ec);
+}
+
+udp::endpoint client_connection::remote_endpoint() const
+{
+  error_code ec;
+  auto e = impl.remote_endpoint(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+  return e;
 }
 
 stream client_connection::connect(error_code& ec)

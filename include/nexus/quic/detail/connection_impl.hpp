@@ -29,7 +29,8 @@ struct connection_impl : public boost::intrusive::list_base_hook<>,
   using executor_type = asio::any_io_executor;
   executor_type get_executor() const;
 
-  udp::endpoint remote_endpoint();
+  connection_id id(error_code& ec) const;
+  udp::endpoint remote_endpoint(error_code& ec) const;
 
   void connect(stream_connect_operation& op);
   stream_impl* on_connect(lsquic_stream* stream);

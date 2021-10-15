@@ -76,12 +76,18 @@ class client_connection {
   /// return the associated io executor
   executor_type get_executor() const;
 
-  /// return the remote's address/port. requires that the connection has
-  /// successfully been accepted or connected
-  udp::endpoint remote_endpoint();
-
   /// determine whether the connection is open
   bool is_open() const;
+
+  /// return the connection id if open
+  quic::connection_id id(error_code& ec) const;
+  /// \overload
+  quic::connection_id id() const;
+
+  /// return the remote's address/port if open
+  udp::endpoint remote_endpoint(error_code& ec) const;
+  /// \overload
+  udp::endpoint remote_endpoint() const;
 
   /// open an outgoing stream
   template <typename CompletionToken> // void(error_code, stream)

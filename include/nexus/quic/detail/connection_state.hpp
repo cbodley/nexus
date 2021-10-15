@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <boost/intrusive/list.hpp>
+#include <nexus/quic/connection_id.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/udp.hpp>
 #include <lsquic.h>
@@ -79,7 +80,8 @@ enum class transition {
 
 // connection accessors
 bool is_open(const variant& state);
-udp::endpoint remote_endpoint(const variant& state);
+connection_id id(const variant& state, error_code& ec);
+udp::endpoint remote_endpoint(const variant& state, error_code& ec);
 
 // connection events
 void on_connect(variant& state, lsquic_conn* handle);
