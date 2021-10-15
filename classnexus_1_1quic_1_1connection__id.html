@@ -67,7 +67,10 @@ $(function() {
 </div><!-- top -->
 <div class="header">
   <div class="summary">
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
+<a href="#related">Related Functions</a> &#124;
 <a href="classnexus_1_1quic_1_1connection__id-members.html">List of all members</a>  </div>
   <div class="headertitle">
 <div class="title">nexus::quic::connection_id Class Reference</div>  </div>
@@ -78,13 +81,43 @@ $(function() {
  <a href="classnexus_1_1quic_1_1connection__id.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="connection__id_8hpp_source.html">nexus/quic/connection_id.hpp</a>&gt;</code></p>
-<div class="dynheader">
-Inheritance diagram for nexus::quic::connection_id:</div>
-<div class="dyncontent">
- <div class="center">
-  <img src="classnexus_1_1quic_1_1connection__id.png" alt=""/>
- </div></div>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:a2ed648c43162da3b9ce233f04864e1fa"><td class="memItemLeft" align="right" valign="top"><a id="a2ed648c43162da3b9ce233f04864e1fa"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = unsigned char</td></tr>
+<tr class="separator:a2ed648c43162da3b9ce233f04864e1fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a30e3b110d1c16a386dcca0db0bb3261d"><td class="memItemLeft" align="right" valign="top"><a id="a30e3b110d1c16a386dcca0db0bb3261d"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = std::uint_fast8_t</td></tr>
+<tr class="separator:a30e3b110d1c16a386dcca0db0bb3261d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4e87873caa8896e12d2b9521329ef574"><td class="memItemLeft" align="right" valign="top"><a id="a4e87873caa8896e12d2b9521329ef574"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = std::ptrdiff_t</td></tr>
+<tr class="separator:a4e87873caa8896e12d2b9521329ef574"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a44d3963f9fb06679f536f8e90fa0cfa1"><td class="memItemLeft" align="right" valign="top"><a id="a44d3963f9fb06679f536f8e90fa0cfa1"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = value_type &amp;</td></tr>
+<tr class="separator:a44d3963f9fb06679f536f8e90fa0cfa1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a538229f6f56c9ba32a3f8e78e6bacf74"><td class="memItemLeft" align="right" valign="top"><a id="a538229f6f56c9ba32a3f8e78e6bacf74"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_reference</b> = const value_type &amp;</td></tr>
+<tr class="separator:a538229f6f56c9ba32a3f8e78e6bacf74"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af1171db5abffa5fd9b3e207bdc2d53c6"><td class="memItemLeft" align="right" valign="top"><a id="af1171db5abffa5fd9b3e207bdc2d53c6"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = value_type *</td></tr>
+<tr class="separator:af1171db5abffa5fd9b3e207bdc2d53c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a109314773d949b8ceac737eb87cc8a52"><td class="memItemLeft" align="right" valign="top"><a id="a109314773d949b8ceac737eb87cc8a52"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_pointer</b> = const value_type *</td></tr>
+<tr class="separator:a109314773d949b8ceac737eb87cc8a52"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac44a480d4a0b274d3a0ccc15e5d8e354"><td class="memItemLeft" align="right" valign="top"><a id="ac44a480d4a0b274d3a0ccc15e5d8e354"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = pointer</td></tr>
+<tr class="separator:ac44a480d4a0b274d3a0ccc15e5d8e354"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa99fa0aae2c78fd7fdf27f450ea3f8b9"><td class="memItemLeft" align="right" valign="top"><a id="aa99fa0aae2c78fd7fdf27f450ea3f8b9"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_iterator</b> = const_pointer</td></tr>
+<tr class="separator:aa99fa0aae2c78fd7fdf27f450ea3f8b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afdb96bc506ed887ada0ea8c6aa795295"><td class="memItemLeft" align="right" valign="top"><a id="afdb96bc506ed887ada0ea8c6aa795295"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>reverse_iterator</b> = std::reverse_iterator&lt; iterator &gt;</td></tr>
+<tr class="separator:afdb96bc506ed887ada0ea8c6aa795295"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab28c95d3b7ee8fcb3683378ddbeed709"><td class="memItemLeft" align="right" valign="top"><a id="ab28c95d3b7ee8fcb3683378ddbeed709"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_reverse_iterator</b> = std::reverse_iterator&lt; const_iterator &gt;</td></tr>
+<tr class="separator:ab28c95d3b7ee8fcb3683378ddbeed709"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a0b0a04ea956898b4db7b89d7d7b505e1"><td class="memItemLeft" align="right" valign="top"><a id="a0b0a04ea956898b4db7b89d7d7b505e1"></a>
@@ -93,23 +126,25 @@ constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 <tr class="separator:a0b0a04ea956898b4db7b89d7d7b505e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a424b22d94a8c63b21ccc4fa5a058231f"><td class="memTemplParams" colspan="2"><a id="a424b22d94a8c63b21ccc4fa5a058231f"></a>
 template&lt;size_t Size&gt; </td></tr>
-<tr class="memitem:a424b22d94a8c63b21ccc4fa5a058231f"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a424b22d94a8c63b21ccc4fa5a058231f">connection_id</a> (const value_type(&amp;data)[Size]) noexcept</td></tr>
+<tr class="memitem:a424b22d94a8c63b21ccc4fa5a058231f"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a424b22d94a8c63b21ccc4fa5a058231f">connection_id</a> (const value_type(&amp;<a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae19c05f15b2f6ab7d1e1dcc959182e41">data</a>)[Size]) noexcept</td></tr>
 <tr class="memdesc:a424b22d94a8c63b21ccc4fa5a058231f"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct with a copy of the given array <br /></td></tr>
 <tr class="separator:a424b22d94a8c63b21ccc4fa5a058231f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a59fb4e1eebae45b0192749e5c40eb9a4"><td class="memTemplParams" colspan="2"><a id="a59fb4e1eebae45b0192749e5c40eb9a4"></a>
 template&lt;size_t Size&gt; </td></tr>
-<tr class="memitem:a59fb4e1eebae45b0192749e5c40eb9a4"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a59fb4e1eebae45b0192749e5c40eb9a4">connection_id</a> (const std::array&lt; value_type, Size &gt; &amp;data) noexcept</td></tr>
+<tr class="memitem:a59fb4e1eebae45b0192749e5c40eb9a4"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a59fb4e1eebae45b0192749e5c40eb9a4">connection_id</a> (const std::array&lt; value_type, Size &gt; &amp;<a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae19c05f15b2f6ab7d1e1dcc959182e41">data</a>) noexcept</td></tr>
 <tr class="memdesc:a59fb4e1eebae45b0192749e5c40eb9a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct with a copy of the given array <br /></td></tr>
 <tr class="separator:a59fb4e1eebae45b0192749e5c40eb9a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a98f9f663e77b809270a1b41d0a1f5e54"><td class="memItemLeft" align="right" valign="top"><a id="a98f9f663e77b809270a1b41d0a1f5e54"></a>
-constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a98f9f663e77b809270a1b41d0a1f5e54">connection_id</a> (const_pointer data, size_type <a class="el" href="classnexus_1_1quic_1_1connection__id.html#a2e957aa7a438675fd3344492686c4980">size</a>)</td></tr>
-<tr class="memdesc:a98f9f663e77b809270a1b41d0a1f5e54"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct with a copy of the given string. throws std::length_error if size exceeds max_size() <br /></td></tr>
+constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a98f9f663e77b809270a1b41d0a1f5e54">connection_id</a> (const_pointer <a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae19c05f15b2f6ab7d1e1dcc959182e41">data</a>, size_type <a class="el" href="classnexus_1_1quic_1_1connection__id.html#a2e957aa7a438675fd3344492686c4980">size</a>)</td></tr>
+<tr class="memdesc:a98f9f663e77b809270a1b41d0a1f5e54"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct with a copy of the given string. throws std::length_error if size exceeds <a class="el" href="classnexus_1_1quic_1_1connection__id.html#a3b9e4383f3202eded08da3c8abe7fc1b" title="return the maximum size">max_size()</a> <br /></td></tr>
 <tr class="separator:a98f9f663e77b809270a1b41d0a1f5e54"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a875797d26ba0835c1cc3199417cef18d"><td class="memItemLeft" align="right" valign="top"><a id="a875797d26ba0835c1cc3199417cef18d"></a>
-constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>connection_id</b> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;) noexcept=default</td></tr>
+constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a875797d26ba0835c1cc3199417cef18d">connection_id</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;) noexcept=default</td></tr>
+<tr class="memdesc:a875797d26ba0835c1cc3199417cef18d"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct with a copy of the given connection id <br /></td></tr>
 <tr class="separator:a875797d26ba0835c1cc3199417cef18d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ade9e5b6aa65ee41b2fe804d5b1783ab2"><td class="memItemLeft" align="right" valign="top"><a id="ade9e5b6aa65ee41b2fe804d5b1783ab2"></a>
-constexpr <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;) noexcept=default</td></tr>
+constexpr <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ade9e5b6aa65ee41b2fe804d5b1783ab2">operator=</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;) noexcept=default</td></tr>
+<tr class="memdesc:ade9e5b6aa65ee41b2fe804d5b1783ab2"><td class="mdescLeft">&#160;</td><td class="mdescRight">overwrite with a copy of the given connection id <br /></td></tr>
 <tr class="separator:ade9e5b6aa65ee41b2fe804d5b1783ab2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae3c008303c667cc1b863855ac19aeced"><td class="memItemLeft" align="right" valign="top"><a id="ae3c008303c667cc1b863855ac19aeced"></a>
 constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae3c008303c667cc1b863855ac19aeced">empty</a> () const noexcept</td></tr>
@@ -125,15 +160,56 @@ constexpr void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 <tr class="separator:a9ea22fa7e639449a0f4e535654765c28"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adb04eff3348390a4ef15b45a520f0e82"><td class="memItemLeft" align="right" valign="top"><a id="adb04eff3348390a4ef15b45a520f0e82"></a>
 constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#adb04eff3348390a4ef15b45a520f0e82">at</a> (size_type p)</td></tr>
-<tr class="memdesc:adb04eff3348390a4ef15b45a520f0e82"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a reference to the element at the given position <br /></td></tr>
+<tr class="memdesc:adb04eff3348390a4ef15b45a520f0e82"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a reference to the element at the given position. throws std::out_of_range for invalid positions <br /></td></tr>
 <tr class="separator:adb04eff3348390a4ef15b45a520f0e82"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a132c41920fe04ffa40dd9fb9d6fec82b"><td class="memItemLeft" align="right" valign="top"><a id="a132c41920fe04ffa40dd9fb9d6fec82b"></a>
+constexpr const_reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a132c41920fe04ffa40dd9fb9d6fec82b">at</a> (size_type p) const</td></tr>
+<tr class="memdesc:a132c41920fe04ffa40dd9fb9d6fec82b"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:a132c41920fe04ffa40dd9fb9d6fec82b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a16082190eb8658a228f54c81bb15b73f"><td class="memItemLeft" align="right" valign="top"><a id="a16082190eb8658a228f54c81bb15b73f"></a>
+constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a16082190eb8658a228f54c81bb15b73f">operator[]</a> (size_type p)</td></tr>
+<tr class="memdesc:a16082190eb8658a228f54c81bb15b73f"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a reference to the element at the given position without bounds checking <br /></td></tr>
+<tr class="separator:a16082190eb8658a228f54c81bb15b73f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aca02a5d2ce5cd9f91ab4bb45ce9f65e8"><td class="memItemLeft" align="right" valign="top"><a id="aca02a5d2ce5cd9f91ab4bb45ce9f65e8"></a>
+constexpr const_reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#aca02a5d2ce5cd9f91ab4bb45ce9f65e8">operator[]</a> (size_type p) const</td></tr>
+<tr class="memdesc:aca02a5d2ce5cd9f91ab4bb45ce9f65e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:aca02a5d2ce5cd9f91ab4bb45ce9f65e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9d04400e265195cee6c4c31c328b9de9"><td class="memItemLeft" align="right" valign="top"><a id="a9d04400e265195cee6c4c31c328b9de9"></a>
+constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a9d04400e265195cee6c4c31c328b9de9">front</a> ()</td></tr>
+<tr class="memdesc:a9d04400e265195cee6c4c31c328b9de9"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a reference to the first element <br /></td></tr>
+<tr class="separator:a9d04400e265195cee6c4c31c328b9de9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a11c26c419f21dc5661ca1d12dc1b47f7"><td class="memItemLeft" align="right" valign="top"><a id="a11c26c419f21dc5661ca1d12dc1b47f7"></a>
+constexpr const_reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a11c26c419f21dc5661ca1d12dc1b47f7">front</a> () const</td></tr>
+<tr class="memdesc:a11c26c419f21dc5661ca1d12dc1b47f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:a11c26c419f21dc5661ca1d12dc1b47f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a305e07589f56f95d70613a0d14b4e800"><td class="memItemLeft" align="right" valign="top"><a id="a305e07589f56f95d70613a0d14b4e800"></a>
 constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a305e07589f56f95d70613a0d14b4e800">back</a> ()</td></tr>
 <tr class="memdesc:a305e07589f56f95d70613a0d14b4e800"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a reference to the last element <br /></td></tr>
 <tr class="separator:a305e07589f56f95d70613a0d14b4e800"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4c8889eea8e7cfc43d9cc4e9d53ee67b"><td class="memItemLeft" align="right" valign="top"><a id="a4c8889eea8e7cfc43d9cc4e9d53ee67b"></a>
-constexpr const_reference&#160;</td><td class="memItemRight" valign="bottom"><b>back</b> () const</td></tr>
+constexpr const_reference&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a4c8889eea8e7cfc43d9cc4e9d53ee67b">back</a> () const</td></tr>
+<tr class="memdesc:a4c8889eea8e7cfc43d9cc4e9d53ee67b"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
 <tr class="separator:a4c8889eea8e7cfc43d9cc4e9d53ee67b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae19c05f15b2f6ab7d1e1dcc959182e41"><td class="memItemLeft" align="right" valign="top"><a id="ae19c05f15b2f6ab7d1e1dcc959182e41"></a>
+constexpr pointer&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae19c05f15b2f6ab7d1e1dcc959182e41">data</a> ()</td></tr>
+<tr class="memdesc:ae19c05f15b2f6ab7d1e1dcc959182e41"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a pointer to the underlying bytes <br /></td></tr>
+<tr class="separator:ae19c05f15b2f6ab7d1e1dcc959182e41"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac0ead2a11033ac87b6339e3330cd4458"><td class="memItemLeft" align="right" valign="top"><a id="ac0ead2a11033ac87b6339e3330cd4458"></a>
+constexpr const_pointer&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ac0ead2a11033ac87b6339e3330cd4458">data</a> () const</td></tr>
+<tr class="memdesc:ac0ead2a11033ac87b6339e3330cd4458"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:ac0ead2a11033ac87b6339e3330cd4458"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3e4447139932d5400bf58d0b1b82fcd7"><td class="memItemLeft" align="right" valign="top"><a id="a3e4447139932d5400bf58d0b1b82fcd7"></a>
+constexpr iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a3e4447139932d5400bf58d0b1b82fcd7">begin</a> ()</td></tr>
+<tr class="memdesc:a3e4447139932d5400bf58d0b1b82fcd7"><td class="mdescLeft">&#160;</td><td class="mdescRight">return an iterator to the beginning <br /></td></tr>
+<tr class="separator:a3e4447139932d5400bf58d0b1b82fcd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae96789b947a731ae81a7f53caa5c2193"><td class="memItemLeft" align="right" valign="top"><a id="ae96789b947a731ae81a7f53caa5c2193"></a>
+constexpr const_iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae96789b947a731ae81a7f53caa5c2193">begin</a> () const</td></tr>
+<tr class="memdesc:ae96789b947a731ae81a7f53caa5c2193"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:ae96789b947a731ae81a7f53caa5c2193"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a71e55faebcb000bb98497b0486afc42f"><td class="memItemLeft" align="right" valign="top"><a id="a71e55faebcb000bb98497b0486afc42f"></a>
+constexpr const_iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a71e55faebcb000bb98497b0486afc42f">cbegin</a> () const</td></tr>
+<tr class="memdesc:a71e55faebcb000bb98497b0486afc42f"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:a71e55faebcb000bb98497b0486afc42f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad9a519454100a9358e93ae79d381347f"><td class="memItemLeft" align="right" valign="top"><a id="ad9a519454100a9358e93ae79d381347f"></a>
 constexpr iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ad9a519454100a9358e93ae79d381347f">end</a> ()</td></tr>
 <tr class="memdesc:ad9a519454100a9358e93ae79d381347f"><td class="mdescLeft">&#160;</td><td class="mdescRight">return an iterator past the end <br /></td></tr>
@@ -158,6 +234,58 @@ constexpr const_reverse_iterator&#160;</td><td class="memItemRight" valign="bott
 constexpr const_reverse_iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a77ce082505957ad991b169385f04d6dc">crbegin</a> () const</td></tr>
 <tr class="memdesc:a77ce082505957ad991b169385f04d6dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
 <tr class="separator:a77ce082505957ad991b169385f04d6dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae691fe8b5dab354e6439c0bdfa6cee01"><td class="memItemLeft" align="right" valign="top"><a id="ae691fe8b5dab354e6439c0bdfa6cee01"></a>
+constexpr reverse_iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae691fe8b5dab354e6439c0bdfa6cee01">rend</a> ()</td></tr>
+<tr class="memdesc:ae691fe8b5dab354e6439c0bdfa6cee01"><td class="mdescLeft">&#160;</td><td class="mdescRight">return a reverse iterator to the endning <br /></td></tr>
+<tr class="separator:ae691fe8b5dab354e6439c0bdfa6cee01"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab6d7ef8c8fda05cec47863cb76d5a146"><td class="memItemLeft" align="right" valign="top"><a id="ab6d7ef8c8fda05cec47863cb76d5a146"></a>
+constexpr const_reverse_iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ab6d7ef8c8fda05cec47863cb76d5a146">rend</a> () const</td></tr>
+<tr class="memdesc:ab6d7ef8c8fda05cec47863cb76d5a146"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:ab6d7ef8c8fda05cec47863cb76d5a146"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aad4a0df1be7234b315ad93795e1e60dc"><td class="memItemLeft" align="right" valign="top"><a id="aad4a0df1be7234b315ad93795e1e60dc"></a>
+constexpr const_reverse_iterator&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#aad4a0df1be7234b315ad93795e1e60dc">crend</a> () const</td></tr>
+<tr class="memdesc:aad4a0df1be7234b315ad93795e1e60dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:aad4a0df1be7234b315ad93795e1e60dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:a3b9e4383f3202eded08da3c8abe7fc1b"><td class="memItemLeft" align="right" valign="top"><a id="a3b9e4383f3202eded08da3c8abe7fc1b"></a>
+constexpr static size_type&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a3b9e4383f3202eded08da3c8abe7fc1b">max_size</a> ()</td></tr>
+<tr class="memdesc:a3b9e4383f3202eded08da3c8abe7fc1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the maximum size <br /></td></tr>
+<tr class="separator:a3b9e4383f3202eded08da3c8abe7fc1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="related"></a>
+Related Functions</h2></td></tr>
+<tr><td class="ititle" colspan="2"><p>(Note that these are not member functions.) </p>
+</td></tr>
+<tr class="memitem:a96dd77ff86200b30fe7a7bc713d03c12"><td class="memItemLeft" align="right" valign="top"><a id="a96dd77ff86200b30fe7a7bc713d03c12"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a96dd77ff86200b30fe7a7bc713d03c12">operator==</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;l, const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;r) noexcept</td></tr>
+<tr class="memdesc:a96dd77ff86200b30fe7a7bc713d03c12"><td class="mdescLeft">&#160;</td><td class="mdescRight">equality comparison for connection_ids <br /></td></tr>
+<tr class="separator:a96dd77ff86200b30fe7a7bc713d03c12"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a69d1f5641b11d830d6440384d91165be"><td class="memItemLeft" align="right" valign="top"><a id="a69d1f5641b11d830d6440384d91165be"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a69d1f5641b11d830d6440384d91165be">operator!=</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;l, const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;r) noexcept</td></tr>
+<tr class="memdesc:a69d1f5641b11d830d6440384d91165be"><td class="mdescLeft">&#160;</td><td class="mdescRight">inequality comparison for connection_ids <br /></td></tr>
+<tr class="separator:a69d1f5641b11d830d6440384d91165be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a91e80418f3f2ad4e312b3ece05368260"><td class="memItemLeft" align="right" valign="top"><a id="a91e80418f3f2ad4e312b3ece05368260"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#a91e80418f3f2ad4e312b3ece05368260">operator&lt;</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;l, const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;r) noexcept</td></tr>
+<tr class="memdesc:a91e80418f3f2ad4e312b3ece05368260"><td class="mdescLeft">&#160;</td><td class="mdescRight">less-than comparison for connection_ids <br /></td></tr>
+<tr class="separator:a91e80418f3f2ad4e312b3ece05368260"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd7ccfe9becdce707453959384b36d08"><td class="memItemLeft" align="right" valign="top"><a id="afd7ccfe9becdce707453959384b36d08"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#afd7ccfe9becdce707453959384b36d08">operator&gt;</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;l, const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;r) noexcept</td></tr>
+<tr class="memdesc:afd7ccfe9becdce707453959384b36d08"><td class="mdescLeft">&#160;</td><td class="mdescRight">greater-than comparison for connection_ids <br /></td></tr>
+<tr class="separator:afd7ccfe9becdce707453959384b36d08"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abc900d2e5169c325d4769a4daf2f82e7"><td class="memItemLeft" align="right" valign="top"><a id="abc900d2e5169c325d4769a4daf2f82e7"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#abc900d2e5169c325d4769a4daf2f82e7">operator&lt;=</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;l, const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;r) noexcept</td></tr>
+<tr class="memdesc:abc900d2e5169c325d4769a4daf2f82e7"><td class="mdescLeft">&#160;</td><td class="mdescRight">less-than-or-equal comparison for connection_ids <br /></td></tr>
+<tr class="separator:abc900d2e5169c325d4769a4daf2f82e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae5b033269d0e18ee0273c5c9c5080102"><td class="memItemLeft" align="right" valign="top"><a id="ae5b033269d0e18ee0273c5c9c5080102"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#ae5b033269d0e18ee0273c5c9c5080102">operator&gt;=</a> (const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;l, const <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;r) noexcept</td></tr>
+<tr class="memdesc:ae5b033269d0e18ee0273c5c9c5080102"><td class="mdescLeft">&#160;</td><td class="mdescRight">greater-than-or-equal comparison for connection_ids <br /></td></tr>
+<tr class="separator:ae5b033269d0e18ee0273c5c9c5080102"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd1eaf63e70733eabbe9c17960e5a7ff"><td class="memItemLeft" align="right" valign="top"><a id="afd1eaf63e70733eabbe9c17960e5a7ff"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1connection__id.html#afd1eaf63e70733eabbe9c17960e5a7ff">swap</a> (<a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;lhs, <a class="el" href="classnexus_1_1quic_1_1connection__id.html">connection_id</a> &amp;rhs) noexcept</td></tr>
+<tr class="memdesc:afd1eaf63e70733eabbe9c17960e5a7ff"><td class="mdescLeft">&#160;</td><td class="mdescRight">swap two connection_ids <br /></td></tr>
+<tr class="separator:afd1eaf63e70733eabbe9c17960e5a7ff"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>an opaque connection id string </p>

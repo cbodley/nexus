@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['value_190',['value',['../classnexus_1_1h3_1_1field.html#aeeb8a113b4d125677cba089eb83b193c',1,'nexus::h3::field']]]
+  ['tls_5fcategory_216',['tls_category',['../namespacenexus_1_1quic.html#aee54c0b070498b3015387516e9f30040',1,'nexus::quic']]],
+  ['transport_5fcategory_217',['transport_category',['../namespacenexus_1_1quic.html#a28c82efc291750ecfe63b6b5fb2363b5',1,'nexus::quic']]]
 ];
