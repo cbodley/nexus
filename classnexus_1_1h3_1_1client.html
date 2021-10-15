@@ -82,10 +82,10 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:afc76bfb73703b72f76cf2c1858f2e11b"><td class="memItemLeft" align="right" valign="top"><a id="afc76bfb73703b72f76cf2c1858f2e11b"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#afc76bfb73703b72f76cf2c1858f2e11b">executor_type</a> = quic::detail::engine_state::executor_type</td></tr>
-<tr class="memdesc:afc76bfb73703b72f76cf2c1858f2e11b"><td class="mdescLeft">&#160;</td><td class="mdescRight">the polymorphic executor type, asio::any_io_executor <br /></td></tr>
-<tr class="separator:afc76bfb73703b72f76cf2c1858f2e11b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a45be1037a3d0f476cd5d325d6a812579"><td class="memItemLeft" align="right" valign="top"><a id="a45be1037a3d0f476cd5d325d6a812579"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#a45be1037a3d0f476cd5d325d6a812579">executor_type</a> = quic::detail::engine_impl::executor_type</td></tr>
+<tr class="memdesc:a45be1037a3d0f476cd5d325d6a812579"><td class="mdescLeft">&#160;</td><td class="mdescRight">the polymorphic executor type, asio::any_io_executor <br /></td></tr>
+<tr class="separator:a45be1037a3d0f476cd5d325d6a812579"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -98,15 +98,15 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:a8ec1e2d3e2e9bf62c7302a9dbabe2d5b"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct the client, taking ownership of a bound UDP socket <br /></td></tr>
 <tr class="separator:a8ec1e2d3e2e9bf62c7302a9dbabe2d5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adf670c5421020bec132a5ed947019971"><td class="memItemLeft" align="right" valign="top"><a id="adf670c5421020bec132a5ed947019971"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#adf670c5421020bec132a5ed947019971">client</a> (const <a class="el" href="classnexus_1_1h3_1_1client.html#afc76bfb73703b72f76cf2c1858f2e11b">executor_type</a> &amp;ex, const udp::endpoint &amp;endpoint, asio::ssl::context &amp;ctx)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#adf670c5421020bec132a5ed947019971">client</a> (const <a class="el" href="classnexus_1_1h3_1_1client.html#a45be1037a3d0f476cd5d325d6a812579">executor_type</a> &amp;ex, const udp::endpoint &amp;endpoint, asio::ssl::context &amp;ctx)</td></tr>
 <tr class="memdesc:adf670c5421020bec132a5ed947019971"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct the client and bind a UDP socket to the given endpoint <br /></td></tr>
 <tr class="separator:adf670c5421020bec132a5ed947019971"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0993d9f9548eabbe14ae8f67ee427129"><td class="memItemLeft" align="right" valign="top"><a id="a0993d9f9548eabbe14ae8f67ee427129"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#a0993d9f9548eabbe14ae8f67ee427129">client</a> (const <a class="el" href="classnexus_1_1h3_1_1client.html#afc76bfb73703b72f76cf2c1858f2e11b">executor_type</a> &amp;ex, const udp::endpoint &amp;endpoint, asio::ssl::context &amp;ctx, const <a class="el" href="structnexus_1_1quic_1_1settings.html">quic::settings</a> &amp;s)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#a0993d9f9548eabbe14ae8f67ee427129">client</a> (const <a class="el" href="classnexus_1_1h3_1_1client.html#a45be1037a3d0f476cd5d325d6a812579">executor_type</a> &amp;ex, const udp::endpoint &amp;endpoint, asio::ssl::context &amp;ctx, const <a class="el" href="structnexus_1_1quic_1_1settings.html">quic::settings</a> &amp;s)</td></tr>
 <tr class="memdesc:a0993d9f9548eabbe14ae8f67ee427129"><td class="mdescLeft">&#160;</td><td class="mdescRight">construct the client and bind a UDP socket to the given endpoint <br /></td></tr>
 <tr class="separator:a0993d9f9548eabbe14ae8f67ee427129"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4649b9eb0e49bbdb4422f14fc1a2da84"><td class="memItemLeft" align="right" valign="top"><a id="a4649b9eb0e49bbdb4422f14fc1a2da84"></a>
-<a class="el" href="classnexus_1_1h3_1_1client.html#afc76bfb73703b72f76cf2c1858f2e11b">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#a4649b9eb0e49bbdb4422f14fc1a2da84">get_executor</a> () const</td></tr>
+<a class="el" href="classnexus_1_1h3_1_1client.html#a45be1037a3d0f476cd5d325d6a812579">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1h3_1_1client.html#a4649b9eb0e49bbdb4422f14fc1a2da84">get_executor</a> () const</td></tr>
 <tr class="memdesc:a4649b9eb0e49bbdb4422f14fc1a2da84"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the associated io executor <br /></td></tr>
 <tr class="separator:a4649b9eb0e49bbdb4422f14fc1a2da84"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b336029f3d9f85ca7f1b9dadc4c95e6"><td class="memItemLeft" align="right" valign="top"><a id="a1b336029f3d9f85ca7f1b9dadc4c95e6"></a>

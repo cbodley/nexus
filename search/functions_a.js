@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['operator_20bool_150',['operator bool',['../classnexus_1_1global_1_1context.html#a4d4159b762e6adf4f331a2a86edc9885',1,'nexus::global::context']]],
-  ['operator_3d_151',['operator=',['../classnexus_1_1global_1_1context.html#a734091fa34c4bd6f9ff0eed5e7371430',1,'nexus::global::context::operator=()'],['../classnexus_1_1h3_1_1fields.html#a6a6b8d909044e55b9e9f717cdb7984b0',1,'nexus::h3::fields::operator=()']]]
+  ['name_171',['name',['../classnexus_1_1h3_1_1field.html#a28da5c74733863be20547f8bbc76e2c6',1,'nexus::h3::field']]],
+  ['never_5findex_172',['never_index',['../classnexus_1_1h3_1_1field.html#accbc838a92274f2393c472b8ea879626',1,'nexus::h3::field::never_index(bool value)'],['../classnexus_1_1h3_1_1field.html#ae2a4230a80a1faddad53f5979eb41268',1,'nexus::h3::field::never_index() const']]]
 ];

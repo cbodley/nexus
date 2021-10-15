@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['equal_5frange_132',['equal_range',['../classnexus_1_1h3_1_1fields.html#a0c529030f69130ac8f27466b2fa1e148',1,'nexus::h3::fields::equal_range(std::string_view name) -&gt; std::pair&lt; iterator, iterator &gt;'],['../classnexus_1_1h3_1_1fields.html#ac68051d0f36929ed04813c8ed8bf0450',1,'nexus::h3::fields::equal_range(std::string_view name) const -&gt; std::pair&lt; const_iterator, const_iterator &gt;']]],
-  ['erase_133',['erase',['../classnexus_1_1h3_1_1fields.html#ab71267948d114e2fa5241e2905322d7d',1,'nexus::h3::fields::erase(iterator p)'],['../classnexus_1_1h3_1_1fields.html#afc4cb8fcbcc4b5c5f6b73fe9d332fb9a',1,'nexus::h3::fields::erase(iterator begin, iterator end)']]]
+  ['data_149',['data',['../classnexus_1_1h3_1_1field.html#aafec1ca45e988a12ba91b619c73a9b68',1,'nexus::h3::field']]],
+  ['default_5fclient_5fsettings_150',['default_client_settings',['../structnexus_1_1quic_1_1settings.html#a76139aca1d629926fe9e7a55b91b08f7',1,'nexus::quic::settings::default_client_settings()'],['../namespacenexus_1_1quic.html#a76139aca1d629926fe9e7a55b91b08f7',1,'nexus::quic::default_client_settings()']]],
+  ['default_5fserver_5fsettings_151',['default_server_settings',['../structnexus_1_1quic_1_1settings.html#a0f63702abde3ac305275816aa2d2b24e',1,'nexus::quic::settings::default_server_settings()'],['../namespacenexus_1_1quic.html#a0f63702abde3ac305275816aa2d2b24e',1,'nexus::quic::default_server_settings()']]]
 ];

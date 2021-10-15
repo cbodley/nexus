@@ -93,10 +93,10 @@ Inheritance diagram for nexus::quic::stream:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:a967adc029f573796efa545d6f846e483"><td class="memItemLeft" align="right" valign="top"><a id="a967adc029f573796efa545d6f846e483"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a967adc029f573796efa545d6f846e483">executor_type</a> = detail::stream_state::executor_type</td></tr>
-<tr class="memdesc:a967adc029f573796efa545d6f846e483"><td class="mdescLeft">&#160;</td><td class="mdescRight">the polymorphic executor type, asio::any_io_executor <br /></td></tr>
-<tr class="separator:a967adc029f573796efa545d6f846e483"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adb324755c419a7629eadc3eaecb425bc"><td class="memItemLeft" align="right" valign="top"><a id="adb324755c419a7629eadc3eaecb425bc"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#adb324755c419a7629eadc3eaecb425bc">executor_type</a> = detail::stream_impl::executor_type</td></tr>
+<tr class="memdesc:adb324755c419a7629eadc3eaecb425bc"><td class="mdescLeft">&#160;</td><td class="mdescRight">the polymorphic executor type, asio::any_io_executor <br /></td></tr>
+<tr class="separator:adb324755c419a7629eadc3eaecb425bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -115,13 +115,21 @@ Public Member Functions</h2></td></tr>
 <a class="el" href="classnexus_1_1quic_1_1stream.html">stream</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classnexus_1_1quic_1_1stream.html">stream</a> &amp;&amp;)=default</td></tr>
 <tr class="separator:a3286b3ba6006c36d3ebec00e241615b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0f85079b7c8792fcb44707e351602dea"><td class="memItemLeft" align="right" valign="top"><a id="a0f85079b7c8792fcb44707e351602dea"></a>
-<a class="el" href="classnexus_1_1quic_1_1stream.html#a967adc029f573796efa545d6f846e483">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a0f85079b7c8792fcb44707e351602dea">get_executor</a> () const</td></tr>
+<a class="el" href="classnexus_1_1quic_1_1stream.html#adb324755c419a7629eadc3eaecb425bc">executor_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a0f85079b7c8792fcb44707e351602dea">get_executor</a> () const</td></tr>
 <tr class="memdesc:a0f85079b7c8792fcb44707e351602dea"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the associated io executor <br /></td></tr>
 <tr class="separator:a0f85079b7c8792fcb44707e351602dea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa45d81c0048e0889da7881a880f6b8ba"><td class="memItemLeft" align="right" valign="top"><a id="aa45d81c0048e0889da7881a880f6b8ba"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#aa45d81c0048e0889da7881a880f6b8ba">is_open</a> () const</td></tr>
 <tr class="memdesc:aa45d81c0048e0889da7881a880f6b8ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">determine whether the stream is open <br /></td></tr>
 <tr class="separator:aa45d81c0048e0889da7881a880f6b8ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a16fc2470551f9bcd4c552df490b55e79"><td class="memItemLeft" align="right" valign="top"><a id="a16fc2470551f9bcd4c552df490b55e79"></a>
+<a class="el" href="namespacenexus_1_1quic.html#a677eae7bede009176522d4d6f82dcc31">stream_id</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a16fc2470551f9bcd4c552df490b55e79">id</a> (error_code &amp;ec) const</td></tr>
+<tr class="memdesc:a16fc2470551f9bcd4c552df490b55e79"><td class="mdescLeft">&#160;</td><td class="mdescRight">return the stream identifier if open. for streams initiated locally, an identifier may not be assigned until the first STREAM frame is sent <br /></td></tr>
+<tr class="separator:a16fc2470551f9bcd4c552df490b55e79"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a022b8b74c01af6de4476ef3cc3515243"><td class="memItemLeft" align="right" valign="top"><a id="a022b8b74c01af6de4476ef3cc3515243"></a>
+<a class="el" href="namespacenexus_1_1quic.html#a677eae7bede009176522d4d6f82dcc31">stream_id</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#a022b8b74c01af6de4476ef3cc3515243">id</a> () const</td></tr>
+<tr class="memdesc:a022b8b74c01af6de4476ef3cc3515243"><td class="mdescLeft">&#160;</td><td class="mdescRight">This is an overloaded member function, provided for convenience. It differs from the above function only in what argument(s) it accepts. <br /></td></tr>
+<tr class="separator:a022b8b74c01af6de4476ef3cc3515243"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af7853806fe85440976e0be15858a622f"><td class="memTemplParams" colspan="2"><a id="af7853806fe85440976e0be15858a622f"></a>
 template&lt;typename MutableBufferSequence , typename CompletionToken &gt; </td></tr>
 <tr class="memitem:af7853806fe85440976e0be15858a622f"><td class="memTemplItemLeft" align="right" valign="top">decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classnexus_1_1quic_1_1stream.html#af7853806fe85440976e0be15858a622f">async_read_some</a> (const MutableBufferSequence &amp;buffers, CompletionToken &amp;&amp;token)</td></tr>
@@ -188,15 +196,15 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
-<tr class="memitem:a845c59ea7b7a72bcc270571e666d398c"><td class="memItemLeft" align="right" valign="top"><a id="a845c59ea7b7a72bcc270571e666d398c"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>stream</b> (std::unique_ptr&lt; detail::stream_state &gt; &amp;&amp;state)</td></tr>
-<tr class="separator:a845c59ea7b7a72bcc270571e666d398c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2f4b04d8faf70f15a6cc254d20b5b146"><td class="memItemLeft" align="right" valign="top"><a id="a2f4b04d8faf70f15a6cc254d20b5b146"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>stream</b> (std::unique_ptr&lt; detail::stream_impl &gt; &amp;&amp;impl)</td></tr>
+<tr class="separator:a2f4b04d8faf70f15a6cc254d20b5b146"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
-<tr class="memitem:ab912dbd41f70a1c1cefe535dbf8f3913"><td class="memItemLeft" align="right" valign="top"><a id="ab912dbd41f70a1c1cefe535dbf8f3913"></a>
-std::unique_ptr&lt; detail::stream_state &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>state</b></td></tr>
-<tr class="separator:ab912dbd41f70a1c1cefe535dbf8f3913"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a38214be0acdf4dabfb7212e75b80e3be"><td class="memItemLeft" align="right" valign="top"><a id="a38214be0acdf4dabfb7212e75b80e3be"></a>
+std::unique_ptr&lt; detail::stream_impl &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>impl</b></td></tr>
+<tr class="separator:a38214be0acdf4dabfb7212e75b80e3be"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>a generic bidirectional QUIC stream that meets the type requirements of asio's AsyncRead/WriteStream and SyncRead/WriteStream </p>
