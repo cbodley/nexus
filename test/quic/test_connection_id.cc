@@ -8,6 +8,7 @@ using value_type = connection_id::value_type;
 template <size_t Size>
 using array_type = std::array<value_type, Size>;
 
+// return a resized copy of the given array
 template <size_t NewSize, size_t Size>
 constexpr auto resize(const std::array<unsigned char, Size>& data)
     -> std::array<unsigned char, NewSize>
@@ -219,12 +220,35 @@ TEST(connection_id, move_assign)
 
 TEST(connection_id, length_error)
 {
+  // test construction
   EXPECT_NO_THROW(connection_id(long_id.data(), 20));
   EXPECT_THROW(connection_id(long_id.data(), 21), std::length_error);
 
+  // test resize
   connection_id id;
   id.resize(20);
   EXPECT_THROW(id.resize(21), std::length_error);
+  EXPECT_EQ(20, id.size());
+}
+
+TEST(connection_id, out_of_range)
+{
+  connection_id id;
+  EXPECT_EQ(0, id.size());
+  EXPECT_NO_THROW(id[0]);
+  EXPECT_THROW(id.at(0), std::out_of_range);
+
+  id.resize(20);
+  EXPECT_EQ(20, id.size());
+  EXPECT_NO_THROW(id.at(19));
+  EXPECT_NO_THROW(id[20]);
+  EXPECT_THROW(id.at(20), std::out_of_range);
+
+  id.resize(10);
+  EXPECT_EQ(10, id.size());
+  EXPECT_NO_THROW(id.at(9));
+  EXPECT_NO_THROW(id[10]);
+  EXPECT_THROW(id.at(10), std::out_of_range);
 }
 
 } // namespace nexus::quic
