@@ -120,6 +120,11 @@ class server_connection {
 
   // TODO: push stream
 
+  /// send a GOAWAY frame and stop initiating or accepting new streams
+  void go_away(error_code& ec);
+  /// \overload
+  void go_away();
+
   /// close the connection, along with any related streams
   void close(error_code& ec);
   /// \overload

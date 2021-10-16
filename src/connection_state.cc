@@ -17,10 +17,27 @@ connection_id id(const variant& state, error_code& ec)
     auto i = ::lsquic_conn_id(&o.handle);
     cid = connection_id{i->idbuf, i->len};
     ec = error_code{};
+  } else if (std::holds_alternative<going_away>(state)) {
+    auto& g = *std::get_if<going_away>(&state);
+    auto i = ::lsquic_conn_id(&g.handle);
+    cid = connection_id{i->idbuf, i->len};
+    ec = error_code{};
   } else {
     ec = make_error_code(errc::not_connected);
   }
   return cid;
+}
+
+void remote_endpoint(lsquic_conn* handle, sockaddr* remote)
+{
+  const sockaddr* l = nullptr;
+  const sockaddr* r = nullptr;
+  lsquic_conn_get_sockaddr(handle, &l, &r);
+  if (r->sa_family == AF_INET6) {
+    ::memcpy(remote, r, sizeof(sockaddr_in6));
+  } else {
+    ::memcpy(remote, r, sizeof(sockaddr_in));
+  }
 }
 
 udp::endpoint remote_endpoint(const variant& state, error_code& ec)
@@ -28,14 +45,11 @@ udp::endpoint remote_endpoint(const variant& state, error_code& ec)
   auto remote = udp::endpoint{};
   if (std::holds_alternative<open>(state)) {
     auto& o = *std::get_if<open>(&state);
-    const sockaddr* l = nullptr;
-    const sockaddr* r = nullptr;
-    lsquic_conn_get_sockaddr(&o.handle, &l, &r);
-    if (r->sa_family == AF_INET6) {
-      ::memcpy(remote.data(), r, sizeof(sockaddr_in6));
-    } else {
-      ::memcpy(remote.data(), r, sizeof(sockaddr_in));
-    }
+    remote_endpoint(&o.handle, remote.data());
+    ec = error_code{};
+  } else if (std::holds_alternative<going_away>(state)) {
+    auto& g = *std::get_if<going_away>(&state);
+    remote_endpoint(&g.handle, remote.data());
     ec = error_code{};
   } else {
     ec = make_error_code(errc::not_connected);
@@ -52,18 +66,23 @@ void on_connect(variant& state, lsquic_conn* handle)
 
 void on_handshake(variant& state, int status)
 {
-  assert(std::holds_alternative<open>(state));
-  auto& o = *std::get_if<open>(&state);
-  switch (status) {
-    case LSQ_HSK_FAIL:
-    case LSQ_HSK_RESUMED_FAIL:
-      if (!o.ec) {
-        // set a generic connection handshake error. we may get a more specific
-        // error from on_connection_close_frame() before on_closed() delivers
-        // this error to the application
-        o.ec = make_error_code(connection_error::handshake_failed);
-      }
-      break;
+  if (status != LSQ_HSK_FAIL && status != LSQ_HSK_RESUMED_FAIL) {
+    return;
+  }
+  // set a generic connection handshake error. we may get a more specific
+  // error from on_connection_close_frame() before on_closed() delivers
+  // this error to the application
+  const auto ec = make_error_code(connection_error::handshake_failed);
+  if (std::holds_alternative<open>(state)) {
+    auto& o = *std::get_if<open>(&state);
+    if (!o.ec) {
+      o.ec = ec;
+    }
+  } else if (std::holds_alternative<going_away>(state)) {
+    auto& g = *std::get_if<going_away>(&state);
+    if (!g.ec) {
+      g.ec = ec;
+    }
   }
 }
 
@@ -94,6 +113,9 @@ bool stream_connect(variant& state, stream_connect_operation& op)
     op.post(std::get_if<error>(&state)->ec);
     state = closed{};
     return false;
+  } else if (std::holds_alternative<going_away>(state)) {
+    op.post(make_error_code(connection_error::going_away));
+    return false;
   } else if (!std::holds_alternative<open>(state)) {
     op.post(make_error_code(errc::bad_file_descriptor));
     return false;
@@ -122,6 +144,9 @@ void stream_accept(variant& state, stream_accept_operation& op, bool is_http)
   if (std::holds_alternative<error>(state)) {
     op.post(std::get_if<error>(&state)->ec);
     state = closed{};
+    return;
+  } else if (std::holds_alternative<going_away>(state)) {
+    op.post(make_error_code(connection_error::going_away));
     return;
   } else if (!std::holds_alternative<open>(state)) {
     op.post(make_error_code(errc::bad_file_descriptor));
@@ -164,48 +189,98 @@ stream_impl* on_stream_accept(variant& state, lsquic_stream* handle,
   return &s;
 }
 
-int abort_streams(open& state, error_code ec)
+int abort_streams(stream_list& streams, error_code ec)
 {
   int canceled = 0;
-  // close incoming streams that we haven't accepted yet
-  while (!state.incoming_streams.empty()) {
-    auto handle = state.incoming_streams.front();
-    state.incoming_streams.pop_front();
-    ::lsquic_stream_close(handle);
-  }
-  // cancel pending stream connect/accept
-  while (!state.connecting_streams.empty()) {
-    auto& s = state.connecting_streams.front();
-    state.connecting_streams.pop_front();
-    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
-    assert(t == stream_state::transition::connecting_to_closed);
-    canceled++;
-  }
-  while (!state.accepting_streams.empty()) {
-    auto& s = state.accepting_streams.front();
-    state.accepting_streams.pop_front();
-    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
-    assert(t == stream_state::transition::accepting_to_closed);
-    canceled++;
-  }
-  // close connected streams
-  while (!state.open_streams.empty()) {
-    auto& s = state.open_streams.front();
-    state.open_streams.pop_front();
-    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
-    assert(t == stream_state::transition::open_to_closed ||
-           t == stream_state::transition::open_to_error);
-    canceled++;
-  }
-  // cancel closing streams
-  while (!state.closing_streams.empty()) {
-    auto& s = state.closing_streams.front();
-    state.closing_streams.pop_front();
-    [[maybe_unused]] auto t = stream_state::on_error(s.state, ec);
-    assert(t == stream_state::transition::closing_to_closed);
+  while (!streams.empty()) {
+    auto& s = streams.front();
+    streams.pop_front();
+    stream_state::on_error(s.state, ec);
     canceled++;
   }
   return canceled;
+}
+
+void close_handles(boost::circular_buffer<lsquic_stream*>& handles)
+{
+  while (!handles.empty()) {
+    auto handle = handles.front();
+    handles.pop_front();
+    ::lsquic_stream_close(handle);
+  }
+}
+
+int abort_streams(open& state, error_code ec)
+{
+  int canceled = 0;
+  close_handles(state.incoming_streams);
+  canceled += abort_streams(state.connecting_streams, ec);
+  canceled += abort_streams(state.accepting_streams, ec);
+  canceled += abort_streams(state.open_streams, ec);
+  canceled += abort_streams(state.closing_streams, ec);
+  return canceled;
+}
+
+int abort_streams(going_away& state, error_code ec)
+{
+  int canceled = 0;
+  canceled += abort_streams(state.open_streams, ec);
+  canceled += abort_streams(state.closing_streams, ec);
+  return canceled;
+}
+
+transition go_away(variant& state, error_code& ec)
+{
+  if (std::holds_alternative<going_away>(state)) {
+    ec = error_code{};
+    return transition::none;
+  }
+  if (!std::holds_alternative<open>(state)) {
+    ec = make_error_code(errc::not_connected);
+    return transition::none;
+  }
+  auto& o = *std::get_if<open>(&state);
+  ::lsquic_conn_going_away(&o.handle);
+
+  const auto aborted = make_error_code(connection_error::going_away);
+  close_handles(o.incoming_streams);
+  abort_streams(o.connecting_streams, aborted);
+  abort_streams(o.accepting_streams, aborted);
+
+  auto& handle = o.handle;
+  auto open = std::move(o.open_streams);
+  auto closing = std::move(o.closing_streams);
+  auto conn_ec = o.ec;
+
+  auto& g = state.emplace<going_away>(handle);
+  g.open_streams = std::move(open);
+  g.closing_streams = std::move(closing);
+  g.ec = conn_ec;
+
+  ec = error_code{};
+  return transition::open_to_going_away;
+}
+
+transition on_error(variant& state, open& o, error_code ec)
+{
+  const int canceled = abort_streams(o, ec);
+  if (!canceled) {
+    state = error{ec};
+    return transition::open_to_error;
+  }
+  state = closed{};
+  return transition::open_to_closed;
+}
+
+transition on_error(variant& state, going_away& g, error_code ec)
+{
+  const int canceled = abort_streams(g, ec);
+  if (!canceled) {
+    state = error{ec};
+    return transition::going_away_to_error;
+  }
+  state = closed{};
+  return transition::going_away_to_closed;
 }
 
 transition reset(variant& state, error_code ec)
@@ -219,14 +294,13 @@ transition reset(variant& state, error_code ec)
   }
   if (std::holds_alternative<open>(state)) {
     auto& o = *std::get_if<open>(&state);
-    const int canceled = abort_streams(o, ec);
     ::lsquic_conn_close(&o.handle);
-    if (!canceled) { // connection error was not delivered
-      state = error{ec};
-      return transition::open_to_error;
-    }
-    state = closed{};
-    return transition::open_to_closed;
+    return on_error(state, o, ec);
+  }
+  if (std::holds_alternative<going_away>(state)) {
+    auto& g = *std::get_if<going_away>(&state);
+    ::lsquic_conn_close(&g.handle);
+    return on_error(state, g, ec);
   }
   if (std::holds_alternative<error>(state)) {
     ec = std::get_if<error>(&state)->ec;
@@ -253,6 +327,13 @@ transition close(variant& state, error_code& ec)
     ::lsquic_conn_close(&o.handle);
     state = closed{};
     return transition::open_to_closed;
+  }
+  if (std::holds_alternative<going_away>(state)) {
+    auto& g = *std::get_if<going_away>(&state);
+    abort_streams(g, aborted);
+    ::lsquic_conn_close(&g.handle);
+    state = closed{};
+    return transition::going_away_to_closed;
   }
   if (std::holds_alternative<error>(state)) {
     ec = std::get_if<error>(&state)->ec;
@@ -291,32 +372,26 @@ static error_code connection_status(lsquic_conn* handle)
 
 transition on_close(variant& state)
 {
-  if (!std::holds_alternative<open>(state)) {
-    return transition::none;
+  if (std::holds_alternative<open>(state)) {
+    auto& o = *std::get_if<open>(&state);
+    return on_error(state, o, o.ec ? o.ec : connection_status(&o.handle));
   }
-  auto& o = *std::get_if<open>(&state);
-  const auto ec = o.ec ? o.ec : connection_status(&o.handle);
-  const int canceled = abort_streams(o, ec);
-  if (!canceled) { // connection error wasn't delivered
-    state = error{ec};
-    return transition::open_to_error;
+  if (std::holds_alternative<going_away>(state)) {
+    auto& g = *std::get_if<going_away>(&state);
+    return on_error(state, g, g.ec ? g.ec : connection_status(&g.handle));
   }
-  state = closed{};
-  return transition::open_to_closed;
+  return transition::none;
 }
 
 transition on_connection_close_frame(variant& state, error_code ec)
 {
-  assert(std::holds_alternative<open>(state));
-  auto& o = *std::get_if<open>(&state);
-  const int canceled = abort_streams(o, ec);
-  if (!canceled) { // connection error wasn't delivered
-    state = error{ec};
-    return transition::open_to_error;
-  } else {
-    state = closed{};
-    return transition::open_to_closed;
+  if (std::holds_alternative<open>(state)) {
+    return on_error(state, *std::get_if<open>(&state), ec);
   }
+  if (std::holds_alternative<going_away>(state)) {
+    return on_error(state, *std::get_if<going_away>(&state), ec);
+  }
+  return transition::none;
 }
 
 void destroy(variant& state)

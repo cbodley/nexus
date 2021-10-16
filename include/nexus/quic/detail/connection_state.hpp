@@ -52,7 +52,16 @@ struct open {
   explicit open(lsquic_conn& handle) noexcept : handle(handle) {}
 };
 
-// TODO: going_away with just handle/open_streams/closing_streams
+/// the connection is processing open streams but not initiating or accepting
+struct going_away {
+  lsquic_conn& handle;
+  stream_list open_streams;
+  stream_list closing_streams;
+  // handshake errors are stored here until they can be delivered on close
+  error_code ec;
+
+  explicit going_away(lsquic_conn& handle) noexcept : handle(handle) {}
+};
 
 /// the connection has closed with a connection error which hasn't yet been
 /// delivered to the application
@@ -64,14 +73,17 @@ struct error {
 struct closed {
 };
 
-using variant = std::variant<accepting, open, error, closed>;
+using variant = std::variant<accepting, open, going_away, error, closed>;
 
 /// connection state transitions (only those relevent to close)
 enum class transition {
   none,
   accepting_to_closed,
+  open_to_going_away,
   open_to_closed,
   open_to_error,
+  going_away_to_closed,
+  going_away_to_error,
   error_to_closed,
 };
 
@@ -95,6 +107,7 @@ void stream_accept(variant& state, stream_accept_operation& op, bool is_http);
 stream_impl* on_stream_accept(variant& state, lsquic_stream* handle,
                               bool is_http);
 
+transition go_away(variant& state, error_code& ec);
 transition reset(variant& state, error_code ec);
 transition close(variant& state, error_code& ec);
 transition on_close(variant& state);

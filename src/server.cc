@@ -186,6 +186,20 @@ void server_connection::accept(stream& s)
   }
 }
 
+void server_connection::go_away(error_code& ec)
+{
+  impl.go_away(ec);
+}
+
+void server_connection::go_away()
+{
+  error_code ec;
+  impl.go_away(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
 void server_connection::close(error_code& ec)
 {
   impl.close(ec);

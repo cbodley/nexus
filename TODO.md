@@ -23,7 +23,6 @@
 
 ## h3
 
-* going_away() for h3 connections
 * allocator support for fields
 
 ## Async

@@ -161,6 +161,20 @@ void client_connection::connect(stream& s)
   }
 }
 
+void client_connection::go_away(error_code& ec)
+{
+  impl.go_away(ec);
+}
+
+void client_connection::go_away()
+{
+  error_code ec;
+  impl.go_away(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
 void client_connection::close(error_code& ec)
 {
   impl.close(ec);

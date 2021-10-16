@@ -90,6 +90,20 @@ void connection::accept(stream& s)
   }
 }
 
+void connection::go_away(error_code& ec)
+{
+  impl.go_away(ec);
+}
+
+void connection::go_away()
+{
+  error_code ec;
+  impl.go_away(ec);
+  if (ec) {
+    throw system_error(ec);
+  }
+}
+
 void connection::close(error_code& ec)
 {
   impl.close(ec);
@@ -176,6 +190,12 @@ stream_impl* connection_impl::on_accept(lsquic_stream* stream)
   return connection_state::on_stream_accept(state, stream, socket.engine.is_http);
 }
 
+void connection_impl::go_away(error_code& ec)
+{
+  auto lock = std::unique_lock{socket.engine.mutex};
+  connection_state::go_away(state, ec);
+}
+
 void connection_impl::close(error_code& ec)
 {
   auto lock = std::unique_lock{socket.engine.mutex};
@@ -185,6 +205,7 @@ void connection_impl::close(error_code& ec)
       list_erase(*this, socket.accepting_connections);
       break;
     case connection_state::transition::open_to_closed:
+    case connection_state::transition::going_away_to_closed:
       list_erase(*this, socket.open_connections);
       socket.engine.process(lock);
       break;
@@ -196,9 +217,15 @@ void connection_impl::close(error_code& ec)
 void connection_impl::on_close()
 {
   const auto t = connection_state::on_close(state);
-  if (t == connection_state::transition::open_to_error ||
-      t == connection_state::transition::open_to_closed) {
-    list_erase(*this, socket.open_connections);
+  switch (t) {
+    case connection_state::transition::open_to_error:
+    case connection_state::transition::open_to_closed:
+    case connection_state::transition::going_away_to_error:
+    case connection_state::transition::going_away_to_closed:
+      list_erase(*this, socket.open_connections);
+      break;
+    default:
+      break;
   }
 }
 
@@ -222,9 +249,15 @@ void connection_impl::on_conncloseframe(int app_error, uint64_t code)
   }
 
   const auto t = connection_state::on_connection_close_frame(state, ec);
-  if (t == connection_state::transition::open_to_error ||
-      t == connection_state::transition::open_to_closed) {
-    list_erase(*this, socket.open_connections);
+  switch (t) {
+    case connection_state::transition::open_to_error:
+    case connection_state::transition::open_to_closed:
+    case connection_state::transition::going_away_to_error:
+    case connection_state::transition::going_away_to_closed:
+      list_erase(*this, socket.open_connections);
+      break;
+    default:
+      break;
   }
 }
 

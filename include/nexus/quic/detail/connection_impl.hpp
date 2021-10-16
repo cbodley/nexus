@@ -68,6 +68,7 @@ struct connection_impl : public boost::intrusive::list_base_hook<>,
 
   bool is_open() const;
 
+  void go_away(error_code& ec);
   void close(error_code& ec);
 
   void on_close();
