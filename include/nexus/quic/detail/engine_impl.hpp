@@ -28,7 +28,8 @@ struct engine_impl {
   lsquic_engine_ptr handle;
   // pointer to client socket or null if server
   socket_impl* client;
-  bool is_http = false;
+  uint32_t max_streams_per_connection;
+  bool is_http;
 
   void process(std::unique_lock<std::mutex>& lock);
   void reschedule(std::unique_lock<std::mutex>& lock);

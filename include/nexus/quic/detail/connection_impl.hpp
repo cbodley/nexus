@@ -15,7 +15,8 @@ namespace nexus::quic::detail {
 struct accept_operation;
 struct socket_impl;
 
-struct connection_impl : public boost::intrusive::list_base_hook<>,
+struct connection_impl : public connection_context,
+                         public boost::intrusive::list_base_hook<>,
                          public service_list_base_hook {
   service<connection_impl>& svc;
   socket_impl& socket;
@@ -73,7 +74,8 @@ struct connection_impl : public boost::intrusive::list_base_hook<>,
 
   void on_close();
   void on_handshake(int status);
-  void on_conncloseframe(int app_error, uint64_t code);
+  void on_remote_goaway();
+  void on_remote_close(int app_error, uint64_t code);
 
   void on_incoming_stream_closed(stream_impl& s);
   void on_accepting_stream_closed(stream_impl& s);

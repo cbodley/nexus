@@ -1,12 +1,11 @@
 #pragma once
 
-#include <asio.hpp>
+#include <asio/ip/udp.hpp>
 #include <nexus/error_code.hpp>
 
-namespace nexus::udp {
+namespace nexus {
 
-using endpoint = asio::ip::udp::endpoint;
-using socket = asio::ip::udp::socket;
+using asio::ip::udp;
 
 namespace detail {
 
@@ -18,33 +17,39 @@ class socket_option {
 
   constexpr operator bool() const { return value; }
 
-  constexpr int level(const asio::ip::udp& proto) const {
+  template <typename Protocol>
+  constexpr int level(const Protocol& proto) const {
     return proto.family() == PF_INET6 ? IPPROTO_IPV6 : IPPROTO_IP;
   }
-  constexpr int name(const asio::ip::udp& proto) const {
+  template <typename Protocol>
+  constexpr int name(const Protocol& proto) const {
     return proto.family() == PF_INET6 ? Name6 : Name4;
   }
-  constexpr size_t size(const asio::ip::udp&) const {
+  template <typename Protocol>
+  constexpr size_t size(const Protocol&) const {
     return sizeof(value);
   }
-  constexpr void* data(const asio::ip::udp&) {
+  template <typename Protocol>
+  constexpr void* data(const Protocol&) {
     return &value;
   }
-  constexpr const void* data(const asio::ip::udp&) const {
+  template <typename Protocol>
+  constexpr const void* data(const Protocol&) const {
     return &value;
   }
-  constexpr void resize(asio::ip::udp&, std::size_t) {}
+  template <typename Protocol>
+  constexpr void resize(Protocol&, std::size_t) {}
 };
 
-template <typename Option>
-error_code set_option(socket& sock, Option&& option) {
+template <typename Socket, typename Option>
+error_code set_option(Socket& sock, Option&& option) {
   error_code ec;
   sock.set_option(option, ec);
   return ec;
 }
 
-template <typename ...Options>
-error_code set_options(socket& sock, Options&& ...options) {
+template <typename Socket, typename ...Options>
+error_code set_options(Socket& sock, Options&& ...options) {
   error_code ec;
   // fold expression calls set_option() on each until one returns an error
   ((ec = set_option(sock, options)) || ...);
@@ -61,4 +66,4 @@ using receive_dstaddr = detail::socket_option<IP_RECVORIGDSTADDR, IPV6_RECVPKTIN
 using receive_dstaddr = detail::socket_option<IP_PKTINFO, IPV6_RECVPKTINFO>;
 #endif
 
-} // namespace nexus::udp
+} // namespace nexus

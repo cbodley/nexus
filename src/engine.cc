@@ -128,10 +128,18 @@ static lsquic_stream_ctx_t* on_new_stream(void* ectx, lsquic_stream_t* stream)
     return nullptr; // connection went away?
   }
   auto conn = ::lsquic_stream_conn(stream);
-  auto cctx = ::lsquic_conn_get_ctx(conn);
-  auto c = reinterpret_cast<connection_impl*>(cctx);
-  auto s = estate->on_new_stream(*c, stream);
-  return reinterpret_cast<lsquic_stream_ctx_t*>(s);
+  auto ctx = reinterpret_cast<connection_context*>(::lsquic_conn_get_ctx(conn));
+  assert(ctx);
+  if (ctx->incoming) {
+    auto c = static_cast<incoming_connection*>(ctx);
+    assert(!c->incoming_streams.full()); // lsquic shouldn't allow this
+    c->incoming_streams.push_back(stream);
+    return nullptr;
+  } else {
+    auto c = static_cast<connection_impl*>(ctx);
+    auto s = estate->on_new_stream(*c, stream);
+    return reinterpret_cast<lsquic_stream_ctx_t*>(s);
+  }
 }
 
 static void on_read(lsquic_stream_t* stream, lsquic_stream_ctx_t* sctx)
@@ -174,16 +182,27 @@ static void on_hsk_done(lsquic_conn_t* conn, lsquic_hsk_status s)
   c->on_handshake(s);
 }
 
-void on_conncloseframe_received(lsquic_conn_t* conn,
-                                int app_error, uint64_t code,
-                                const char* reason, int reason_len)
+void on_goaway_received(lsquic_conn_t* conn)
 {
   auto cctx = ::lsquic_conn_get_ctx(conn);
   if (!cctx) {
     return;
   }
   auto c = reinterpret_cast<connection_impl*>(cctx);
-  c->on_conncloseframe(app_error, code);
+  c->on_remote_goaway();
+}
+
+void on_conncloseframe_received(lsquic_conn_t* conn,
+                                int app_error, uint64_t code,
+                                const char* reason, int reason_len)
+{
+  auto ctx = reinterpret_cast<connection_context*>(::lsquic_conn_get_ctx(conn));
+  if (!ctx) {
+    return;
+  }
+  assert(!ctx->incoming);
+  auto c = reinterpret_cast<connection_impl*>(ctx);
+  c->on_remote_close(app_error, code);
 }
 
 static constexpr lsquic_stream_if make_stream_api()
@@ -196,6 +215,7 @@ static constexpr lsquic_stream_if make_stream_api()
   api.on_write = on_write;
   api.on_close = on_close;
   api.on_hsk_done = on_hsk_done;
+  api.on_goaway_received = on_goaway_received;
   api.on_conncloseframe_received = on_conncloseframe_received;
   return api;
 }
@@ -268,7 +288,7 @@ ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
 engine_impl::engine_impl(const asio::any_io_executor& ex,
                          socket_impl* client, const settings* s,
                          unsigned flags)
-  : ex(ex), timer(ex), client(client)
+  : ex(ex), timer(ex), client(client), is_http(flags & LSENG_HTTP)
 {
   lsquic_engine_api api = {};
   api.ea_packets_out = api_send_packets;
@@ -281,7 +301,6 @@ engine_impl::engine_impl(const asio::any_io_executor& ex,
     static const lsquic_hset_if header_api = make_header_api();
     api.ea_hsi_if = &header_api;
     api.ea_hsi_ctx = this;
-    is_http = true;
   }
 
   // apply and validate the settings
@@ -298,6 +317,8 @@ engine_impl::engine_impl(const asio::any_io_executor& ex,
   }
   es.es_delay_onclose = 1;
   api.ea_settings = &es;
+
+  max_streams_per_connection = es.es_init_max_streams_bidi;
 
   handle.reset(::lsquic_engine_new(flags, &api));
 }

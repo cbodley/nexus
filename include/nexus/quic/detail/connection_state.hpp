@@ -6,7 +6,6 @@
 #include <nexus/quic/connection_id.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
 #include <nexus/udp.hpp>
-#include <lsquic.h>
 
 struct lsquic_conn;
 
@@ -28,6 +27,21 @@ inline void list_transfer(stream_impl& s, stream_list& from, stream_list& to)
   from.erase(from.iterator_to(s));
   to.push_back(s);
 }
+
+struct connection_context {
+  bool incoming;
+  explicit connection_context(bool incoming) noexcept : incoming(incoming) {}
+};
+
+struct incoming_connection : connection_context {
+  lsquic_conn* handle;
+  boost::circular_buffer<lsquic_stream*> incoming_streams; // TODO: allocator
+
+  incoming_connection(lsquic_conn* handle, uint32_t max_streams)
+      : connection_context(true),
+        handle(handle),
+        incoming_streams(max_streams) {}
+};
 
 /// state machine for quic connections
 namespace connection_state {
@@ -96,22 +110,23 @@ udp::endpoint remote_endpoint(const variant& state, error_code& ec);
 void on_connect(variant& state, lsquic_conn* handle);
 void on_handshake(variant& state, int status);
 void accept(variant& state, accept_operation& op);
-void accept_incoming(variant& state, lsquic_conn* handle);
+void accept_incoming(variant& state, incoming_connection&& incoming);
 void on_accept(variant& state, lsquic_conn* handle);
 
 bool stream_connect(variant& state, stream_connect_operation& op);
-stream_impl* on_stream_connect(variant& state, lsquic_stream_t* handle,
+stream_impl* on_stream_connect(variant& state, lsquic_stream* handle,
                                bool is_http);
 
 void stream_accept(variant& state, stream_accept_operation& op, bool is_http);
 stream_impl* on_stream_accept(variant& state, lsquic_stream* handle,
                               bool is_http);
 
-transition go_away(variant& state, error_code& ec);
+transition goaway(variant& state, error_code& ec);
+transition on_remote_goaway(variant& state);
 transition reset(variant& state, error_code ec);
 transition close(variant& state, error_code& ec);
 transition on_close(variant& state);
-transition on_connection_close_frame(variant& state, error_code ec);
+transition on_remote_close(variant& state, error_code ec);
 void destroy(variant& state);
 
 } // namespace connection_state

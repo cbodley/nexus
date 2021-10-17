@@ -1,4 +1,5 @@
 #include <nexus/quic/detail/connection_state.hpp>
+#include <lsquic.h>
 
 namespace nexus::quic::detail {
 
@@ -92,11 +93,12 @@ void accept(variant& state, accept_operation& op)
   state = accepting{&op};
 }
 
-void accept_incoming(variant& state, lsquic_conn* handle)
+void accept_incoming(variant& state, incoming_connection&& incoming)
 {
-  assert(handle);
   assert(std::holds_alternative<closed>(state));
-  state.emplace<open>(*handle);
+  assert(incoming.handle);
+  auto& o = state.emplace<open>(*incoming.handle);
+  o.incoming_streams = std::move(incoming.incoming_streams);
 }
 
 void on_accept(variant& state, lsquic_conn* handle)
@@ -189,7 +191,7 @@ stream_impl* on_stream_accept(variant& state, lsquic_stream* handle,
   return &s;
 }
 
-int abort_streams(stream_list& streams, error_code ec)
+static int abort_streams(stream_list& streams, error_code ec)
 {
   int canceled = 0;
   while (!streams.empty()) {
@@ -201,7 +203,7 @@ int abort_streams(stream_list& streams, error_code ec)
   return canceled;
 }
 
-void close_handles(boost::circular_buffer<lsquic_stream*>& handles)
+static void close_handles(boost::circular_buffer<lsquic_stream*>& handles)
 {
   while (!handles.empty()) {
     auto handle = handles.front();
@@ -229,7 +231,24 @@ int abort_streams(going_away& state, error_code ec)
   return canceled;
 }
 
-transition go_away(variant& state, error_code& ec)
+static void on_goaway(variant& state, open& o, error_code ec)
+{
+  close_handles(o.incoming_streams);
+  abort_streams(o.connecting_streams, ec);
+  abort_streams(o.accepting_streams, ec);
+
+  auto& handle = o.handle;
+  auto open = std::move(o.open_streams);
+  auto closing = std::move(o.closing_streams);
+  auto conn_ec = o.ec;
+
+  auto& g = state.emplace<going_away>(handle);
+  g.open_streams = std::move(open);
+  g.closing_streams = std::move(closing);
+  g.ec = conn_ec;
+}
+
+transition goaway(variant& state, error_code& ec)
 {
   if (std::holds_alternative<going_away>(state)) {
     ec = error_code{};
@@ -241,27 +260,23 @@ transition go_away(variant& state, error_code& ec)
   }
   auto& o = *std::get_if<open>(&state);
   ::lsquic_conn_going_away(&o.handle);
-
-  const auto aborted = make_error_code(connection_error::going_away);
-  close_handles(o.incoming_streams);
-  abort_streams(o.connecting_streams, aborted);
-  abort_streams(o.accepting_streams, aborted);
-
-  auto& handle = o.handle;
-  auto open = std::move(o.open_streams);
-  auto closing = std::move(o.closing_streams);
-  auto conn_ec = o.ec;
-
-  auto& g = state.emplace<going_away>(handle);
-  g.open_streams = std::move(open);
-  g.closing_streams = std::move(closing);
-  g.ec = conn_ec;
-
+  on_goaway(state, o, make_error_code(connection_error::going_away));
   ec = error_code{};
   return transition::open_to_going_away;
 }
 
-transition on_error(variant& state, open& o, error_code ec)
+transition on_remote_goaway(variant& state)
+{
+  if (!std::holds_alternative<open>(state)) {
+    return transition::none;
+  }
+  auto& o = *std::get_if<open>(&state);
+  ::lsquic_conn_going_away(&o.handle);
+  on_goaway(state, o, make_error_code(connection_error::peer_going_away));
+  return transition::open_to_going_away;
+}
+
+static transition on_error(variant& state, open& o, error_code ec)
 {
   const int canceled = abort_streams(o, ec);
   if (!canceled) {
@@ -272,7 +287,7 @@ transition on_error(variant& state, open& o, error_code ec)
   return transition::open_to_closed;
 }
 
-transition on_error(variant& state, going_away& g, error_code ec)
+static transition on_error(variant& state, going_away& g, error_code ec)
 {
   const int canceled = abort_streams(g, ec);
   if (!canceled) {
@@ -294,12 +309,12 @@ transition reset(variant& state, error_code ec)
   }
   if (std::holds_alternative<open>(state)) {
     auto& o = *std::get_if<open>(&state);
-    ::lsquic_conn_close(&o.handle);
+    ::lsquic_conn_abort(&o.handle);
     return on_error(state, o, ec);
   }
   if (std::holds_alternative<going_away>(state)) {
     auto& g = *std::get_if<going_away>(&state);
-    ::lsquic_conn_close(&g.handle);
+    ::lsquic_conn_abort(&g.handle);
     return on_error(state, g, ec);
   }
   if (std::holds_alternative<error>(state)) {
@@ -324,14 +339,14 @@ transition close(variant& state, error_code& ec)
   if (std::holds_alternative<open>(state)) {
     auto& o = *std::get_if<open>(&state);
     abort_streams(o, aborted);
-    ::lsquic_conn_close(&o.handle);
+    ::lsquic_conn_abort(&o.handle);
     state = closed{};
     return transition::open_to_closed;
   }
   if (std::holds_alternative<going_away>(state)) {
     auto& g = *std::get_if<going_away>(&state);
     abort_streams(g, aborted);
-    ::lsquic_conn_close(&g.handle);
+    ::lsquic_conn_abort(&g.handle);
     state = closed{};
     return transition::going_away_to_closed;
   }
@@ -383,7 +398,7 @@ transition on_close(variant& state)
   return transition::none;
 }
 
-transition on_connection_close_frame(variant& state, error_code ec)
+transition on_remote_close(variant& state, error_code ec)
 {
   if (std::holds_alternative<open>(state)) {
     return on_error(state, *std::get_if<open>(&state), ec);

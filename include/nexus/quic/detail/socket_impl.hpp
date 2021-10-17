@@ -5,6 +5,7 @@
 #include <nexus/ssl.hpp>
 #include <nexus/quic/detail/connection_impl.hpp>
 
+struct lsquic_conn;
 struct lsquic_out_spec;
 
 namespace nexus::quic::detail {
@@ -38,7 +39,7 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   udp::socket socket;
   asio::ssl::context& ssl;
   udp::endpoint local_addr; // socket's bound address
-  boost::circular_buffer<lsquic_conn*> incoming_connections;
+  boost::circular_buffer<incoming_connection> incoming_connections;
   connection_list accepting_connections;
   connection_list open_connections;
   bool receiving = false;
@@ -61,10 +62,10 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   void connect(connection_impl& c,
                const udp::endpoint& endpoint,
                const char* hostname);
-  void on_connect(connection_impl& c, lsquic_conn_t* conn);
+  void on_connect(connection_impl& c, lsquic_conn* conn);
 
   void accept(connection_impl& c, accept_operation& op);
-  connection_impl* on_accept(lsquic_conn_t* conn);
+  connection_context* on_accept(lsquic_conn* conn);
 
   template <typename Connection, typename CompletionToken>
   decltype(auto) async_accept(Connection& conn,

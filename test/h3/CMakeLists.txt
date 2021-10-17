@@ -1,5 +1,8 @@
 add_unit_test(test_h3_fields test_fields.cc)
 target_link_libraries(test_h3_fields test_base nexus)
 
+add_unit_test(test_h3_connection_go_away test_connection_go_away.cc)
+target_link_libraries(test_h3_connection_go_away test_base nexus)
+
 add_unit_test(test_h3_stream_shutdown test_stream_shutdown.cc)
 target_link_libraries(test_h3_stream_shutdown test_base nexus)

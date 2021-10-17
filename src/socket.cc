@@ -14,12 +14,12 @@ void prepare_socket(udp::socket& sock, bool is_server, error_code& ec)
   if (sock.non_blocking(true, ec); ec) {
     return;
   }
-  if (sock.set_option(udp::receive_ecn{true}, ec); ec) {
+  if (sock.set_option(receive_ecn{true}, ec); ec) {
     return;
   }
   if (is_server) {
-    ec = udp::detail::set_options(sock, udp::receive_dstaddr{true},
-                                  udp::socket::reuse_address{true});
+    ec = nexus::detail::set_options(sock, receive_dstaddr{true},
+                                    udp::socket::reuse_address{true});
   }
 }
 
@@ -97,12 +97,14 @@ void socket_impl::accept(connection_impl& c, accept_operation& op)
 {
   auto lock = std::unique_lock{engine.mutex};
   if (!incoming_connections.empty()) {
-    auto handle = incoming_connections.front();
+    auto incoming = std::move(incoming_connections.front());
     incoming_connections.pop_front();
     open_connections.push_back(c);
+    // when we accepted this, we had to return nullptr for the conn ctx
+    // because we didn't have this connection_impl yet. update the ctx
     auto ctx = reinterpret_cast<lsquic_conn_ctx_t*>(&c);
-    ::lsquic_conn_set_ctx(handle, ctx);
-    connection_state::accept_incoming(c.state, handle);
+    ::lsquic_conn_set_ctx(incoming.handle, ctx);
+    connection_state::accept_incoming(c.state, std::move(incoming));
     op.post(error_code{}); // success
     return;
   }
@@ -111,16 +113,17 @@ void socket_impl::accept(connection_impl& c, accept_operation& op)
   engine.process(lock);
 }
 
-connection_impl* socket_impl::on_accept(lsquic_conn_t* conn)
+connection_context* socket_impl::on_accept(lsquic_conn_t* conn)
 {
+  assert(conn);
   if (accepting_connections.empty()) {
     // not waiting on accept, try to queue this for later
     if (incoming_connections.full()) {
       ::lsquic_conn_close(conn);
-    } else {
-      incoming_connections.push_back(conn);
+      return nullptr;
     }
-    return nullptr;
+    incoming_connections.push_back({conn, engine.max_streams_per_connection});
+    return &incoming_connections.back();
   }
   auto& c = accepting_connections.front();
   list_transfer(c, accepting_connections, open_connections);
@@ -133,9 +136,9 @@ void socket_impl::abort_connections(error_code ec)
 {
   // close incoming streams that we haven't accepted yet
   while (!incoming_connections.empty()) {
-    auto conn = incoming_connections.front();
+    auto& incoming = incoming_connections.front();
+    ::lsquic_conn_close(incoming.handle); // also closes incoming_streams
     incoming_connections.pop_front();
-    ::lsquic_conn_close(conn);
   }
   // close open connections on this socket
   while (!open_connections.empty()) {

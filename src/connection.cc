@@ -121,7 +121,8 @@ void connection::close()
 namespace detail {
 
 connection_impl::connection_impl(socket_impl& socket)
-    : svc(asio::use_service<service<connection_impl>>(
+    : connection_context(false),
+      svc(asio::use_service<service<connection_impl>>(
             asio::query(socket.get_executor(),
                         asio::execution::context))),
       socket(socket), state(connection_state::closed{})
@@ -193,7 +194,10 @@ stream_impl* connection_impl::on_accept(lsquic_stream* stream)
 void connection_impl::go_away(error_code& ec)
 {
   auto lock = std::unique_lock{socket.engine.mutex};
-  connection_state::go_away(state, ec);
+  const auto t = connection_state::goaway(state, ec);
+  if (t == connection_state::transition::open_to_going_away) {
+    socket.engine.process(lock);
+  }
 }
 
 void connection_impl::close(error_code& ec)
@@ -234,7 +238,12 @@ void connection_impl::on_handshake(int status)
   connection_state::on_handshake(state, status);
 }
 
-void connection_impl::on_conncloseframe(int app_error, uint64_t code)
+void connection_impl::on_remote_goaway()
+{
+  connection_state::on_remote_goaway(state);
+}
+
+void connection_impl::on_remote_close(int app_error, uint64_t code)
 {
   error_code ec;
   if (app_error == -1) {
@@ -248,7 +257,7 @@ void connection_impl::on_conncloseframe(int app_error, uint64_t code)
     ec.assign(code, transport_category());
   }
 
-  const auto t = connection_state::on_connection_close_frame(state, ec);
+  const auto t = connection_state::on_remote_close(state, ec);
   switch (t) {
     case connection_state::transition::open_to_error:
     case connection_state::transition::open_to_closed:
@@ -290,6 +299,9 @@ void connection_impl::on_open_stream_closed(stream_impl& s)
   if (std::holds_alternative<connection_state::open>(state)) {
     auto& o = *std::get_if<connection_state::open>(&state);
     list_erase(s, o.open_streams);
+  } else if (std::holds_alternative<connection_state::going_away>(state)) {
+    auto& g = *std::get_if<connection_state::going_away>(&state);
+    list_erase(s, g.open_streams);
   }
 }
 
@@ -298,6 +310,9 @@ void connection_impl::on_closing_stream_closed(stream_impl& s)
   if (std::holds_alternative<connection_state::open>(state)) {
     auto& o = *std::get_if<connection_state::open>(&state);
     list_erase(s, o.closing_streams);
+  } else if (std::holds_alternative<connection_state::going_away>(state)) {
+    auto& g = *std::get_if<connection_state::going_away>(&state);
+    list_erase(s, g.closing_streams);
   }
 }
 
