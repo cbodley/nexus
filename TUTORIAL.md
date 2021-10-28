@@ -13,13 +13,13 @@ The library must be initialized before use, and this is accomplished by creating
 
 ## TLS
 
-All QUIC connections are secure by default, so the use of TLS is not optional. TLS configuration is left to the application, which is expected to provide an initialized `asio::ssl::context` to the client and server interfaces.
+All QUIC connections are secure by default, so the use of TLS is not optional. TLS configuration is left to the application, which is expected to provide an initialized `boost::asio::ssl::context` to the client and server interfaces.
 
 ### TLS v1.3
 
 QUIC requires TLS version 1.3, so the ssl context should be initialized with a TLS 1.3 method, and its min/max protocol version should be set:
 
-	auto ssl = asio::ssl::context{asio::ssl::context::tlsv13};
+	auto ssl = boost::asio::ssl::context{boost::asio::ssl::context::tlsv13};
 	SSL_CTX_set_min_proto_version(ssl.native_handle(), TLS1_3_VERSION);
 	SSL_CTX_set_max_proto_version(ssl.native_handle(), TLS1_3_VERSION);
 
@@ -27,7 +27,7 @@ QUIC requires TLS version 1.3, so the ssl context should be initialized with a T
 
 All QUIC clients ["MUST authenticate the identity of the server"](https://www.rfc-editor.org/rfc/rfc9001.html#name-peer-authentication), and the application is responsible for providing an SSL context that does this:
 
-	ssl.set_verify_mode(asio::ssl::verify_peer);
+	ssl.set_verify_mode(boost::asio::ssl::verify_peer);
 
 ## QUIC
 
@@ -51,7 +51,7 @@ The client and server constructors take an optional `nexus::quic::settings` argu
 
 ### Client
 
-The generic QUIC client (`class nexus::quic::client`) takes control of a bound `asio::ip::udp::socket` and `asio::ssl::context` to initiate secure connections (`class nexus::quic::connection`) to QUIC servers.
+The generic QUIC client (`class nexus::quic::client`) takes control of a bound `boost::asio::ip::udp::socket` and `boost::asio::ssl::context` to initiate secure connections (`class nexus::quic::connection`) to QUIC servers.
 
 	auto client = nexus::quic::client{ex, bind_endpoint, ssl};
 
@@ -97,10 +97,10 @@ When a connection closes, all related streams are closed and any pending operati
 
 Once a generic QUIC stream (`class nexus::quic::stream`) has been connected or accepted, it provides bidirectional, reliable ordered delivery of data.
 
-For reads and writes, `nexus::quic::stream` models the asio concepts `AsyncReadStream`, `AsyncWriteStream`, `SyncReadStream` and `SyncWriteStream`, so can be used with the same read and write algorithms as `asio::ip::tcp::socket`:
+For reads and writes, `nexus::quic::stream` models the asio concepts `AsyncReadStream`, `AsyncWriteStream`, `SyncReadStream` and `SyncWriteStream`, so can be used with the same read and write algorithms as `boost::asio::ip::tcp::socket`:
 
 	char request[16]; // read 16 bytes from the stream
-	auto bytes = asio::read(stream, asio::buffer(data));
+	auto bytes = boost::asio::read(stream, boost::asio::buffer(data));
 
 The stream can be closed in one or both directions with `nexus::quic::stream::shutdown()` and `nexus::quic::stream::close()`.
 
@@ -114,7 +114,7 @@ A separate function `nexus::quic::stream::reset()` is provided for immediate shu
 
 For each potentially-blocking operation, both a synchronous or asynchronous version of the function are provided. The asynchronous function names all begin with `async_`, and attempt to meet all "Requirements on asynchronous operations" specified by asio.
 
-However, QUIC requires that we regularly poll its sockets for incoming packets, respond with acknowledgements and other control messages, and resend unacknowledged packets. The Nexus client and server classes issue asynchronous operations for this background work, and expect their associated execution context to process those operations in a timely manner - for example, by calling `asio::io_context::run()`.
+However, QUIC requires that we regularly poll its sockets for incoming packets, respond with acknowledgements and other control messages, and resend unacknowledged packets. The Nexus client and server classes issue asynchronous operations for this background work, and expect their associated execution context to process those operations in a timely manner - for example, by calling `boost::asio::io_context::run()`.
 
 This is unlike the asio I/O objects you may be familiar with, which can be used exclusively in the synchronous blocking mode without requiring another thread to process asynchronous work.
 
