@@ -143,14 +143,14 @@ const error_category& application_category();
 
 namespace SYSTEM_ERROR_NAMESPACE {
 
-/// enables implicit conversion to std::error_condition
+/// enables implicit conversion to std::error_code
 template <>
-struct is_error_condition_enum<nexus::quic::connection_error> : public std::true_type {};
+struct is_error_code_enum<nexus::quic::connection_error> : public std::true_type {};
 template <>
-struct is_error_condition_enum<nexus::quic::stream_error> : public std::true_type {};
+struct is_error_code_enum<nexus::quic::stream_error> : public std::true_type {};
 template <>
-struct is_error_condition_enum<nexus::quic::transport_error> : public std::true_type {};
+struct is_error_code_enum<nexus::quic::transport_error> : public std::true_type {};
 template <>
-struct is_error_condition_enum<nexus::quic::tls_alert> : public std::true_type {};
+struct is_error_code_enum<nexus::quic::tls_alert> : public std::true_type {};
 
 } // namespace SYSTEM_ERROR_NAMESPACE

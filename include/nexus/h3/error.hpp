@@ -45,8 +45,8 @@ inline error_condition make_error_condition(error e)
 
 namespace SYSTEM_ERROR_NAMESPACE {
 
-/// enables implicit conversion to std::error_condition
+/// enables implicit conversion to std::error_code
 template <>
-struct is_error_condition_enum<nexus::h3::error> : public std::true_type {};
+struct is_error_code_enum<nexus::h3::error> : public std::true_type {};
 
 } // namespace SYSTEM_ERROR_NAMESPACE
