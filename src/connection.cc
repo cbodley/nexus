@@ -122,9 +122,9 @@ namespace detail {
 
 connection_impl::connection_impl(socket_impl& socket)
     : connection_context(false),
-      svc(asio::use_service<service<connection_impl>>(
-            asio::query(socket.get_executor(),
-                        asio::execution::context))),
+      svc(boost::asio::use_service<service<connection_impl>>(
+            boost::asio::query(socket.get_executor(),
+                               boost::asio::execution::context))),
       socket(socket), state(connection_state::closed{})
 {
   // register for service_shutdown() notifications

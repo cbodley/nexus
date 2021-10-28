@@ -15,23 +15,23 @@ class client {
   quic::detail::engine_impl engine;
   quic::detail::socket_impl socket;
  public:
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = quic::detail::engine_impl::executor_type;
 
   /// construct the client, taking ownership of a bound UDP socket
-  client(udp::socket&& socket, asio::ssl::context& ctx);
+  client(udp::socket&& socket, ssl::context& ctx);
 
   /// construct the client, taking ownership of a bound UDP socket
-  client(udp::socket&& socket, asio::ssl::context& ctx,
+  client(udp::socket&& socket, ssl::context& ctx,
          const quic::settings& s);
 
   /// construct the client and bind a UDP socket to the given endpoint
   client(const executor_type& ex, const udp::endpoint& endpoint,
-         asio::ssl::context& ctx);
+         ssl::context& ctx);
 
   /// construct the client and bind a UDP socket to the given endpoint
   client(const executor_type& ex, const udp::endpoint& endpoint,
-         asio::ssl::context& ctx, const quic::settings& s);
+         ssl::context& ctx, const quic::settings& s);
 
   /// return the associated io executor
   executor_type get_executor() const;
@@ -59,7 +59,7 @@ class client_connection {
   friend class stream;
   quic::detail::connection_impl impl;
  public:
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = quic::detail::connection_impl::executor_type;
 
   /// construct a client-side connection for use with connect()

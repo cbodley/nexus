@@ -37,7 +37,7 @@ inline void list_transfer(connection_impl& s, connection_list& from,
 struct socket_impl : boost::intrusive::list_base_hook<> {
   engine_impl& engine;
   udp::socket socket;
-  asio::ssl::context& ssl;
+  ssl::context& ssl;
   udp::endpoint local_addr; // socket's bound address
   boost::circular_buffer<incoming_connection> incoming_connections;
   connection_list accepting_connections;
@@ -45,14 +45,14 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   bool receiving = false;
 
   socket_impl(engine_impl& engine, udp::socket&& socket,
-              asio::ssl::context& ssl);
+              ssl::context& ssl);
   socket_impl(engine_impl& engine, const udp::endpoint& endpoint,
-              bool is_server, asio::ssl::context& ssl);
+              bool is_server, ssl::context& ssl);
   ~socket_impl() {
     close();
   }
 
-  using executor_type = asio::any_io_executor;
+  using executor_type = boost::asio::any_io_executor;
   executor_type get_executor() const;
 
   udp::endpoint local_endpoint() const { return local_addr; }
@@ -71,7 +71,7 @@ struct socket_impl : boost::intrusive::list_base_hook<> {
   decltype(auto) async_accept(Connection& conn,
                               CompletionToken&& token) {
     auto& c = conn.impl;
-    return asio::async_initiate<CompletionToken, void(error_code)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &c] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = accept_async<Handler, executor_type>;

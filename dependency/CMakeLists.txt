@@ -13,6 +13,6 @@ cmake_policy(SET CMP0079 NEW)
 target_include_directories(lsquic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lsquic/include ${BORINGSSL_INCLUDE})
 target_link_libraries(lsquic PUBLIC ssl crypto decrepit ZLIB::ZLIB)
 
+#find_package(Boost REQUIRED COMPONENTS system)
 add_library(asio INTERFACE)
-target_include_directories(asio INTERFACE asio/asio/include)
-target_compile_definitions(asio INTERFACE -DASIO_STANDALONE -DASIO_NO_TS_EXECUTORS)
+target_compile_definitions(asio INTERFACE -DASIO_NO_TS_EXECUTORS)

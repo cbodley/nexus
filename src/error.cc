@@ -1,6 +1,5 @@
 #include <nexus/quic/error.hpp>
 #include <nexus/h3/error.hpp>
-#include <asio.hpp>
 #include <openssl/ssl.h>
 
 namespace nexus {
@@ -32,7 +31,7 @@ const error_category& connection_category()
       }
     }
 
-    std::error_condition default_error_condition(int code) const noexcept override {
+    error_condition default_error_condition(int code) const noexcept override {
       switch (static_cast<connection_error>(code)) {
         case connection_error::aborted:
           return errc::connection_aborted;
@@ -74,7 +73,7 @@ const error_category& stream_category()
       }
     }
 
-    std::error_condition default_error_condition(int code) const noexcept override {
+    error_condition default_error_condition(int code) const noexcept override {
       switch (static_cast<stream_error>(code)) {
         case stream_error::busy:
           return errc::device_or_resource_busy;

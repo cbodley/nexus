@@ -24,7 +24,7 @@ auto capture(std::optional<error_code>& out) {
 
 TEST(server, connect_stream)
 {
-  auto context = asio::io_context{};
+  auto context = boost::asio::io_context{};
   auto ex = context.get_executor();
   auto global = global::init_client_server();
 
@@ -33,7 +33,7 @@ TEST(server, connect_stream)
   auto sslc = test::init_client_context(alpn);
 
   auto server = quic::server{ex};
-  const auto localhost = asio::ip::make_address("127.0.0.1");
+  const auto localhost = boost::asio::ip::make_address("127.0.0.1");
   auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
   const auto endpoint = acceptor.local_endpoint();
   acceptor.listen(16);
@@ -65,7 +65,7 @@ TEST(server, connect_stream)
   {
     const auto data = std::string_view{"1234"};
     std::optional<error_code> sstream_write_ec;
-    sstream.async_write_some(asio::buffer(data), capture(sstream_write_ec));
+    sstream.async_write_some(boost::asio::buffer(data), capture(sstream_write_ec));
     sstream.shutdown(1);
     context.poll();
     ASSERT_FALSE(context.stopped());
@@ -77,7 +77,7 @@ TEST(server, connect_stream)
   {
     auto data = std::array<char, 5>{};
     std::optional<error_code> cistream_read_ec;
-    cistream.async_read_some(asio::buffer(data), capture(cistream_read_ec));
+    cistream.async_read_some(boost::asio::buffer(data), capture(cistream_read_ec));
     context.poll();
     ASSERT_FALSE(context.stopped());
     ASSERT_TRUE(cistream_read_ec);

@@ -7,26 +7,26 @@ namespace nexus {
 namespace quic {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
-               asio::ssl::context& ctx)
+               ssl::context& ctx)
     : engine(ex, &socket, nullptr, 0),
       socket(engine, endpoint, false, ctx)
 {
 }
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
-               asio::ssl::context& ctx, const settings& s)
+               ssl::context& ctx, const settings& s)
     : engine(ex, &socket, &s, 0),
       socket(engine, endpoint, false, ctx)
 {
 }
 
-client::client(udp::socket&& socket, asio::ssl::context& ctx)
+client::client(udp::socket&& socket, ssl::context& ctx)
     : engine(socket.get_executor(), &this->socket, nullptr, 0),
       socket(engine, std::move(socket), ctx)
 {
 }
 
-client::client(udp::socket&& socket, asio::ssl::context& ctx, const settings& s)
+client::client(udp::socket&& socket, ssl::context& ctx, const settings& s)
     : engine(socket.get_executor(), &this->socket, &s, 0),
       socket(engine, std::move(socket), ctx)
 {
@@ -60,26 +60,26 @@ void client::close()
 namespace h3 {
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
-               asio::ssl::context& ctx)
+               ssl::context& ctx)
     : engine(ex, &socket, nullptr, LSENG_HTTP),
       socket(engine, endpoint, false, ctx)
 {
 }
 
 client::client(const executor_type& ex, const udp::endpoint& endpoint,
-               asio::ssl::context& ctx, const quic::settings& s)
+               ssl::context& ctx, const quic::settings& s)
     : engine(ex, &socket, &s, LSENG_HTTP),
       socket(engine, endpoint, false, ctx)
 {
 }
 
-client::client(udp::socket&& socket, asio::ssl::context& ctx)
+client::client(udp::socket&& socket, ssl::context& ctx)
     : engine(socket.get_executor(), &this->socket, nullptr, LSENG_HTTP),
       socket(engine, std::move(socket), ctx)
 {
 }
 
-client::client(udp::socket&& socket, asio::ssl::context& ctx,
+client::client(udp::socket&& socket, ssl::context& ctx,
                const quic::settings& s)
     : engine(socket.get_executor(), &this->socket, &s, LSENG_HTTP),
       socket(engine, std::move(socket), ctx)

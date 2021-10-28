@@ -22,7 +22,7 @@ auto capture(std::optional<error_code>& ec) {
 
 TEST(Client, go_away_closed)
 {
-  asio::io_context context;
+  boost::asio::io_context context;
   auto global = global::init_client();
   auto sslc = test::init_client_context(alpn);
   auto client = h3::client{context.get_executor(), udp::endpoint{}, sslc};
@@ -36,11 +36,11 @@ TEST(Client, go_away_closed)
 
 TEST(Client, go_away_before_connect)
 {
-  asio::io_context context;
+  boost::asio::io_context context;
   auto global = global::init_client();
   auto sslc = test::init_client_context(alpn);
   auto client = h3::client{context.get_executor(), udp::endpoint{}, sslc};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   auto cconn = h3::client_connection{client, udp::endpoint{udp::v4(), 1}, "host"};
 
   context.poll();
@@ -70,14 +70,14 @@ class Connection : public ::testing::Test {
     return settings;
   }
 
-  asio::io_context context;
+  boost::asio::io_context context;
   global::context global = global::init_client_server();
 
-  asio::ssl::context ssl = test::init_server_context(alpn);
-  asio::ssl::context sslc = test::init_client_context(alpn);
+  ssl::context ssl = test::init_server_context(alpn);
+  ssl::context sslc = test::init_client_context(alpn);
 
   h3::server server{context.get_executor(), server_settings()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   h3::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   h3::server_connection sconn{acceptor};
   h3::stream sstream{sconn};
@@ -273,7 +273,7 @@ TEST_F(Connection, go_away_before_write)
 
   auto data = std::array<char, 16>{};
   std::optional<error_code> write_ec;
-  cstream.async_write_some(asio::buffer(data), capture(write_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(write_ec));
 
   context.poll();
   ASSERT_TRUE(write_ec);

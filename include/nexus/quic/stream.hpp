@@ -36,7 +36,7 @@ class stream {
   stream(stream&&) = delete;
   stream& operator=(stream&&) = delete;
 
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = detail::stream_impl::executor_type;
 
   /// return the associated io executor

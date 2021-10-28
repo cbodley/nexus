@@ -18,7 +18,7 @@ class connection {
   friend class detail::socket_impl;
   detail::connection_impl impl;
  public:
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = detail::connection_impl::executor_type;
 
   /// construct a server-side connection for use with accept()

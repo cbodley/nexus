@@ -25,7 +25,7 @@ void prepare_socket(udp::socket& sock, bool is_server, error_code& ec)
 
 namespace detail {
 
-static udp::socket bind_socket(const asio::any_io_executor& ex,
+static udp::socket bind_socket(const boost::asio::any_io_executor& ex,
                                const udp::endpoint& endpoint, bool is_server)
 {
   // open the socket
@@ -41,7 +41,7 @@ static udp::socket bind_socket(const asio::any_io_executor& ex,
 }
 
 socket_impl::socket_impl(engine_impl& engine, udp::socket&& socket,
-                         asio::ssl::context& ssl)
+                         ssl::context& ssl)
     : engine(engine),
       socket(std::move(socket)),
       ssl(ssl),
@@ -49,7 +49,7 @@ socket_impl::socket_impl(engine_impl& engine, udp::socket&& socket,
 {}
 
 socket_impl::socket_impl(engine_impl& engine, const udp::endpoint& endpoint,
-                         bool is_server, asio::ssl::context& ssl)
+                         bool is_server, ssl::context& ssl)
     : engine(engine),
       socket(bind_socket(engine.get_executor(), endpoint, is_server)),
       ssl(ssl),

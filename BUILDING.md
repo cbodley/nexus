@@ -4,7 +4,7 @@
 
 * LiteSpeed QUIC (lsquic)
 * BoringSSL
-* asio
+* Boost
 * zlib
 * googletest for tests
 
@@ -14,7 +14,7 @@ BoringSSL, lsquic, asio and googletest are included as git submodules, which mus
 
 The zlib dependency must be installed manually. For example, on Fedora:
 
-	~/nexus $ sudo dnf install zlib-devel
+	~/nexus $ sudo dnf install boost-devel zlib-devel
 
 ## Building
 

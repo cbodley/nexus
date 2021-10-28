@@ -25,12 +25,12 @@ void server::close()
   engine.close();
 }
 
-acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
+acceptor::acceptor(server& s, udp::socket&& socket, ssl::context& ctx)
     : impl(s.engine, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
-                   asio::ssl::context& ctx)
+                   ssl::context& ctx)
     : impl(s.engine, endpoint, true, ctx)
 {}
 
@@ -88,12 +88,12 @@ server::executor_type server::get_executor() const
   return engine.get_executor();
 }
 
-acceptor::acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx)
+acceptor::acceptor(server& s, udp::socket&& socket, ssl::context& ctx)
     : impl(s.engine, std::move(socket), ctx)
 {}
 
 acceptor::acceptor(server& s, const udp::endpoint& endpoint,
-                   asio::ssl::context& ctx)
+                   ssl::context& ctx)
     : impl(s.engine, endpoint, true, ctx)
 {}
 

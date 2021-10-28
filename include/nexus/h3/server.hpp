@@ -16,7 +16,7 @@ class server {
   friend class acceptor;
   quic::detail::engine_impl engine;
  public:
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = quic::detail::engine_impl::executor_type;
 
   /// construct the server with its associated executor
@@ -40,14 +40,14 @@ class acceptor {
   friend class server_connection;
   quic::detail::socket_impl impl;
  public:
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = quic::detail::socket_impl::executor_type;
 
   /// construct the acceptor, taking ownership of a bound UDP socket
-  acceptor(server& s, udp::socket&& socket, asio::ssl::context& ctx);
+  acceptor(server& s, udp::socket&& socket, ssl::context& ctx);
 
   /// construct the acceptor and bind a UDP socket to the given endpoint
-  acceptor(server& s, const udp::endpoint& endpoint, asio::ssl::context& ctx);
+  acceptor(server& s, const udp::endpoint& endpoint, ssl::context& ctx);
 
   /// return the associated io executor
   executor_type get_executor() const;
@@ -86,7 +86,7 @@ class server_connection {
   friend class quic::detail::socket_impl;
   quic::detail::connection_impl impl;
  public:
-  /// the polymorphic executor type, asio::any_io_executor
+  /// the polymorphic executor type, boost::asio::any_io_executor
   using executor_type = quic::detail::connection_impl::executor_type;
 
   /// construct a server-side connection for use with accept()

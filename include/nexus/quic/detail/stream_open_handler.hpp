@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <asio/associated_allocator.hpp>
-#include <asio/associated_executor.hpp>
+#include <boost/asio/associated_allocator.hpp>
+#include <boost/asio/associated_executor.hpp>
 #include <nexus/error_code.hpp>
 
 namespace nexus::quic::detail {
@@ -33,25 +33,25 @@ struct stream_open_handler {
     std::move(handler)(ec, stream_factory<Stream>::create(std::move(s)));
   }
 
-  using allocator_type = asio::associated_allocator_t<Handler>;
+  using allocator_type = boost::asio::associated_allocator_t<Handler>;
   allocator_type get_allocator() const noexcept {
-    return asio::get_associated_allocator(handler);
+    return boost::asio::get_associated_allocator(handler);
   }
 };
 
 } // namespace nexus::quic::detail
 
-namespace asio {
+namespace boost::asio {
 
-// specialize asio::associated_executor<> for stream_open_handler
+// specialize associated_executor<> for stream_open_handler
 template <typename Stream, typename Handler, typename Executor>
 struct associated_executor<nexus::quic::detail::stream_open_handler<Stream, Handler>, Executor> {
-  using type = asio::associated_executor_t<Handler, Executor>;
+  using type = associated_executor_t<Handler, Executor>;
 
   static type get(const nexus::quic::detail::stream_open_handler<Stream, Handler>& handler,
                   const Executor& ex = Executor()) noexcept {
-    return asio::get_associated_executor(handler.handler, ex);
+    return get_associated_executor(handler.handler, ex);
   }
 };
 
-} // namespace asio
+} // namespace boost::asio

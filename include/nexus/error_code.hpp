@@ -1,16 +1,17 @@
 #pragma once
 
-#include <system_error>
+#include <boost/system/error_code.hpp>
+#include <boost/system/system_error.hpp>
 
-#define SYSTEM_ERROR_NAMESPACE std
+#define SYSTEM_ERROR_NAMESPACE boost::system
 
 namespace nexus {
 
-using std::errc;
-using std::error_code;
-using std::error_condition;
-using std::error_category;
-using std::system_category;
-using std::system_error;
+namespace errc = boost::system::errc;
+using boost::system::error_code;
+using boost::system::error_condition;
+using boost::system::error_category;
+using boost::system::system_category;
+using boost::system::system_error;
 
 } // namespace nexus

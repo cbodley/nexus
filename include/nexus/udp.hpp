@@ -1,11 +1,12 @@
 #pragma once
 
-#include <asio/ip/udp.hpp>
+#include <boost/asio/ip/udp.hpp>
+
 #include <nexus/error_code.hpp>
 
 namespace nexus {
 
-using asio::ip::udp;
+using boost::asio::ip::udp;
 
 namespace detail {
 

@@ -5,7 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <sys/uio.h>
-#include <asio/associated_executor.hpp>
+#include <boost/asio/associated_executor.hpp>
 #include <nexus/error_code.hpp>
 #include <nexus/h3/fields.hpp>
 #include <nexus/quic/detail/handler_ptr.hpp>
@@ -94,13 +94,13 @@ struct async_operation : Operation {
   using operation_type = typename Operation::operation_type;
   using tuple_type = typename Operation::tuple_type;
 
-  using Executor = asio::associated_executor_t<Handler, IoExecutor>;
+  using Executor = boost::asio::associated_executor_t<Handler, IoExecutor>;
   /// maintain work on the completion handler's associated executor
-  using Work = typename asio::prefer_result<Executor,
-        asio::execution::outstanding_work_t::tracked_t>::type;
+  using Work = typename boost::asio::prefer_result<Executor,
+        boost::asio::execution::outstanding_work_t::tracked_t>::type;
   /// maintain work on the io object's default executor
-  using IoWork = typename asio::prefer_result<IoExecutor,
-        asio::execution::outstanding_work_t::tracked_t>::type;
+  using IoWork = typename boost::asio::prefer_result<IoExecutor,
+        boost::asio::execution::outstanding_work_t::tracked_t>::type;
   Handler handler;
   std::pair<Work, IoWork> ex;
 
@@ -110,9 +110,10 @@ struct async_operation : Operation {
   async_operation(Handler&& handler, const IoExecutor& io_ex, Args&& ...args)
       : Operation(do_complete, std::forward<Args>(args)...),
         handler(std::move(handler)),
-        ex(asio::prefer(get_associated_executor(this->handler, io_ex),
-                        asio::execution::outstanding_work.tracked),
-           asio::prefer(io_ex, asio::execution::outstanding_work.tracked))
+        ex(boost::asio::prefer(get_associated_executor(this->handler, io_ex),
+                               boost::asio::execution::outstanding_work.tracked),
+           boost::asio::prefer(io_ex,
+                               boost::asio::execution::outstanding_work.tracked))
   {}
 
   static void do_complete(completion_type type, operation_type* op,
@@ -123,7 +124,7 @@ struct async_operation : Operation {
     auto handler = std::move(self->handler); // may throw
     p.get_deleter().handler = &handler; // update deleter
 
-    auto alloc = asio::get_associated_allocator(handler);
+    auto alloc = boost::asio::get_associated_allocator(handler);
     // move args into the lambda we'll submit for execution. do this before
     // deleting 'self' in case any of these args reference that memory
     auto f = [handler=std::move(handler), args=std::move(args)] () mutable {
@@ -137,28 +138,28 @@ struct async_operation : Operation {
 
     switch (type) {
       case completion_type::post:
-        asio::execution::execute(
-            asio::require(
-                asio::prefer(ex,
-                             asio::execution::relationship.fork,
-                             asio::execution::allocator(alloc)),
-                asio::execution::blocking.never),
+        boost::asio::execution::execute(
+            boost::asio::require(
+                boost::asio::prefer(ex,
+                                    boost::asio::execution::relationship.fork,
+                                    boost::asio::execution::allocator(alloc)),
+                boost::asio::execution::blocking.never),
             std::move(f));
         break;
       case completion_type::defer:
-        asio::execution::execute(
-            asio::require(
-                asio::prefer(ex,
-                             asio::execution::relationship.continuation,
-                             asio::execution::allocator(alloc)),
-                asio::execution::blocking.never),
+        boost::asio::execution::execute(
+            boost::asio::require(
+                boost::asio::prefer(ex,
+                                    boost::asio::execution::relationship.continuation,
+                                    boost::asio::execution::allocator(alloc)),
+                boost::asio::execution::blocking.never),
             std::move(f));
         break;
       case completion_type::dispatch:
-        asio::execution::execute(
-            asio::prefer(ex,
-                         asio::execution::blocking.possibly,
-                         asio::execution::allocator(alloc)),
+        boost::asio::execution::execute(
+            boost::asio::prefer(ex,
+                                boost::asio::execution::blocking.possibly,
+                                boost::asio::execution::allocator(alloc)),
             std::move(f));
         break;
       case completion_type::destroy: // handled above

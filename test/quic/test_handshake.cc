@@ -18,7 +18,7 @@ auto capture(std::optional<error_code>& ec) {
   return [&] (error_code e, size_t = 0) { ec = e; };
 }
 
-void test_stream_connect_during_handshake(asio::io_context& context,
+void test_stream_connect_during_handshake(boost::asio::io_context& context,
                                           quic::connection& cconn,
                                           error_code expected_ec)
 {
@@ -46,7 +46,7 @@ void test_stream_connect_during_handshake(asio::io_context& context,
   EXPECT_EQ(errc::bad_file_descriptor, *connect2_ec);
 }
 
-void test_stream_connect_after_handshake(asio::io_context& context,
+void test_stream_connect_after_handshake(boost::asio::io_context& context,
                                          quic::connection& cconn,
                                          error_code expected_ec)
 {
@@ -78,7 +78,7 @@ void test_stream_connect_after_handshake(asio::io_context& context,
   EXPECT_EQ(errc::bad_file_descriptor, *connect2_ec);
 }
 
-void test_stream_accept_during_handshake(asio::io_context& context,
+void test_stream_accept_during_handshake(boost::asio::io_context& context,
                                          quic::connection& cconn,
                                          error_code expected_ec)
 {
@@ -105,7 +105,7 @@ void test_stream_accept_during_handshake(asio::io_context& context,
   EXPECT_EQ(errc::bad_file_descriptor, *accept2_ec);
 }
 
-void test_stream_accept_after_handshake(asio::io_context& context,
+void test_stream_accept_after_handshake(boost::asio::io_context& context,
                                         quic::connection& cconn,
                                         error_code expected_ec)
 {
@@ -137,7 +137,7 @@ void test_stream_accept_after_handshake(asio::io_context& context,
   EXPECT_EQ(errc::bad_file_descriptor, *accept2_ec);
 }
 
-void test_server_accept_not_ready(asio::io_context& context,
+void test_server_accept_not_ready(boost::asio::io_context& context,
                                   quic::acceptor& acceptor,
                                   quic::connection& sconn)
 {
@@ -155,12 +155,12 @@ void test_server_accept_not_ready(asio::io_context& context,
 // try to connect a client and server with incompatible protocol names
 class BadALPN : public testing::Test {
  protected:
-  asio::io_context context;
+  boost::asio::io_context context;
   global::context global = global::init_client_server();
-  asio::ssl::context ssl = test::init_server_context("\04quic");
-  asio::ssl::context sslc = test::init_client_context("\02j5");
+  ssl::context ssl = test::init_server_context("\04quic");
+  ssl::context sslc = test::init_client_context("\02j5");
   quic::server server = quic::server{context.get_executor()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   quic::connection sconn{acceptor};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
@@ -201,17 +201,17 @@ TEST_F(BadALPN, stream_accept_after_handshake)
 class BadVerifyServer : public testing::Test {
  protected:
   static constexpr const char* alpn = "\04quic";
-  static asio::ssl::context verifying_client_context() {
+  static ssl::context verifying_client_context() {
     auto ssl = test::init_client_context(alpn);
-    ssl.set_verify_mode(asio::ssl::verify_peer);
+    ssl.set_verify_mode(ssl::verify_peer);
     return ssl;
   }
-  asio::io_context context;
+  boost::asio::io_context context;
   global::context global = global::init_client_server();
-  asio::ssl::context ssl = test::init_server_context(alpn);
-  asio::ssl::context sslc = verifying_client_context();
+  ssl::context ssl = test::init_server_context(alpn);
+  ssl::context sslc = verifying_client_context();
   quic::server server = quic::server{context.get_executor()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   quic::connection sconn{acceptor};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
@@ -251,18 +251,18 @@ TEST_F(BadVerifyServer, stream_accept_after_handshake)
 class BadVerifyClient : public testing::Test {
  protected:
   static constexpr const char* alpn = "\04quic";
-  static asio::ssl::context verifying_server_context() {
+  static ssl::context verifying_server_context() {
     auto ssl = test::init_server_context(alpn);
-    ssl.set_verify_mode(asio::ssl::verify_peer |
-                        asio::ssl::verify_fail_if_no_peer_cert);
+    ssl.set_verify_mode(ssl::verify_peer |
+                        ssl::verify_fail_if_no_peer_cert);
     return ssl;
   }
-  asio::io_context context;
+  boost::asio::io_context context;
   global::context global = global::init_client_server();
-  asio::ssl::context ssl = verifying_server_context();
-  asio::ssl::context sslc = test::init_client_context(alpn);
+  ssl::context ssl = verifying_server_context();
+  ssl::context sslc = test::init_client_context(alpn);
   quic::server server = quic::server{context.get_executor()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   quic::connection sconn{acceptor};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
@@ -290,7 +290,7 @@ TEST_F(BadVerifyClient, stream_connect_during_handshake)
 
   auto data = std::array<char, 16>{};
   std::optional<error_code> write1_ec;
-  cstream.async_write_some(asio::buffer(data), capture(write1_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(write1_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -298,7 +298,7 @@ TEST_F(BadVerifyClient, stream_connect_during_handshake)
   EXPECT_EQ(quic::tls_alert::certificate_required, *write1_ec);
 
   std::optional<error_code> write2_ec;
-  cstream.async_write_some(asio::buffer(data), capture(write2_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(write2_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());

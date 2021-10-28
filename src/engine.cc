@@ -285,7 +285,7 @@ ssl_ctx_st* api_peer_ssl_ctx(void* peer_ctx, const sockaddr* local)
   return socket.ssl.native_handle();
 }
 
-engine_impl::engine_impl(const asio::any_io_executor& ex,
+engine_impl::engine_impl(const boost::asio::any_io_executor& ex,
                          socket_impl* client, const settings* s,
                          unsigned flags)
   : ex(ex), timer(ex), client(client), is_http(flags & LSENG_HTTP)

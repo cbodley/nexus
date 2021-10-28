@@ -1,12 +1,12 @@
 #include <iostream>
 
-#include <asio.hpp>
+#include <boost/asio.hpp>
 
 #include <nexus/global_init.hpp>
 #include <nexus/h3/client.hpp>
 #include <nexus/h3/stream.hpp>
 
-using asio::ip::udp;
+using boost::asio::ip::udp;
 using nexus::error_code;
 using body_buffer = std::array<char, 4096>;
 
@@ -14,8 +14,8 @@ static void read_print_stream(nexus::h3::stream& stream,
                               nexus::h3::client_connection& conn,
                               body_buffer& buffer)
 {
-  stream.async_read_some(asio::buffer(buffer),
-      [&] (error_code ec, size_t bytes) mutable {
+  stream.async_read_some(boost::asio::buffer(buffer),
+      [&] (error_code ec, size_t bytes) {
         if (ec) {
           if (ec != nexus::quic::stream_error::eof) {
             std::cerr << "async_read_some failed: " << ec.message() << std::endl;
@@ -38,10 +38,10 @@ int main(int argc, char** argv) {
   const std::string_view portstr = argv[2];
   const std::string_view path = argv[3];
 
-  auto ioc = asio::io_context{};
+  auto ioc = boost::asio::io_context{};
   auto ex = ioc.get_executor();
 
-  auto ssl = asio::ssl::context{asio::ssl::context::tlsv13};
+  auto ssl = boost::asio::ssl::context{boost::asio::ssl::context::tlsv13};
   ::SSL_CTX_set_min_proto_version(ssl.native_handle(), TLS1_3_VERSION);
   ::SSL_CTX_set_max_proto_version(ssl.native_handle(), TLS1_3_VERSION);
 

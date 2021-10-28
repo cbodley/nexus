@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <asio/associated_allocator.hpp>
+#include <boost/asio/associated_allocator.hpp>
 
 namespace nexus::quic::detail {
 
@@ -21,11 +21,11 @@ namespace nexus::quic::detail {
 template <typename T, typename Handler, typename ...Args>
 T* handler_allocate(Handler& handler, Args&& ...args)
 {
-  using Alloc = asio::associated_allocator_t<Handler>;
+  using Alloc = boost::asio::associated_allocator_t<Handler>;
   using Traits = std::allocator_traits<Alloc>;
   using Rebind = typename Traits::template rebind_alloc<T>;
   using RebindTraits = std::allocator_traits<Rebind>;
-  auto alloc = Rebind{asio::get_associated_allocator(handler)};
+  auto alloc = Rebind{boost::asio::get_associated_allocator(handler)};
   auto p = RebindTraits::allocate(alloc, 1);
   try {
     RebindTraits::construct(alloc, p, std::forward<Args>(args)...);
@@ -51,7 +51,7 @@ T* handler_allocate(Handler& handler, Args&& ...args)
 ///
 template <typename Handler>
 struct handler_ptr_deleter {
-  using Alloc = asio::associated_allocator_t<Handler>;
+  using Alloc = boost::asio::associated_allocator_t<Handler>;
   using Traits = std::allocator_traits<Alloc>;
 
   /// public handler pointer, must be updated whenever the handler moves
@@ -62,7 +62,7 @@ struct handler_ptr_deleter {
   void operator()(T* p) {
     using Rebind = typename Traits::template rebind_alloc<T>;
     using RebindTraits = std::allocator_traits<Rebind>;
-    auto alloc = Rebind{asio::get_associated_allocator(*handler)};
+    auto alloc = Rebind{boost::asio::get_associated_allocator(*handler)};
     RebindTraits::destroy(alloc, p);
     RebindTraits::deallocate(alloc, p, 1);
   }

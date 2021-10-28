@@ -4,7 +4,6 @@
 #include <nexus/quic/detail/connection_state.hpp>
 #include <nexus/quic/detail/service.hpp>
 #include <nexus/quic/detail/stream_impl.hpp>
-#include <nexus/quic/detail/stream_open_handler.hpp>
 #include <nexus/udp.hpp>
 
 struct lsquic_conn;
@@ -27,7 +26,7 @@ struct connection_impl : public connection_context,
 
   void service_shutdown();
 
-  using executor_type = asio::any_io_executor;
+  using executor_type = boost::asio::any_io_executor;
   executor_type get_executor() const;
 
   connection_id id(error_code& ec) const;
@@ -39,7 +38,7 @@ struct connection_impl : public connection_context,
   template <typename Stream, typename CompletionToken>
   decltype(auto) async_connect(Stream& stream, CompletionToken&& token) {
     auto& s = stream.impl;
-    return asio::async_initiate<CompletionToken, void(error_code)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &s] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_connect_async<Handler, executor_type>;
@@ -56,7 +55,7 @@ struct connection_impl : public connection_context,
   template <typename Stream, typename CompletionToken>
   decltype(auto) async_accept(Stream& stream, CompletionToken&& token) {
     auto& s = stream.impl;
-    return asio::async_initiate<CompletionToken, void(error_code)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &s] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_accept_async<Handler, executor_type>;

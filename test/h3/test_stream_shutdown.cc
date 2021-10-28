@@ -33,14 +33,14 @@ class Stream : public testing::Test {
     return settings;
   }
 
-  asio::io_context context;
+  boost::asio::io_context context;
   global::context global = global::init_client_server();
 
-  asio::ssl::context ssl = test::init_server_context(alpn);
-  asio::ssl::context sslc = test::init_client_context(alpn);
+  ssl::context ssl = test::init_server_context(alpn);
+  ssl::context sslc = test::init_client_context(alpn);
 
   h3::server server{context.get_executor(), server_settings()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   h3::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   h3::server_connection sconn{acceptor};
   h3::stream sstream{sconn};
@@ -172,7 +172,7 @@ TEST_F(Stream, shutdown_pending_read)
 
   auto data = std::array<char, 16>{};
   std::optional<error_code> read_ec;
-  sstream.async_read_some(asio::buffer(data), capture(read_ec));
+  sstream.async_read_some(boost::asio::buffer(data), capture(read_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -205,7 +205,7 @@ TEST_F(Stream, shutdown_before_read)
 
   auto data = std::array<char, 16>{};
   std::optional<error_code> read_ec;
-  sstream.async_read_some(asio::buffer(data), capture(read_ec));
+  sstream.async_read_some(boost::asio::buffer(data), capture(read_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -219,14 +219,14 @@ TEST_F(Stream, shutdown_pending_write)
   // the flow control window to make the second call block
   const auto data = std::array<char, LSQUIC_MIN_FCW>{};
   std::optional<error_code> cstream_write1_ec;
-  cstream.async_write_some(asio::buffer(data), capture(cstream_write1_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(cstream_write1_ec));
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_write1_ec);
   EXPECT_EQ(ok, *cstream_write1_ec);
 
   std::optional<error_code> cstream_write2_ec;
-  cstream.async_write_some(asio::buffer(data), capture(cstream_write2_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(cstream_write2_ec));
   context.poll();
   ASSERT_FALSE(context.stopped());
   EXPECT_FALSE(cstream_write2_ec);
@@ -244,7 +244,7 @@ TEST_F(Stream, shutdown_before_write)
 
   const auto data = std::array<char, 16>{};
   std::optional<error_code> cstream_write_ec;
-  cstream.async_write_some(asio::buffer(data), capture(cstream_write_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(cstream_write_ec));
 
   context.poll();
   ASSERT_FALSE(context.stopped());
@@ -257,7 +257,7 @@ TEST_F(Stream, shutdown_pending_write_headers)
   // use cstream to fill the connection's write window
   const auto data = std::array<char, LSQUIC_MIN_FCW>{};
   std::optional<error_code> cstream_write_ec;
-  cstream.async_write_some(asio::buffer(data), capture(cstream_write_ec));
+  cstream.async_write_some(boost::asio::buffer(data), capture(cstream_write_ec));
   context.poll();
   ASSERT_FALSE(context.stopped());
   ASSERT_TRUE(cstream_write_ec);

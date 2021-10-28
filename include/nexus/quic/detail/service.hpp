@@ -1,8 +1,8 @@
 #pragma once
 
 #include <mutex>
+#include <boost/asio/execution_context.hpp>
 #include <boost/intrusive/list.hpp>
-#include <asio/execution_context.hpp>
 
 namespace nexus::quic::detail {
 
@@ -21,7 +21,7 @@ using service_list_base_hook = boost::intrusive::list_base_hook<
 /// * inherits publicly from service_list_base_hook
 /// * has public member function service_shutdown()
 template <typename IoObject>
-class service : public asio::execution_context::service {
+class service : public boost::asio::execution_context::service {
   using base_hook = boost::intrusive::base_hook<service_list_base_hook>;
   boost::intrusive::list<IoObject, base_hook> entries;
   std::mutex mutex;
@@ -36,10 +36,10 @@ class service : public asio::execution_context::service {
   }
  public:
   using key_type = service;
-  static inline asio::execution_context::id id;
+  static inline boost::asio::execution_context::id id;
 
-  explicit service(asio::execution_context& ctx)
-      : asio::execution_context::service(ctx) {}
+  explicit service(boost::asio::execution_context& ctx)
+      : boost::asio::execution_context::service(ctx) {}
 
   /// register an io object for notification of service_shutdown()
   void add(IoObject& entry) {

@@ -14,13 +14,13 @@ class Client : public testing::Test {
  protected:
   static constexpr const char* alpn = "\04quic";
   global::context global = global::init_client_server();
-  asio::ssl::context ssl = test::init_server_context(alpn);
-  asio::ssl::context sslc = test::init_client_context(alpn);
-  asio::io_context scontext;
+  ssl::context ssl = test::init_server_context(alpn);
+  ssl::context sslc = test::init_client_context(alpn);
+  boost::asio::io_context scontext;
   quic::server server = quic::server{scontext.get_executor()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
-  asio::io_context ccontext;
+  boost::asio::io_context ccontext;
   quic::client client{ccontext.get_executor(), udp::endpoint{}, sslc};
 };
 

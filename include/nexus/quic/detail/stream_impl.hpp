@@ -1,7 +1,7 @@
 #pragma once
 
-#include <asio/any_io_executor.hpp>
-#include <asio/buffers_iterator.hpp>
+#include <boost/asio/any_io_executor.hpp>
+#include <boost/asio/buffers_iterator.hpp>
 
 #include <nexus/quic/detail/operation.hpp>
 #include <nexus/quic/detail/service.hpp>
@@ -19,7 +19,7 @@ struct engine_impl;
 
 struct stream_impl : public boost::intrusive::list_base_hook<>,
                      public service_list_base_hook {
-  using executor_type = asio::any_io_executor;
+  using executor_type = boost::asio::any_io_executor;
   engine_impl& engine;
   service<stream_impl>& svc;
   connection_impl& conn;
@@ -28,8 +28,8 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   template <typename BufferSequence>
   static void init_op(const BufferSequence& buffers,
                       stream_data_operation& op) {
-    const auto end = asio::buffer_sequence_end(buffers);
-    for (auto i = asio::buffer_sequence_begin(buffers);
+    const auto end = boost::asio::buffer_sequence_end(buffers);
+    for (auto i = boost::asio::buffer_sequence_begin(buffers);
          i != end && op.num_iovs < op.max_iovs;
          ++i, ++op.num_iovs) {
       op.iovs[op.num_iovs].iov_base = const_cast<void*>(i->data());
@@ -52,7 +52,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   template <typename CompletionToken>
   decltype(auto) async_read_headers(h3::fields& fields,
                                     CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &fields] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_header_read_async<Handler, executor_type>;
@@ -70,7 +70,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   template <typename MutableBufferSequence, typename CompletionToken>
   decltype(auto) async_read_some(const MutableBufferSequence& buffers,
                                  CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code, size_t)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code, size_t)>(
         [this, &buffers] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_data_async<Handler, executor_type>;
@@ -83,7 +83,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   }
 
   template <typename MutableBufferSequence>
-  std::enable_if_t<asio::is_mutable_buffer_sequence<
+  std::enable_if_t<boost::asio::is_mutable_buffer_sequence<
       MutableBufferSequence>::value, size_t>
   read_some(const MutableBufferSequence& buffers, error_code& ec) {
     stream_data_sync op;
@@ -99,7 +99,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   template <typename CompletionToken>
   decltype(auto) async_write_headers(const h3::fields& fields,
                                      CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code)>(
         [this, &fields] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_header_write_async<Handler, executor_type>;
@@ -117,7 +117,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   template <typename ConstBufferSequence, typename CompletionToken>
   decltype(auto) async_write_some(const ConstBufferSequence& buffers,
                                  CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code, size_t)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code, size_t)>(
         [this, &buffers] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_data_async<Handler, executor_type>;
@@ -130,7 +130,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
   }
 
   template <typename ConstBufferSequence>
-  std::enable_if_t<asio::is_const_buffer_sequence<
+  std::enable_if_t<boost::asio::is_const_buffer_sequence<
       ConstBufferSequence>::value, size_t>
   write_some(const ConstBufferSequence& buffers, error_code& ec) {
     stream_data_sync op;
@@ -149,7 +149,7 @@ struct stream_impl : public boost::intrusive::list_base_hook<>,
 
   template <typename CompletionToken>
   decltype(auto) async_close(CompletionToken&& token) {
-    return asio::async_initiate<CompletionToken, void(error_code)>(
+    return boost::asio::async_initiate<CompletionToken, void(error_code)>(
         [this] (auto h) {
           using Handler = std::decay_t<decltype(h)>;
           using op_type = stream_close_async<Handler, executor_type>;

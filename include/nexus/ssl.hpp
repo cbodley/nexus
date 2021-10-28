@@ -1,3 +1,9 @@
 #pragma once
 
-#include <asio/ssl.hpp>
+#include <boost/asio/ssl.hpp>
+
+namespace nexus {
+
+namespace ssl = boost::asio::ssl;
+
+} // namespace nexus

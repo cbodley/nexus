@@ -1,9 +1,9 @@
 #include <charconv>
 #include <iostream>
 #include <optional>
+#include <boost/asio.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
-#include <asio.hpp>
 #include <openssl/ssl.h>
 #include <nexus/global_init.hpp>
 #include <nexus/quic/connection.hpp>
@@ -50,7 +50,7 @@ configuration parse_args(int argc, char** argv)
   return config;
 }
 
-using asio::ip::udp;
+using boost::asio::ip::udp;
 using nexus::error_code;
 using nexus::system_error;
 
@@ -116,7 +116,7 @@ void on_stream_read(std::unique_ptr<echo_stream> s,
   }
   // echo the buffer back to the client
   auto& data = s->buffer;
-  asio::async_write(stream, asio::buffer(data.data(), bytes),
+  boost::asio::async_write(stream, boost::asio::buffer(data.data(), bytes),
     [s=std::move(s)] (error_code ec, size_t bytes) mutable {
       on_stream_write(std::move(s), ec, bytes);
     });
@@ -132,7 +132,7 @@ void on_stream_write(std::unique_ptr<echo_stream> s,
   // read the next buffer from the client
   auto& stream = s->stream;
   auto& data = s->buffer;
-  stream.async_read_some(asio::buffer(data),
+  stream.async_read_some(boost::asio::buffer(data),
     [s=std::move(s)] (error_code ec, size_t bytes) mutable {
       on_stream_read(std::move(s), ec, bytes);
     });
@@ -155,7 +155,7 @@ void accept_streams(connection_ptr c)
       std::cerr << "new stream\n";
       auto& stream = s->stream;
       auto& data = s->buffer;
-      stream.async_read_some(asio::buffer(data),
+      stream.async_read_some(boost::asio::buffer(data),
         [s=std::move(s)] (error_code ec, size_t bytes) mutable {
           on_stream_read(std::move(s), ec, bytes);
         });
@@ -189,20 +189,20 @@ int main(int argc, char** argv)
 {
   const auto cfg = parse_args(argc, argv);
 
-  auto context = asio::io_context{};
-  asio::any_io_executor ex = context.get_executor();
+  auto context = boost::asio::io_context{};
+  boost::asio::any_io_executor ex = context.get_executor();
   const auto endpoint = [&] {
       auto resolver = udp::resolver{ex};
       return resolver.resolve(cfg.hostname, cfg.portstr)->endpoint();
     }();
 
-  auto ssl = asio::ssl::context{asio::ssl::context::tlsv13};
+  auto ssl = boost::asio::ssl::context{boost::asio::ssl::context::tlsv13};
   ::SSL_CTX_set_min_proto_version(ssl.native_handle(), TLS1_3_VERSION);
   ::SSL_CTX_set_max_proto_version(ssl.native_handle(), TLS1_3_VERSION);
   ::SSL_CTX_set_alpn_select_cb(ssl.native_handle(), alpn_select_cb, nullptr);
 
   ssl.use_certificate_chain_file(cfg.cert);
-  ssl.use_private_key_file(cfg.key, asio::ssl::context::file_format::pem);
+  ssl.use_private_key_file(cfg.key, boost::asio::ssl::context::file_format::pem);
 
   auto global = nexus::global::init_server();
   auto settings = nexus::quic::default_server_settings();

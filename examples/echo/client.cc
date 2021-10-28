@@ -1,8 +1,8 @@
 #include <iostream>
 #include <fstream>
+#include <boost/asio.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
-#include <asio.hpp>
 #include <nexus/global_init.hpp>
 #include <nexus/quic/client.hpp>
 #include <nexus/quic/connection.hpp>
@@ -37,7 +37,7 @@ configuration parse_args(int argc, char** argv)
   return config;
 }
 
-using asio::ip::udp;
+using boost::asio::ip::udp;
 using nexus::error_code;
 using nexus::system_error;
 
@@ -84,7 +84,7 @@ void write_file(stream_ptr stream)
   const auto bytes = stream->input.gcount();
   // write to stream
   auto& s = stream->stream;
-  asio::async_write(s, asio::buffer(data.data(), bytes),
+  boost::asio::async_write(s, boost::asio::buffer(data.data(), bytes),
     [stream=std::move(stream)] (error_code ec, size_t bytes) {
       if (ec) {
         std::cerr << "async_write failed with " << ec.message() << '\n';
@@ -101,7 +101,7 @@ void read_file(stream_ptr stream)
   // read back the echo
   auto& data = stream->readbuf;
   auto& s = stream->stream;
-  s.async_read_some(asio::buffer(data),
+  s.async_read_some(boost::asio::buffer(data),
     [stream=std::move(stream)] (error_code ec, size_t bytes) {
       if (ec) {
         if (ec != nexus::quic::stream_error::eof) {
@@ -122,14 +122,14 @@ int main(int argc, char** argv)
 {
   const auto cfg = parse_args(argc, argv);
 
-  auto context = asio::io_context{};
+  auto context = boost::asio::io_context{};
   auto ex = context.get_executor();
   const auto endpoint = [&] {
       auto resolver = udp::resolver{ex};
       return resolver.resolve(cfg.hostname, cfg.portstr)->endpoint();
     }();
 
-  auto ssl = asio::ssl::context{asio::ssl::context::tlsv13};
+  auto ssl = boost::asio::ssl::context{boost::asio::ssl::context::tlsv13};
   ::SSL_CTX_set_min_proto_version(ssl.native_handle(), TLS1_3_VERSION);
   ::SSL_CTX_set_max_proto_version(ssl.native_handle(), TLS1_3_VERSION);
   const unsigned char alpn[] = {4,'e','c','h','o'};

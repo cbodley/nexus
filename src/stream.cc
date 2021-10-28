@@ -13,9 +13,9 @@ namespace detail {
 
 stream_impl::stream_impl(connection_impl& conn)
     : engine(conn.socket.engine),
-      svc(asio::use_service<service<stream_impl>>(
-            asio::query(engine.get_executor(),
-                        asio::execution::context))),
+      svc(boost::asio::use_service<service<stream_impl>>(
+            boost::asio::query(engine.get_executor(),
+                               boost::asio::execution::context))),
       conn(conn),
       state(stream_state::closed{})
 {

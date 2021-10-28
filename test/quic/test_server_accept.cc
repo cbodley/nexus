@@ -24,7 +24,7 @@ auto capture(std::optional<error_code>& out) {
 
 TEST(server, accept_wait) // accept() before a connection is received
 {
-  auto context = asio::io_context{};
+  auto context = boost::asio::io_context{};
   auto ex = context.get_executor();
   auto global = global::init_client_server();
 
@@ -32,7 +32,7 @@ TEST(server, accept_wait) // accept() before a connection is received
   auto sslc = test::init_client_context("\04test");
 
   auto server = quic::server{ex};
-  const auto localhost = asio::ip::make_address("127.0.0.1");
+  const auto localhost = boost::asio::ip::make_address("127.0.0.1");
   auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
   const auto endpoint = acceptor.local_endpoint();
   acceptor.listen(16);
@@ -60,7 +60,7 @@ TEST(server, accept_wait) // accept() before a connection is received
 
 TEST(server, accept_ready) // accept() after a connection is received
 {
-  auto context = asio::io_context{};
+  auto context = boost::asio::io_context{};
   auto ex = context.get_executor();
   auto global = global::init_client_server();
 
@@ -68,7 +68,7 @@ TEST(server, accept_ready) // accept() after a connection is received
   auto sslc = test::init_client_context("\04test");
 
   auto server = quic::server{ex};
-  const auto localhost = asio::ip::make_address("127.0.0.1");
+  const auto localhost = boost::asio::ip::make_address("127.0.0.1");
   auto acceptor = quic::acceptor{server, udp::endpoint{localhost, 0}, ssl};
   const auto endpoint = acceptor.local_endpoint();
   acceptor.listen(16);

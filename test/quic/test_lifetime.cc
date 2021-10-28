@@ -24,12 +24,12 @@ auto capture(std::optional<error_code>& ec) {
 class Lifetime : public testing::Test {
  protected:
   static constexpr const char* alpn = "\04quic";
-  asio::io_context context;
+  boost::asio::io_context context;
   global::context global = global::init_client_server();
-  asio::ssl::context ssl = test::init_server_context(alpn);
-  asio::ssl::context sslc = test::init_client_context(alpn);
+  ssl::context ssl = test::init_server_context(alpn);
+  ssl::context sslc = test::init_client_context(alpn);
   quic::server server = quic::server{context.get_executor()};
-  asio::ip::address localhost = asio::ip::make_address("127.0.0.1");
+  boost::asio::ip::address localhost = boost::asio::ip::make_address("127.0.0.1");
   quic::acceptor acceptor{server, udp::endpoint{localhost, 0}, ssl};
   quic::client client{context.get_executor(), udp::endpoint{}, sslc};
 
@@ -67,7 +67,7 @@ TEST_F(Lifetime, stream_in_read_handler)
   auto &ref = *stream;
   auto data = std::array<char, 16>{};
   std::optional<error_code> read_ec;
-  ref.async_read_some(asio::buffer(data),
+  ref.async_read_some(boost::asio::buffer(data),
     [&read_ec, s=std::move(stream)] (error_code ec, size_t) {
       read_ec = ec;
     });

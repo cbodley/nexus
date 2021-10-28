@@ -47,6 +47,6 @@ namespace SYSTEM_ERROR_NAMESPACE {
 
 /// enables implicit conversion to std::error_condition
 template <>
-struct is_error_condition_enum<nexus::h3::error> : public true_type {};
+struct is_error_condition_enum<nexus::h3::error> : public std::true_type {};
 
 } // namespace SYSTEM_ERROR_NAMESPACE
