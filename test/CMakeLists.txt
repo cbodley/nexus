@@ -1,8 +1,8 @@
-add_subdirectory(dependency)
+find_package(GTest REQUIRED)
 
 add_library(test_base certificate.cc)
 target_include_directories(test_base PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(test_base PUBLIC nexus gtest gtest_main)
+target_link_libraries(test_base PUBLIC nexus GTest::gtest GTest::gtest_main)
 
 function(add_unit_test target)
 	add_executable(${target} ${ARGN})

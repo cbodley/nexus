@@ -4,9 +4,6 @@
 [submodule "dependency/lsquic"]
 	path = dependency/lsquic
 	url = https://github.com/litespeedtech/lsquic
-[submodule "test/dependency/googletest"]
-	path = test/dependency/googletest
-	url = https://github.com/google/googletest.git
 [submodule "docs"]
 	path = doc/html
 	url = git@github.com:cbodley/nexus.git

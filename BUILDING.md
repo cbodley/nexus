@@ -8,13 +8,13 @@
 * zlib
 * googletest for tests
 
-BoringSSL, lsquic, asio and googletest are included as git submodules, which must be initialized before building:
+BoringSSL and lsquic are included as git submodules, which must be initialized before building:
 
 	~/nexus $ git submodule update --init --recursive
 
-The zlib dependency must be installed manually. For example, on Fedora:
+The boost, gtest and zlib dependencies must be installed manually. For example, on Fedora:
 
-	~/nexus $ sudo dnf install boost-devel zlib-devel
+	~/nexus $ sudo dnf install boost-devel gtest-devel zlib-devel
 
 ## Building
 
