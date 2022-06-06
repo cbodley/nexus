@@ -99,7 +99,7 @@ Once a generic QUIC stream (`class nexus::quic::stream`) has been connected or a
 
 For reads and writes, `nexus::quic::stream` models the asio concepts `AsyncReadStream`, `AsyncWriteStream`, `SyncReadStream` and `SyncWriteStream`, so can be used with the same read and write algorithms as `boost::asio::ip::tcp::socket`:
 
-	char request[16]; // read 16 bytes from the stream
+	char data[16]; // read 16 bytes from the stream
 	auto bytes = boost::asio::read(stream, boost::asio::buffer(data));
 
 The stream can be closed in one or both directions with `nexus::quic::stream::shutdown()` and `nexus::quic::stream::close()`.
