@@ -88,7 +88,7 @@ struct echo_stream {
   std::array<char, 1024> buffer;
 
   explicit echo_stream(connection_ptr conn)
-      : conn(std::move(conn)), stream(conn->conn) {}
+      : conn(std::move(conn)), stream(this->conn->conn) {}
 };
 
 void on_stream_write(std::unique_ptr<echo_stream> s,
