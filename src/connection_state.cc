@@ -58,11 +58,11 @@ udp::endpoint remote_endpoint(const variant& state, error_code& ec)
   return remote;
 }
 
-void on_connect(variant& state, lsquic_conn* handle)
+void on_connect(variant& state, incoming_connection&& conn)
 {
-  assert(handle);
+  assert( conn.handle);
   assert(std::holds_alternative<closed>(state));
-  state.emplace<open>(*handle);
+  state.emplace<open>(std::move(conn));
 }
 
 void on_handshake(variant& state, int status)
@@ -97,16 +97,16 @@ void accept_incoming(variant& state, incoming_connection&& incoming)
 {
   assert(std::holds_alternative<closed>(state));
   assert(incoming.handle);
-  auto& o = state.emplace<open>(*incoming.handle);
-  o.incoming_streams = std::move(incoming.incoming_streams);
+  state.emplace<open>( std::move(incoming) );
+  
 }
 
-void on_accept(variant& state, lsquic_conn* handle)
+void on_accept(variant& state, incoming_connection&& conn )
 {
-  assert(handle);
+  assert(conn.handle);
   assert(std::holds_alternative<accepting>(state));
   std::get_if<accepting>(&state)->op->defer(error_code{}); // success
-  state.emplace<open>(*handle);
+  state.emplace<open>(std::move(conn));
 }
 
 bool stream_connect(variant& state, stream_connect_operation& op)

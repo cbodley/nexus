@@ -184,7 +184,9 @@ void on_read_body(variant& state, lsquic_stream* handle)
   auto& b = *std::get_if<body>(&state);
   error_code ec;
   auto bytes = ::lsquic_stream_readv(handle, b.op->iovs, b.op->num_iovs);
-  if (bytes == -1) {
+  if(bytes == 0)
+  {ec = make_error_code(stream_error::eof); }
+  else if (bytes == -1) {
     bytes = 0;
     ec.assign(errno, system_category());
   }
