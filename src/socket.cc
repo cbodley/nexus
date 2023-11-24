@@ -89,7 +89,7 @@ void socket_impl::connect(connection_impl& c,
 
 void socket_impl::on_connect(connection_impl& c, lsquic_conn_t* conn)
 {
-  connection_state::on_connect(c.state, conn);
+  connection_state::on_connect(c.state, incoming_connection{conn,engine.max_streams_per_connection});
   open_connections.push_back(c);
 }
 
@@ -128,7 +128,7 @@ connection_context* socket_impl::on_accept(lsquic_conn_t* conn)
   auto& c = accepting_connections.front();
   list_transfer(c, accepting_connections, open_connections);
 
-  connection_state::on_accept(c.state, conn);
+  connection_state::on_accept(c.state, incoming_connection{conn,engine.max_streams_per_connection});
   return &c;
 }
 
